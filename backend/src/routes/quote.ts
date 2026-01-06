@@ -25,6 +25,10 @@ const NATIVE_TOKEN_USD: Record<string, number> = {
   BNB: 600,
   POL: 0.50,
   xDAI: 1,
+  tBNB: 600, // BSC Testnet
+  BERA: 5, // Berachain (testnet estimate)
+  XPL: 1, // Plasma (testnet estimate)
+  MNT: 0.80, // Mantle
 };
 
 function calculateServiceFee(

@@ -219,6 +219,18 @@ test_chain "bsc_testnet" "https://bsc-testnet-rpc.publicnode.com"
 test_chain "polygon_amoy" "https://rpc-amoy.polygon.technology"
 test_chain "gnosis_chiado" "https://rpc.chiadochain.net"
 test_chain "unichain_sepolia" "https://sepolia.unichain.org"
+test_chain "berachain_bepolia" "https://bepolia.rpc.berachain.com"
+test_chain "plasma_testnet" "https://testnet-rpc.plasma.to"
+test_chain "mantle_sepolia" "https://rpc.sepolia.mantle.xyz"
+
+# Superchain testnets (EIP-7702 via Isthmus hardfork)
+test_chain "ink_sepolia" "https://rpc-gel-sepolia.inkonchain.com"
+test_chain "mode_sepolia" "https://sepolia.mode.network"
+test_chain "zora_sepolia" "https://sepolia.rpc.zora.energy"
+test_chain "soneium_minato" "https://rpc.minato.soneium.org"
+test_chain "metal_testnet" "https://testnet.rpc.metall2.com"
+test_chain "lisk_sepolia" "https://rpc.sepolia-api.lisk.com"
+test_chain "worldchain_sepolia" "https://worldchain-sepolia.g.alchemy.com/public"
 
 # Print summary
 echo ""

@@ -48,12 +48,50 @@ These properties must NEVER be violated:
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| **M1: Smart Contract** | ✅ COMPLETE | Deployed & E2E verified on all 8 testnets |
+| **M1: Smart Contract** | ✅ COMPLETE | Deployed & E2E verified on 14 testnets |
 | M2: Backend/Relayer | 🔜 Next | Ready to start |
 | M3: SDK | ⏳ Pending | Depends on M2 |
 | M4: Frontend | ⏳ Pending | Depends on M3 |
 | M5: Testing & QA | ⏳ Pending | |
 | M6: Audit & Launch | ⏳ Pending | |
+
+### 📋 PENDING WORK (Continue from here)
+
+**Last Updated: January 6, 2026**
+
+#### Chains Pending Deployment & E2E Testing:
+These chains need testnet funds to deploy the contract:
+
+| Chain | Chain ID | Faucet/Bridge | RPC URL |
+|-------|----------|---------------|---------|
+| Zora Sepolia | 999999999 | https://testnet.zora.energy/ | https://sepolia.rpc.zora.energy |
+| Metal L2 Testnet | 1740 | Bridge from Sepolia | https://testnet.rpc.metall2.com |
+| Lisk Sepolia | 4202 | https://sepolia-faucet.lisk.com/ | https://rpc.sepolia-api.lisk.com |
+| Plasma Testnet | 9746 | https://faucet.plasma.to/ | https://testnet-rpc.plasma.to |
+
+**Deployer Address:** `0x16c9af121C797A56902170a7f808eDF1a857ED49`
+
+**Deployment Command (once funded):**
+```bash
+cd /Users/dev/zerodust/contracts
+source .env
+forge script script/Deploy.s.sol:Deploy --rpc-url "<RPC_URL>" --broadcast -vvvv
+```
+
+**Verification APIs (use trailing slash for blockscout):**
+| Chain | Verifier URL |
+|-------|--------------|
+| Zora | `https://sepolia.explorer.zora.energy/api/` |
+| Metal | `https://testnet.explorer.metall2.com/api/` |
+| Lisk | `https://sepolia-blockscout.lisk.com/api/` |
+| Plasma | `https://testnet-explorer.plasma.to/api/` |
+
+#### Backend (M2) Status:
+- ✅ Basic structure created in `/backend`
+- ✅ All 18 chains configured in `backend/src/config/chains.ts`
+- ✅ Supabase schema ready in `backend/supabase/schema.sql`
+- ⏳ Backend not fully tested (pino-pretty issue was fixed)
+- ⏳ Relayer worker not implemented yet
 
 ### Contract Deployment (Deterministic Address via CREATE2)
 
@@ -69,6 +107,16 @@ These properties must NEVER be violated:
 | Polygon Amoy | 80002 | ✅ | [View](https://amoy.polygonscan.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | Gnosis Chiado | 10200 | ✅ | [View](https://gnosis-chiado.blockscout.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | Unichain Sepolia | 1301 | ✅ | [View](https://sepolia.uniscan.xyz/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Berachain Bepolia | 80069 | ✅ | [View](https://bepolia.beratrail.io/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Plasma Testnet | 9746 | ⏳ Pending | [View](https://testnet-explorer.plasma.to/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Mantle Sepolia | 5003 | ✅ | [View](https://sepolia.mantlescan.xyz/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Ink Sepolia | 763373 | ✅ | [View](https://explorer-sepolia.inkonchain.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Mode Sepolia | 919 | ✅ | [View](https://sepolia.explorer.mode.network/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Zora Sepolia | 999999999 | ⏳ Pending | [View](https://sepolia.explorer.zora.energy/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Soneium Minato | 1946 | ✅ | [View](https://explorer-testnet.soneium.org/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Metal L2 Testnet | 1740 | ⏳ Pending | [View](https://testnet.explorer.metall2.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Lisk Sepolia | 4202 | ⏳ Pending | [View](https://sepolia-blockscout.lisk.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| World Chain Sepolia | 4801 | ✅ | [View](https://worldchain-sepolia.explorer.alchemy.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 
 ### 🚨 BSC Chain-Specific Requirements
 
@@ -111,6 +159,35 @@ const tx = await walletClient.sendTransaction({
 - `contracts/script/e2e-test.sh` - Works for all chains EXCEPT BSC
 - `contracts/script/e2e-all-chains.sh` - Multi-chain runner (BSC will show TX_FAILED)
 
+### 🚨 Chain-Specific Notes for Mainnet
+
+**CRITICAL: Review these before mainnet deployment**
+
+| Chain | Special Consideration | Action Required |
+|-------|----------------------|-----------------|
+| **BSC** | `baseFeePerGas: 0` breaks Foundry | Use viem with explicit gas params |
+| **Monad** | 10 MON balance floor for EIP-7702 delegated EOAs | **DO NOT SUPPORT** - breaks "sweep to zero" promise |
+| **Superchain (OP Stack)** | Isthmus hardfork enabled EIP-7702 | Standard implementation works |
+| **Berachain** | Standard EIP-7702 | No special handling needed |
+| **Mantle** | Standard EIP-7702 | No special handling needed |
+
+### ⚠️ Relayer Implementation Notes
+
+1. **Transaction Timing**: Always wait for funding confirmation before executing sweep
+   - Race condition discovered: If sweep executes before funding confirms, it sweeps 0 and user keeps funds
+   - Solution: Verify non-zero balance before creating authorization
+
+2. **Gas Price Handling**: Some chains have unusual gas pricing
+   - BSC: `baseFeePerGas: 0` requires explicit `maxFeePerGas` and `maxPriorityFeePerGas`
+   - L2s: Generally very low gas, but verify before mainnet
+
+3. **RPC Reliability**: Use multiple RPC providers per chain for redundancy
+   - Public RPCs may rate limit or have downtime
+   - Critical for mainnet: dedicated RPC endpoints
+
+4. **Domain Separator**: Each chain has unique DOMAIN_SEPARATOR (includes chainId)
+   - Signatures are chain-specific and cannot be replayed cross-chain
+
 ### E2E Test Scripts
 
 | Script | Purpose | Chains |
@@ -121,7 +198,7 @@ const tx = await walletClient.sendTransaction({
 
 ### Test Results Summary
 
-All 8 testnets have verified E2E sweep transactions where user balance goes to exactly **0**:
+All verified testnets (14 total, 10 E2E tested) have confirmed sweep transactions where user balance goes to exactly **0**:
 - Contract correctly verifies EIP-712 signatures
 - EIP-7702 delegation works on all chains
 - Relayer compensation is correctly deducted
