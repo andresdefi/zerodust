@@ -1,5 +1,15 @@
 # Claude.md - AI Development Guidelines for ZeroDust
 
+## Repository Structure
+
+**This repository (`zerodust`) contains:**
+- Smart contracts (`/contracts`)
+- SDK (when built, `/sdk`)
+- Documentation
+
+**Related repositories:**
+- [zerodust-backend](https://github.com/zerodustxyz/zerodust-backend) (private) - Backend/relayer service
+
 ## System Understanding
 
 ### What ZeroDust Is
@@ -48,7 +58,7 @@ These properties must NEVER be violated:
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| **M1: Smart Contract** | ✅ COMPLETE | Deployed & E2E verified on 14 testnets |
+| **M1: Smart Contract** | ✅ COMPLETE | Deployed & E2E verified on 16 testnets |
 | M2: Backend/Relayer | 🔜 Next | Ready to start |
 | M3: SDK | ⏳ Pending | Depends on M2 |
 | M4: Frontend | ⏳ Pending | Depends on M3 |
@@ -60,14 +70,10 @@ These properties must NEVER be violated:
 **Last Updated: January 6, 2026**
 
 #### Chains Pending Deployment & E2E Testing:
-These chains need testnet funds to deploy the contract:
 
-| Chain | Chain ID | Faucet/Bridge | RPC URL |
-|-------|----------|---------------|---------|
-| Zora Sepolia | 999999999 | https://testnet.zora.energy/ | https://sepolia.rpc.zora.energy |
-| Metal L2 Testnet | 1740 | Bridge from Sepolia | https://testnet.rpc.metall2.com |
-| Lisk Sepolia | 4202 | https://sepolia-faucet.lisk.com/ | https://rpc.sepolia-api.lisk.com |
-| Plasma Testnet | 9746 | https://faucet.plasma.to/ | https://testnet-rpc.plasma.to |
+| Chain | Chain ID | Faucet/Bridge | Status |
+|-------|----------|---------------|--------|
+| Plasma Testnet | 9746 | https://faucet.plasma.to/ | ⏳ Needs faucet funds |
 
 **Deployer Address:** `0x16c9af121C797A56902170a7f808eDF1a857ED49`
 
@@ -78,19 +84,11 @@ source .env
 forge script script/Deploy.s.sol:Deploy --rpc-url "<RPC_URL>" --broadcast -vvvv
 ```
 
-**Verification APIs (use trailing slash for blockscout):**
-| Chain | Verifier URL |
-|-------|--------------|
-| Zora | `https://sepolia.explorer.zora.energy/api/` |
-| Metal | `https://testnet.explorer.metall2.com/api/` |
-| Lisk | `https://sepolia-blockscout.lisk.com/api/` |
-| Plasma | `https://testnet-explorer.plasma.to/api/` |
-
 #### Backend (M2) Status:
-- ✅ Basic structure created in `/backend`
-- ✅ All 18 chains configured in `backend/src/config/chains.ts`
-- ✅ Supabase schema ready in `backend/supabase/schema.sql`
-- ⏳ Backend not fully tested (pino-pretty issue was fixed)
+- ✅ Backend moved to private repo: [zerodust-backend](https://github.com/zerodustxyz/zerodust-backend)
+- ✅ Basic structure with 19 chains configured
+- ✅ Supabase schema ready
+- ⏳ Backend not fully tested
 - ⏳ Relayer worker not implemented yet
 
 ### Contract Deployment (Deterministic Address via CREATE2)
@@ -112,10 +110,10 @@ forge script script/Deploy.s.sol:Deploy --rpc-url "<RPC_URL>" --broadcast -vvvv
 | Mantle Sepolia | 5003 | ✅ | [View](https://sepolia.mantlescan.xyz/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | Ink Sepolia | 763373 | ✅ | [View](https://explorer-sepolia.inkonchain.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | Mode Sepolia | 919 | ✅ | [View](https://sepolia.explorer.mode.network/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
-| Zora Sepolia | 999999999 | ⏳ Pending | [View](https://sepolia.explorer.zora.energy/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Zora Sepolia | 999999999 | ✅ | [View](https://sepolia.explorer.zora.energy/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | Soneium Minato | 1946 | ✅ | [View](https://explorer-testnet.soneium.org/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
-| Metal L2 Testnet | 1740 | ⏳ Pending | [View](https://testnet.explorer.metall2.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
-| Lisk Sepolia | 4202 | ⏳ Pending | [View](https://sepolia-blockscout.lisk.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Metal L2 Testnet | 1740 | ✅ | [View](https://testnet.explorer.metall2.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Lisk Sepolia | 4202 | ✅ | [View](https://sepolia-blockscout.lisk.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 | World Chain Sepolia | 4801 | ✅ | [View](https://worldchain-sepolia.explorer.alchemy.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
 
 ### 🚨 BSC Chain-Specific Requirements
@@ -170,6 +168,45 @@ const tx = await walletClient.sendTransaction({
 | **Superchain (OP Stack)** | Isthmus hardfork enabled EIP-7702 | Standard implementation works |
 | **Berachain** | Standard EIP-7702 | No special handling needed |
 | **Mantle** | Standard EIP-7702 | No special handling needed |
+| **Lisk** | Foundry test addresses have pre-deployed smart wallets | Use random addresses for testing, see below |
+
+### 🚨 Lisk Sepolia-Specific Notes
+
+**Discovered during E2E testing on January 6, 2026:**
+
+#### Issue 1: Foundry Hardhat Addresses Have Pre-Deployed Smart Wallets
+
+On Lisk Sepolia, common test addresses (like `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`) have EIP-7702 delegation code pre-deployed pointing to a passkey/smart wallet contract:
+
+```
+Code: 0xef01006bd9b71559e3b2013596726a4e2ca1ee97189606
+Delegation target: 0x6bd9b71559e3b2013596726a4e2ca1ee97189606
+```
+
+**Impact:** ETH sent to these addresses is handled by the smart wallet contract, not credited as normal balance.
+
+**Solution:** Use randomly generated addresses for E2E testing on Lisk:
+```bash
+RANDOM_PK="0x$(openssl rand -hex 32)"
+RANDOM_ADDR=$(cast wallet address --private-key $RANDOM_PK)
+```
+
+#### Issue 2: EIP-7702 Nonce Storage Location
+
+With EIP-7702, when the contract code runs on the USER's address:
+- State changes (like `usedNonces[user][nonce] = true`) are written to the USER's storage, not the contract's storage
+- VIEW functions (`isNonceUsed`, `getNextNonce`) read from the CONTRACT's storage, showing stale/zero data
+
+**Impact:**
+- `isNonceUsed(user, 0)` returns `false` even after nonce 0 is used
+- `getNextNonce(user)` always returns `0`
+
+**But security is maintained:** When `executeSweep` runs via EIP-7702 on the user's address, it correctly reads from the user's storage and will revert with `NonceAlreadyUsed` if the nonce was already used.
+
+**Backend/Frontend Implication:**
+- Do NOT rely on `getNextNonce()` for nonce tracking
+- Track nonces in the database per-user per-chain (already planned)
+- The contract's VIEW functions are decorative, not reliable for EIP-7702 users
 
 ### ⚠️ Relayer Implementation Notes
 
