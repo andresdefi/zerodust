@@ -183,3 +183,13 @@ Thumbs.db
 # ===================
 .vercel
 .turbo
+
+# ===================
+# Local-only AI/Dev Files
+# ===================
+# These files contain development guidelines and status tracking
+# They should exist locally but not be committed to the repository
+CLAUDE.md
+Claude.md
+Plan.md
+Milestones.md
