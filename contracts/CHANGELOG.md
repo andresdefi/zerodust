@@ -439,19 +439,84 @@ ZeroDustSweepV2 underwent 7 rounds of advisor review:
 
 **V1:** Deployed on 45 testnets at `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (with exceptions for Cronos, XRPL EVM, and Arc).
 
-**V2 Sepolia (January 8, 2026):**
+**V2 Sepolia - REAL Cross-Chain Verified (January 8, 2026):**
 
-| Contract | Address | E2E Verified |
-|----------|---------|--------------|
-| ZeroDustSweepV2 | `0x873EA974fF6e0Dd68a5cA1db7eFfc4A0A781a32D` | ✅ |
-| MockAdapter | `0xdd7Eb781200bA886cBE3c9C0ed80CE587c39724c` | ✅ |
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| ZeroDustSweepV2 | `0xC55A663941140c81E53193f08B1Db50c9F116e5b` | Main V2 contract |
+| OPStackAdapter | `0x9C2f130060Ff97C948377C1eD93dBfac3581b56F` | Real bridge (→ Base Sepolia) |
+| MockAdapter | `0x1575bfcA866807569B5260546C0Ac81912637f38` | Testing adapter |
 
-Both same-chain and cross-chain (mocked) E2E tests pass successfully.
+**All 3 Sweep Cases Verified ✅:**
+
+| Case | Type | Source | Destination | Result | TX |
+|------|------|--------|-------------|--------|-----|
+| 1 | Same-chain, diff addr | Sepolia | Sepolia | **0 wei** ✅ | `0xd8d7...` |
+| 2 | Cross-chain, same addr | Sepolia | Base Sepolia | **0 wei** ✅ | `0x178d...` |
+| 3 | Cross-chain, diff addr | Sepolia | Base Sepolia | **0 wei** ✅ | `0x6f62...` |
+
+Cross-chain funds verified received on Base Sepolia (15,000,000,000,000 wei each).
 
 **Next Steps:**
-1. Deploy BungeeAdapter for real cross-chain routing
-2. Deploy V2 to additional testnets with real adapters
+1. Deploy BungeeAdapter for mainnet cross-chain routing
+2. Backend integration with V2 contracts
 3. Mainnet deployment after audit
+
+---
+
+## OPStackAdapter.sol
+
+### Why This Adapter Was Created
+
+Bungee doesn't support testnets, so we needed a real bridge adapter for testnet cross-chain testing. The OP Stack native bridge (L1StandardBridge) provides:
+- Real cross-chain bridging on testnets
+- No third-party dependency
+- Fast L1→L2 (~2-10 minutes)
+- 1:1 transfer (no slippage)
+
+### Architecture
+
+```
+Sepolia (L1)                          Base Sepolia (L2)
+┌─────────────────┐                   ┌─────────────────┐
+│ OPStackAdapter  │                   │                 │
+│       ↓         │                   │                 │
+│ L1StandardBridge│ ──── bridge ────► │ L2StandardBridge│
+│ depositETHTo()  │                   │ (receives ETH)  │
+└─────────────────┘                   └─────────────────┘
+```
+
+### L1StandardBridge Addresses
+
+| L2 Chain | L1StandardBridge on Sepolia |
+|----------|----------------------------|
+| Base Sepolia | `0xfd0Bf71F60660E2f608ed56e1659C450eB113120` |
+| Optimism Sepolia | TBD |
+| Mode Sepolia | TBD |
+
+### Key Implementation Details
+
+```solidity
+// OPStackAdapter stores bridge address and destination chain as immutables
+constructor(address _l1StandardBridge, uint256 _destinationChain) {
+    l1StandardBridge = _l1StandardBridge;
+    destinationChain = _destinationChain;
+}
+
+// Calls L1StandardBridge.depositETHTo()
+function executeNativeBridge(...) external payable {
+    l1StandardBridge.call{value: msg.value}(
+        abi.encodeWithSelector(
+            bytes4(0x9a2ac6d5), // depositETHTo
+            _destination,
+            MIN_GAS_LIMIT,
+            ""
+        )
+    );
+}
+```
+
+**Note:** Each OP Stack L2 requires its own OPStackAdapter instance (different bridge addresses).
 
 ---
 

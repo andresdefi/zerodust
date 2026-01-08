@@ -16,12 +16,12 @@ The original sweep contract for same-chain transfers.
 
 Complete rewrite with cross-chain support and enhanced security. See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
 
-**Deployed Address (Sepolia):** `0x873EA974fF6e0Dd68a5cA1db7eFfc4A0A781a32D`
+**Latest Deployment (Sepolia with Real Cross-Chain):** `0xC55A663941140c81E53193f08B1Db50c9F116e5b`
 
-**Status:** Deployed and E2E verified on Sepolia testnet (January 8, 2026)
+**Status:** ✅ **ALL 3 SWEEP CASES VERIFIED** with real cross-chain bridging (January 8, 2026)
 
 **Key Improvements:**
-- Cross-chain sweeps via bridge adapters (Bungee Auto)
+- Cross-chain sweeps via bridge adapters (OP Stack, Bungee Auto)
 - ERC-7201 namespaced storage (prevents slot collisions)
 - Zero balance post-condition enforcement
 - Low-s signature malleability protection
@@ -30,18 +30,24 @@ Complete rewrite with cross-chain support and enhanced security. See [CHANGELOG.
 - Separate same-chain vs cross-chain functions
 - Custom errors for better debugging
 
-**Supported Sweep Cases:**
-1. Cross-chain, same address: `(chain A, addr U) → (chain B, addr U)`
-2. Cross-chain, different address: `(chain A, addr U) → (chain B, addr V)`
-3. Same-chain, different address: `(chain A, addr U) → (chain A, addr V)`
+**Supported Sweep Cases (All Verified ✅):**
+1. Same-chain, different address: `(chain A, addr U) → (chain A, addr V)` ✅
+2. Cross-chain, same address: `(chain A, addr U) → (chain B, addr U)` ✅
+3. Cross-chain, different address: `(chain A, addr U) → (chain B, addr V)` ✅
 
 **Post-Condition (enforced):** Source balance = exactly 0 wei
 
+### OPStackAdapter.sol - NEW (Real Cross-Chain)
+
+Bridge adapter for OP Stack native bridges (L1StandardBridge). Used for real cross-chain sweeps on testnets.
+
+**Deployed Address (Sepolia → Base Sepolia):** `0x9C2f130060Ff97C948377C1eD93dBfac3581b56F`
+
 ### MockAdapter.sol - NEW (Testing Only)
 
-Test adapter for E2E testing cross-chain flows without real bridge.
+Test adapter for E2E testing same-chain flows.
 
-**Deployed Address (Sepolia):** `0xdd7Eb781200bA886cBE3c9C0ed80CE587c39724c`
+**Deployed Address (Sepolia):** `0x1575bfcA866807569B5260546C0Ac81912637f38`
 
 ### IZeroDustAdapter.sol - NEW
 
@@ -187,7 +193,40 @@ source .env && forge script script/Deploy.s.sol:Deploy \
 
 ## E2E Testing
 
-### Run E2E tests on testnets
+### V2 Real Cross-Chain Test Results (January 8, 2026)
+
+**All 3 sweep cases verified with real cross-chain bridging via OP Stack native bridge:**
+
+| Case | Type | Source (Sepolia) | Destination | Final Source Balance | TX |
+|------|------|------------------|-------------|---------------------|-----|
+| 1 | Same-chain, diff addr | `0x4DBE...6f` | `0x16c9...49` (Sepolia) | **0 wei** ✅ | [View](https://sepolia.etherscan.io/tx/0xd8d73fbd308546af37e348bdbef8bca2d36681e8e0eac6728e7eb2573caea298) |
+| 2 | Cross-chain, same addr | `0xf868...b8` | `0xf868...b8` (Base Sepolia) | **0 wei** ✅ | [View](https://sepolia.etherscan.io/tx/0x178dba09cdade71e0e9f4e8746180d3db96a143f71639f63adfdbf8679fd67b6) |
+| 3 | Cross-chain, diff addr | `0x60cE...03` | `0x16c9...49` (Base Sepolia) | **0 wei** ✅ | [View](https://sepolia.etherscan.io/tx/0x6f62c72e4b871a65a87945aec3de1e9bdba6e7d41bb1507aef40dbfab4c1a210) |
+
+**Cross-chain funds verified received on Base Sepolia:**
+- Case 2: `0xf868718B8b06D2a97B92d11E43f9ABe7E23B9Db8` received 15,000,000,000,000 wei
+- Case 3: `0x16c9af121C797A56902170a7f808eDF1a857ED49` received 15,000,000,000,000 wei
+
+**V2 Deployed Contracts (Sepolia):**
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| ZeroDustSweepV2 | `0xC55A663941140c81E53193f08B1Db50c9F116e5b` | Main V2 contract |
+| OPStackAdapter | `0x9C2f130060Ff97C948377C1eD93dBfac3581b56F` | Real bridge (Sepolia → Base Sepolia) |
+| MockAdapter | `0x1575bfcA866807569B5260546C0Ac81912637f38` | Testing adapter |
+
+### Run V2 E2E tests
+
+**Real cross-chain (Sepolia → Base Sepolia):**
+```bash
+export RELAYER_PRIVATE_KEY=0x...
+export SWEEP_V2_CONTRACT=0xC55A663941140c81E53193f08B1Db50c9F116e5b
+export OP_STACK_ADAPTER=0x9C2f130060Ff97C948377C1eD93dBfac3581b56F
+
+./script/e2e-test-real-crosschain.sh
+```
+
+### V1 E2E Testing (Same-Chain Only)
 
 **For most chains:**
 ```bash
@@ -206,7 +245,7 @@ export PRIVATE_KEY=0x...  # Relayer wallet
 node script/bsc-e2e-test.mjs
 ```
 
-### Multi-chain E2E test
+### Multi-chain E2E test (V1)
 ```bash
 export PRIVATE_KEY=0x...
 ./script/e2e-all-chains.sh
