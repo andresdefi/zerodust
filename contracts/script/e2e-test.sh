@@ -45,8 +45,8 @@ if [ -z "$RPC_URL" ]; then
     echo -e "${YELLOW}Using default RPC: $RPC_URL${NC}"
 fi
 
-# Contract address (same on all chains via CREATE2)
-SWEEP_CONTRACT="0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC"
+# Contract address (same on all chains via CREATE2, unless overridden)
+SWEEP_CONTRACT=${SWEEP_CONTRACT:-"0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC"}
 
 # Derive addresses from private keys
 USER_ADDRESS=$(cast wallet address --private-key $USER_PRIVATE_KEY)

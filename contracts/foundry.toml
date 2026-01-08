@@ -5,7 +5,7 @@ libs = ["lib"]
 solc = "0.8.28"
 optimizer = true
 optimizer_runs = 10000
-via_ir = false
+via_ir = true
 evm_version = "cancun"
 
 # Testing
@@ -22,7 +22,7 @@ quote_style = "double"
 number_underscore = "thousands"
 
 # Gas reporting
-gas_reports = ["ZeroDustSweep"]
+gas_reports = ["ZeroDustSweep", "ZeroDustSweepV2"]
 
 [profile.ci]
 fuzz = { runs = 10000 }
