@@ -69,20 +69,22 @@ interface IZeroDustAdapter {
 }
 ```
 
-### BungeeAdapter.sol - NEW
+### UniversalOPStackAdapter.sol - NEW (Testnet)
 
-Bridge adapter for Bungee Auto (auction-based cross-chain bridging).
+Single adapter supporting 15 OP Stack L2 destinations from Sepolia for testnet cross-chain sweeps.
 
-**BungeeInbox Addresses (Mainnet):**
+**Deployed Address (Sepolia):** `0xC0773F9a0Ab3886b2c3C92bb12e2c1d76bea43da`
 
-| Chain | Address |
-|-------|---------|
-| Ethereum | `0x92612711D4d07dEbe4964D4d1401D7d7B5a11737` |
-| Arbitrum | `0xA3BF43451CdEb6DEC588B8833838fC419CE4F54c` |
-| Base | `0x3C54883Ce0d86b3abB26A63744bEb853Ea99a403` |
-| Optimism | `0x78255f1DeE074fb7084Ee124058A058dE0B1C251` |
-| Polygon | `0xFEfFE1D89542C111845648a107811Fb272EaE0Da` |
-| BSC | `0x002cd45978F556D817e5FBB4020f7Dd82Bb10941` |
+### Cross-Chain Bridge Integration (Mainnet)
+
+For mainnet cross-chain sweeps, ZeroDust integrates with [Gas.zip](https://gas.zip):
+
+| Feature | Details |
+|---------|---------|
+| Chains | 239+ supported |
+| Speed | ~5 seconds |
+| Fees | Near-zero (destination gas only) |
+| Contract | `0x2a37D63EAdFe4b4682a3c28C1c2cD4F109Cc2762` |
 
 ## Development
 
