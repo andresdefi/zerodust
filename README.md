@@ -42,7 +42,7 @@ The Problem:
 
 ## Supported Chains
 
-All chains with EIP-7702 support (44 testnets verified, mainnets pending):
+All chains with EIP-7702 support (46 testnets verified, mainnets pending):
 
 | Chain | Native Token | Status |
 |-------|--------------|--------|
@@ -53,7 +53,7 @@ All chains with EIP-7702 support (44 testnets verified, mainnets pending):
 | Polygon | POL | Testnet |
 | BSC | BNB | Testnet |
 | Gnosis | xDAI | Testnet |
-| + 37 more | Various | Testnet |
+| + 39 more | Various | Testnet |
 
 See [contracts/README.md](./contracts/README.md) for full deployment list.
 
@@ -64,17 +64,13 @@ zerodust/
 ├── contracts/          # Smart contracts (Foundry)
 │   ├── src/
 │   │   ├── ZeroDustSweep.sol      # V1 (same-chain)
-│   │   ├── ZeroDustSweepV2.sol    # V2 (cross-chain) - NEW
+│   │   ├── ZeroDustSweepV2.sol    # V2 (cross-chain)
 │   │   ├── interfaces/
 │   │   │   └── IZeroDustAdapter.sol
-│   │   └── adapters/
-│   │       └── BungeeAdapter.sol   # Bungee Auto integration
+│   │   └── adapters/              # Pluggable bridge adapters
 │   └── test/
 └── docs/
 ```
-
-**Related Repositories:**
-- [zerodust-backend](https://github.com/zerodustxyz/zerodust-backend) (private) - API & Relayer service
 
 ## Architecture
 
@@ -100,7 +96,8 @@ zerodust/
                                       │
                                       ▼
                         ┌─────────────────────────┐
-                        │     BungeeAdapter       │
+                        │     Bridge Adapter      │
+                        │   (IZeroDustAdapter)    │
                         │                         │
                         │  executeNativeBridge()  │
                         │          │              │
@@ -108,8 +105,9 @@ zerodust/
                                    │
                                    ▼
                         ┌─────────────────────────┐
-                        │     BungeeInbox         │
-                        │  (Solver Auction)       │
+                        │   External Bridge       │
+                        │   (Gas.zip, OP Stack,   │
+                        │    or other bridges)    │
                         │                         │
                         │  Delivers funds on      │
                         │  destination chain      │
@@ -142,51 +140,41 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Milestone 1: Smart Contract - COMPLETE**
+**Smart Contract: COMPLETE** - V1 deployed on 46 testnets, V2 ready for cross-chain
 
-| Milestone | Status | Description |
-|-----------|--------|-------------|
-| M1: Smart Contract | ✅ Complete | V1 deployed on 44 testnets, V2 ready |
-| M2: Backend/Relayer | 🔜 Next | API structure ready, relayer pending |
-| M3: SDK | ⏳ Pending | TypeScript SDK for integrators |
-| M4: Frontend | ⏳ Pending | Web application |
-| M5: Testing & QA | ⏳ Pending | Integration testing |
-| M6: Audit & Launch | ⏳ Pending | External audit, mainnet launch |
-
-### Contract Progress
+### Contract Versions
 
 | Version | Status | Features |
 |---------|--------|----------|
-| V1 (ZeroDustSweep) | Deployed (44 testnets) | Same-chain sweeps |
+| V1 (ZeroDustSweep) | Deployed (46 testnets) | Same-chain sweeps |
 | V2 (ZeroDustSweepV2) | Ready | Cross-chain via adapters, enhanced security |
-| BungeeAdapter | Ready | Bungee Auto integration |
 
 ### Testnet Deployments (V1)
 
 **Contract Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC`
 
-- 44 testnets deployed and E2E verified
-- 36 chains confirmed NOT supporting EIP-7702
-- 80 chains tested total
+- 46 testnets deployed and E2E verified
+- 39 testnets confirmed NOT supporting EIP-7702
+- 86 chains tested total
 
 See [contracts/README.md](./contracts/README.md) for full list.
 
-### Chains NOT Supporting EIP-7702
+### Testnets NOT Supporting EIP-7702
 
-Abstract, Lens, MegaETH, opBNB, Avalanche, Swell, Cyber, Boba, Metis, Fuse, Aurora, Flare, Vana, Corn, Rootstock, Apechain, IoTeX, Viction, XDC, Telos, Kava, EDU Chain, Gravity, Manta Pacific, Lightlink, Moonbase, Nibiru, Somnia, Rari, Blast, Xai, B3, Mezo, Chiliz, HashKey, Memecore
+The following testnets were tested and do not support EIP-7702:
 
-## Bridge Integration
+Abstract, Lens, zkSync, Taiko, MegaETH, opBNB, Avalanche, Swell, Cyber, Boba, Metis, Fuse, Aurora, Flare, Vana, Corn, Rootstock, Apechain, IoTeX, Viction, XDC, Telos, Kava, EDU Chain, Gravity, Manta Pacific, Lightlink, Moonbase, Nibiru, Somnia, Rari, Blast, Xai, B3, Mezo, Chiliz, HashKey, Memecore
 
-### Bungee Auto (First Integration)
+*Note: Mainnet support may differ from testnet.*
 
-ZeroDust uses Bungee Auto for cross-chain bridging:
+## Cross-Chain Bridging
 
-- **Auction-based routing** - Solvers compete to fulfill requests
-- **Competitive pricing** - Best execution through competition
-- **Simple UX** - Users don't need to select bridges
+ZeroDust V2 supports cross-chain sweeps via pluggable bridge adapters. The adapter interface (`IZeroDustAdapter`) allows integration with any bridge protocol.
 
-**Supported Bungee Chains (Mainnet):**
-Ethereum, Arbitrum, Base, Optimism, Polygon, BSC, + more
+**Bridge Requirements:**
+- Native token bridging support
+- Programmable destination address
+- Reliable delivery guarantees
 
 ## License
 
