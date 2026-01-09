@@ -155,7 +155,8 @@ ZeroDust is designed with security as the top priority:
 
 - 46 testnets deployed and E2E verified
 - 39 testnets confirmed NOT supporting EIP-7702
-- 86 chains tested total
+- 1 testnet pending (Linea - accepts txs but not mining yet)
+- 86 testnets tested total
 
 See [contracts/README.md](./contracts/README.md) for full list.
 
