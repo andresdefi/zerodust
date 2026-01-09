@@ -8,7 +8,7 @@ Smart contracts for ZeroDust - an intent-based exit system for sweeping native g
 
 The original sweep contract for same-chain transfers.
 
-**Deployed Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (44 testnets)
+**Deployed Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (46 testnets)
 
 **Status:** Deployed on testnets, E2E verified. Will be superseded by V2 for mainnet.
 
@@ -21,7 +21,7 @@ Complete rewrite with cross-chain support and enhanced security. See [CHANGELOG.
 **Status:** ✅ **ALL 3 SWEEP CASES VERIFIED** with real cross-chain bridging (January 8, 2026)
 
 **Key Improvements:**
-- Cross-chain sweeps via bridge adapters (OP Stack, Bungee Auto)
+- Cross-chain sweeps via pluggable bridge adapters
 - ERC-7201 namespaced storage (prevents slot collisions)
 - Zero balance post-condition enforcement
 - Low-s signature malleability protection
@@ -136,7 +136,7 @@ source .env && forge script script/Deploy.s.sol:Deploy \
     --verify
 ```
 
-### V1 Deployed Testnets (44 chains)
+### V1 Deployed Testnets (46 chains)
 
 **Standard Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC`
 
@@ -192,6 +192,8 @@ source .env && forge script script/Deploy.s.sol:Deploy \
 |-------|----------|---------|--------|
 | Cronos Testnet | 338 | `0xcdfd3214e3db77085a2956bf5976501d4723925e` | No standard CREATE2 factory |
 | XRPL EVM Testnet | 1449000 | `0xF3971F50BDE29d5a763c42edDD1bb95D0f2F571A` | No standard CREATE2 factory |
+| Arc Testnet | 5042002 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
+| Ethereal Testnet | 13374202 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
 
 ## E2E Testing
 
@@ -270,6 +272,56 @@ High minimum gas price (3 gwei).
 ### Etherlink
 Gas estimation ~3x off, use high gas limits.
 
+### Arc & Ethereal
+Different bytecode hash produces alternate contract address. Arc uses USDC as native token, Ethereal uses USDe.
+
+## Testnets NOT Supporting EIP-7702
+
+The following testnets were tested and confirmed to **not support EIP-7702** as of January 2026:
+
+| Testnet | Reason |
+|---------|--------|
+| Abstract Testnet | ZKsync-based (uses native AA) |
+| Lens Sepolia | ZKsync-based (uses native AA) |
+| zkSync Sepolia | Transaction type not supported (uses native AA) |
+| Taiko Hoodi | 0xef opcode not defined |
+| MegaETH Testnet | Not enabled |
+| opBNB Testnet | Not enabled |
+| Avalanche Fuji | Not enabled |
+| Swell Testnet | 0xef opcode not defined |
+| Cyber Testnet | 0xef opcode not defined |
+| Boba Sepolia | 0xef opcode not defined |
+| Metis Hyperion | Transaction type not supported |
+| Fuse Sparknet | EIP-7702 not enabled |
+| Aurora Testnet | Method not supported (runs on NEAR) |
+| Flare Coston2 | Transaction type not supported |
+| Vana Moksha | Transaction type not supported |
+| Corn Testnet | Transaction type not supported |
+| Rootstock Testnet | Method not found |
+| Apechain Curtis | Transaction type not supported |
+| IoTeX Testnet | Transaction type not supported |
+| Viction Testnet | RLP parsing error |
+| XDC Apothem | Transaction type not supported |
+| Telos EVM Testnet | Authorization list not supported |
+| Kava Testnet | No EIP-1559/EIP-7702 support |
+| EDU Chain Testnet | Transaction type not supported |
+| Gravity Alpha Testnet | 0xef opcode not defined |
+| Manta Pacific Testnet | 0xef opcode not defined |
+| Lightlink Pegasus | Transaction type not supported |
+| Moonbase Alpha | Broken EIP-7702 implementation |
+| Nibiru Testnet | Transaction type not supported |
+| Somnia Testnet | Invalid transaction |
+| Rari Testnet | Unsupported transaction type |
+| Blast Sepolia | Transaction type not supported |
+| Xai Testnet | 0xef opcode not defined |
+| B3 Sepolia | 0xef opcode not defined |
+| Mezo Testnet | Transaction type not supported |
+| Chiliz Spicy | Transaction type not supported |
+| HashKey Testnet | 0xef opcode not defined |
+| Memecore Testnet | Transaction type not supported |
+
+**Note:** Mainnet EIP-7702 support may differ from testnet. This list reflects testnet status only.
+
 ## Security
 
 ### V2 Security Review
@@ -301,7 +353,8 @@ contracts/
 │   ├── interfaces/
 │   │   └── IZeroDustAdapter.sol    # Adapter interface
 │   └── adapters/
-│       └── BungeeAdapter.sol       # Bungee Auto adapter
+│       ├── OPStackAdapter.sol      # OP Stack native bridge adapter
+│       └── MockAdapter.sol         # Testing adapter
 ├── test/
 │   └── ZeroDustSweep.t.sol         # Test suite (V1)
 ├── script/
