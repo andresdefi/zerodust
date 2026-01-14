@@ -8,7 +8,7 @@ Smart contracts for ZeroDust - an intent-based exit system for sweeping native g
 
 The original sweep contract for same-chain transfers.
 
-**Deployed Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (46 testnets)
+**Deployed Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (49 testnets)
 
 **Status:** Deployed on testnets, E2E verified. Will be superseded by V2 for mainnet.
 
@@ -136,7 +136,7 @@ source .env && forge script script/Deploy.s.sol:Deploy \
     --verify
 ```
 
-### V1 Deployed Testnets (46 chains)
+### V1 Deployed Testnets (49 chains)
 
 **Standard Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC`
 
@@ -194,6 +194,9 @@ source .env && forge script script/Deploy.s.sol:Deploy \
 | XRPL EVM Testnet | 1449000 | `0xF3971F50BDE29d5a763c42edDD1bb95D0f2F571A` | No standard CREATE2 factory |
 | Arc Testnet | 5042002 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
 | Ethereal Testnet | 13374202 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
+| Hemi Testnet | 743111 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
+| Story Aeneid | 1315 | `0xB4bFad3e876D8A10D2bc14a7e5A04a133714533F` | Different bytecode hash |
+| MegaETH Testnet | 6343 | `0x872230F37304F903f44B332e9A0ed7d31C1b55D7` | CREATE2 failed, deployed via CREATE |
 
 ## E2E Testing
 
@@ -275,6 +278,15 @@ Gas estimation ~3x off, use high gas limits.
 ### Arc & Ethereal
 Different bytecode hash produces alternate contract address. Arc uses USDC as native token, Ethereal uses USDe.
 
+### Hemi
+Different bytecode hash produces alternate contract address. Requires legacy gas pricing (`--legacy`) for deployments.
+
+### Story
+Different bytecode hash produces alternate contract address. Uses IP Token as native currency.
+
+### MegaETH
+CREATE2 deployment fails; deployed via regular CREATE. Uses ETH as native token.
+
 ## Testnets NOT Supporting EIP-7702
 
 The following testnets were tested and confirmed to **not support EIP-7702** as of January 2026:
@@ -285,7 +297,6 @@ The following testnets were tested and confirmed to **not support EIP-7702** as 
 | Lens Sepolia | ZKsync-based (uses native AA) |
 | zkSync Sepolia | Transaction type not supported (uses native AA) |
 | Taiko Hoodi | 0xef opcode not defined |
-| MegaETH Testnet | Not enabled |
 | opBNB Testnet | Not enabled |
 | Avalanche Fuji | Not enabled |
 | Swell Testnet | 0xef opcode not defined |
@@ -309,6 +320,7 @@ The following testnets were tested and confirmed to **not support EIP-7702** as 
 | Manta Pacific Testnet | 0xef opcode not defined |
 | Lightlink Pegasus | Transaction type not supported |
 | Moonbase Alpha | Broken EIP-7702 implementation |
+| Injective Testnet | Broken EIP-7702 - authorizationList not processed |
 | Nibiru Testnet | Transaction type not supported |
 | Somnia Testnet | Invalid transaction |
 | Rari Testnet | Unsupported transaction type |
@@ -318,6 +330,8 @@ The following testnets were tested and confirmed to **not support EIP-7702** as 
 | Mezo Testnet | Transaction type not supported |
 | Chiliz Spicy | Transaction type not supported |
 | HashKey Testnet | 0xef opcode not defined |
+| Horizen Testnet | 0xef opcode not defined |
+| Harmony Testnet | Not implemented (no EIP-1559 support) |
 | Memecore Testnet | Transaction type not supported |
 
 **Note:** Mainnet EIP-7702 support may differ from testnet. This list reflects testnet status only.
