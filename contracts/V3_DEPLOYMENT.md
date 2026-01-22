@@ -101,7 +101,7 @@ new ZeroDustSweepV3(
 |-----------|-------|-------------|
 | `minOverheadGasUnits` | 50,000 | Minimum overhead to protect sponsor from under-recovery |
 | `maxOverheadGasUnits` | 300,000 | Maximum overhead (covers complex bridges) |
-| `maxProtocolFeeGasUnits` | 100,000 | ~$3 at 100 gwei (service fee) |
+| `maxProtocolFeeGasUnits` | 100,000 | DEPRECATED - service fee now in extraFeeWei |
 | `maxExtraFeeWei` | 0.0005 ETH | L2 variance buffer |
 | `maxReimbGasPriceCapWei` | 1000 gwei | Cover extreme gas spikes |
 

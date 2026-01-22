@@ -132,7 +132,7 @@ uint256 protocolFeeGasUnits;   // per-intent protocol margin (<= MAX_PROTOCOL_FE
 **Purpose:** Your on-chain revenue mechanism.
 
 **How it works:**
-- Quote engine calculates service fee (10%, min $0.05, max $3)
+- Quote engine calculates service fee (5%, min $0.05, max $0.50)
 - Converts to gas units: `protocolFeeGasUnits = serviceFeeWei / expectedGasPrice`
 - Reimbursement includes: `protocolFeeGasUnits × actualGasPrice`
 
@@ -209,7 +209,7 @@ constructor(
 |-----------|------------------|-----------|
 | `sponsor` | TBD (hot wallet) | The only address allowed to call `sweep()` |
 | `maxOverheadGasUnits` | 300,000 | Reasonable ceiling, auditor-friendly |
-| `maxProtocolFeeGasUnits` | 100,000 | Allows ~$5 fee at 50 gwei (sufficient for $3 max service fee) |
+| `maxProtocolFeeGasUnits` | 100,000 | DEPRECATED - service fee now in extraFeeWei. Kept for backwards compat. |
 | `maxExtraFeeWei` | 5 × 10^14 (0.0005 ETH) | ~$1.25 max flat fee |
 | `maxReimbGasPriceCapWei` | 10^12 (1000 gwei) | Covers L1 congestion spikes |
 
@@ -241,8 +241,8 @@ reimbursement = (measuredGas + overheadGasUnits + protocolFeeGasUnits)
 ### Off-Chain (Quote Engine)
 
 ```typescript
-// Service fee: 10% with min $0.05, max $3.00
-const serviceFeeUsd = Math.max(0.05, Math.min(3.00, balanceUsd * 0.10));
+// Service fee: 5% with min $0.05, max $0.50
+const serviceFeeUsd = Math.max(0.05, Math.min(0.50, balanceUsd * 0.05));
 const serviceFeeWei = BigInt(Math.ceil(serviceFeeUsd / ethPriceUsd * 1e18));
 
 // Convert to gas units for on-chain
@@ -253,8 +253,8 @@ const protocolFeeGasUnits = serviceFeeWei / expectedGasPrice;
 const estimatedGas = 150_000n;
 const gasCostWei = estimatedGas * expectedGasPrice;
 
-// Buffer: 50% of gas cost
-const bufferWei = gasCostWei * 50n / 100n;
+// Buffer: 20% of gas cost
+const bufferWei = gasCostWei * 20n / 100n;
 
 // Total fee cap
 const maxTotalFeeWei = serviceFeeWei + gasCostWei + bufferWei;
