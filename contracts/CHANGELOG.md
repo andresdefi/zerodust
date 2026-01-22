@@ -1,8 +1,83 @@
 # ZeroDust Contracts Changelog
 
-## Version 2.0.0 (January 2026)
+## Version 3.0.0 (January 2026) - CURRENT
 
-This version introduces a complete redesign of the smart contract architecture based on security advisor feedback. The changes address critical vulnerabilities and establish a robust foundation for cross-chain sweeps.
+V3 is the production contract deployed on mainnet. It simplifies the architecture from V2 while maintaining all security properties.
+
+### Key Changes from V2 to V3
+
+| Aspect | V2 | V3 |
+|--------|----|----|
+| Signature types | 2 (SameChainSweep, CrossChainSweep) | 1 (SweepIntent) |
+| Functions | 2 (executeSameChainSweep, executeCrossChainSweep) | 1 (executeSweep) |
+| Mode selection | Separate functions | `mode` field (0=transfer, 1=call) |
+| Bridge handling | Adapter interface | Generic `callTarget + callData` |
+| Fee structure | Single `maxRelayerCompensation` | Granular (overhead, protocol, extra, gasCap) |
+| Domain verifyingContract | Contract address | User's EOA |
+| Executor naming | Relayer | Sponsor |
+
+### V3 Contract Files
+
+| Contract | Purpose |
+|----------|---------|
+| `ZeroDustSweepMainnet.sol` | V3 production (mainnet) |
+| `ZeroDustSweepV3TEST.sol` | V3 testnet |
+
+### V3 Mainnet Deployments (January 2026)
+
+| Chain | Chain ID | Status |
+|-------|----------|--------|
+| BSC | 56 | Deployed |
+| Polygon | 137 | Deployed |
+| Arbitrum | 42161 | Deployed |
+| Base | 8453 | Deployed |
+
+### V3 SweepIntent Structure (14 fields)
+
+```solidity
+struct SweepIntent {
+    uint8 mode;                    // 0 = transfer, 1 = call
+    address user;                  // User's EOA
+    address destination;           // Where funds go
+    uint256 destinationChainId;    // Target chain
+    address callTarget;            // Bridge contract (MODE_CALL only)
+    bytes32 routeHash;             // keccak256(callData)
+    uint256 minReceive;            // Minimum user receives
+    uint256 maxTotalFeeWei;        // Hard cap on total fees
+    uint256 overheadGasUnits;      // Gas overhead
+    uint256 protocolFeeGasUnits;   // DEPRECATED - use extraFeeWei
+    uint256 extraFeeWei;           // Service fee
+    uint256 reimbGasPriceCapWei;   // Gas price cap
+    uint256 deadline;              // Expiration
+    uint256 nonce;                 // Per-user nonce
+}
+```
+
+### V3 Fee Structure
+
+- **Service Fee:** 5% of swept value
+- **Minimum:** $0.05
+- **Maximum:** $0.50
+- **Service fee goes in `extraFeeWei`** (not `protocolFeeGasUnits`)
+
+### Files Removed in V3
+
+The following V1/V2 files have been removed:
+
+- `src/ZeroDustSweep.sol` - V1 contract
+- `src/ZeroDustSweepV2.sol` - V2 contract
+- `src/adapters/` - All adapter files (V2 pattern)
+- `src/interfaces/IZeroDustAdapter.sol` - V2 interface
+- `script/Deploy.s.sol`, `DeployV2.s.sol` - Old deploy scripts
+- `test/ZeroDustSweep.t.sol`, `ZeroDustSweepV2.t.sol` - Old tests
+
+---
+
+## Version 2.0.0 (January 2026) - DEPRECATED
+
+> **Note:** V2 has been superseded by V3. This section is kept for historical reference.
+
+This version introduced cross-chain support via adapter pattern. The changes addressed critical vulnerabilities from V1.
 
 ---
 

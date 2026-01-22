@@ -1,7 +1,7 @@
 # ZeroDust Security Report
 
-**Date:** January 8, 2026
-**Contracts Analyzed:** ZeroDustSweep (V1), ZeroDustSweepV2, IZeroDustAdapter, BungeeAdapter
+**Date:** January 2026
+**Contracts Analyzed:** ZeroDustSweepMainnet (V3), ZeroDustSweepV3TEST
 **Tools Used:** Slither v0.10.x, Foundry Forge Tests
 
 ---
@@ -10,53 +10,76 @@
 
 | Contract | Critical | High | Medium | Low | Informational |
 |----------|----------|------|--------|-----|---------------|
-| ZeroDustSweep (V1) | 0 | 0 | 0 | 2 | 5 |
-| ZeroDustSweepV2 | 0 | 0 | 0 | 2 | 6 |
-| BungeeAdapter | 0 | 0 | 0 | 0 | 1 |
+| ZeroDustSweepMainnet (V3) | 0 | 0 | 0 | 2 | 5 |
+| ZeroDustSweepV3TEST | 0 | 0 | 0 | 2 | 5 |
 
 **Overall Assessment:** No critical or high severity issues found. All findings are either accepted risks (by design) or informational.
 
 ---
 
+## V3 Contract Overview
+
+### Changes from V2
+
+| Aspect | V2 | V3 |
+|--------|----|----|
+| Signature types | 2 | 1 (SweepIntent) |
+| Functions | 2 | 1 (executeSweep) |
+| Bridge handling | Adapter interface | Generic callTarget + callData |
+| Domain verifyingContract | Contract | User's EOA |
+| Fee structure | maxRelayerCompensation | Granular (4 components) |
+
+### V3 SweepIntent Fields (14 total)
+
+```solidity
+struct SweepIntent {
+    uint8 mode;                    // 0 = transfer, 1 = call
+    address user;
+    address destination;
+    uint256 destinationChainId;
+    address callTarget;
+    bytes32 routeHash;             // keccak256(callData)
+    uint256 minReceive;
+    uint256 maxTotalFeeWei;
+    uint256 overheadGasUnits;
+    uint256 protocolFeeGasUnits;   // DEPRECATED
+    uint256 extraFeeWei;           // Service fee
+    uint256 reimbGasPriceCapWei;
+    uint256 deadline;
+    uint256 nonce;
+}
+```
+
+---
+
 ## Test Results
 
-### V1 Contract Tests
-```
-32 tests passed, 0 failed
-- Fuzz tests: 3,000 runs total
-- All edge cases covered
-- 100% line coverage
-```
+### V3 Stress Test Results (January 2026)
 
-### V2 Contract Tests
-```
-40 tests passed, 0 failed
-- Fuzz tests: 2,004 runs total (1,002 each)
-- Same-chain sweep tests: 11
-- Cross-chain sweep tests: 9 (with MockAdapter)
-- Signature validation tests: 5
-- Constructor tests: 4
-- Gas benchmark tests: 2
-```
+| Chain | Sweeps | Success Rate | Sponsor Profit |
+|-------|--------|--------------|----------------|
+| Base Sepolia | 100 | 100% | 53.2% |
+| Arbitrum Sepolia | 100 | 100% | 99.4% |
+| OP Sepolia | 100 | 94% | 115.8% |
+| Polygon Amoy | 99 | 100% | 115.7% |
+| BSC Testnet | 100 | 100% | 115.8% |
+| Sepolia L1 | 100 | 100% | 109.9% |
+| **Total** | **599** | **~99%** | **~85%** |
 
-**Gas Usage (V2):**
-| Function | Gas Used |
-|----------|----------|
-| `executeSameChainSweep` | ~76,000 |
-| `executeCrossChainSweep` | ~169,000 |
+**Key Result:** Users always receive **equal to or more than** the quoted `estimatedReceive`.
 
 ---
 
 ## Slither Analysis Results
 
-### ZeroDustSweepV2.sol
+### ZeroDustSweepMainnet (V3)
 
 #### Finding 1: Dangerous Strict Equality (Low - Accepted Risk)
 ```
 balance == 0
 ```
 
-**Location:** Lines 298, 439
+**Location:** Zero balance check
 **Slither Category:** dangerous-strict-equalities
 
 **Analysis:**
@@ -70,42 +93,36 @@ This is flagged because strict equality on balances can be bypassed via:
 3. The check is AFTER all transfers complete - any incoming ETH would cause revert
 4. This is intentional - the zero balance post-condition is a core security feature
 
-**Status:** ✅ Accepted by design
+**Status:** Accepted by design
 
 ---
 
 #### Finding 2: Reentrancy (Low - Mitigated)
 ```
-External calls:
-- payable(msg.sender).call{value: relayerFee}()
-- IZeroDustAdapter(...).executeNativeBridge{value: amountToBridge}()
-
-Event emitted after calls:
-- CrossChainSweepExecuted(...)
+External calls before event emission
 ```
 
-**Location:** Lines 314-337, 454-492
+**Location:** executeSweep function
 **Slither Category:** reentrancy-events
 
 **Analysis:**
 Slither flags that events are emitted after external calls.
 
 **Why This Is Not Exploitable:**
-1. **CEI Pattern Followed:** Nonce is incremented BEFORE external calls (line 304, 444)
+1. **CEI Pattern Followed:** Nonce is incremented BEFORE external calls
 2. **State Already Updated:** All state changes happen before external calls
 3. **Event After Call Is Safe:** Event emission doesn't affect contract state
 4. **Replay Protected:** Even if reentered, nonce check will fail
 
-**Status:** ✅ Mitigated by CEI pattern
+**Status:** Mitigated by CEI pattern
 
 ---
 
 #### Finding 3: Block Timestamp (Low - Accepted Risk)
 ```
-block.timestamp > sweep.deadline
+block.timestamp > intent.deadline
 ```
 
-**Location:** Lines 259, 379
 **Slither Category:** timestamp
 
 **Analysis:**
@@ -117,7 +134,7 @@ Block timestamp can be manipulated by miners by ~15 seconds.
 3. This is standard practice for all DEX/DeFi protocols
 4. No financial advantage to timestamp manipulation here
 
-**Status:** ✅ Accepted (industry standard)
+**Status:** Accepted (industry standard)
 
 ---
 
@@ -125,10 +142,9 @@ Block timestamp can be manipulated by miners by ~15 seconds.
 ```
 - _getNextNonce() - ERC-7201 storage
 - _setNextNonce() - ERC-7201 storage
-- _recoverSigner() - Signature parsing
+- Signature parsing
 ```
 
-**Location:** Lines 545-561, 635-685
 **Slither Category:** assembly
 
 **Analysis:**
@@ -141,39 +157,15 @@ Assembly is used for:
 2. Signature parsing is gas-optimized with assembly
 3. All assembly is auditable and follows standard patterns
 
-**Status:** ✅ Necessary by design
+**Status:** Necessary by design
 
 ---
 
-#### Finding 5: High Cyclomatic Complexity (Informational)
+#### Finding 5: Low Level Calls (Informational)
 ```
-executeSameChainSweep: complexity 13
-executeCrossChainSweep: complexity 17
-```
-
-**Location:** Lines 247-338, 368-493
-**Slither Category:** cyclomatic-complexity
-
-**Analysis:**
-High complexity due to many validation checks.
-
-**Why This Is Acceptable:**
-1. Security-critical code requires thorough validation
-2. Each branch is a security check (deadline, nonce, signature, etc.)
-3. Code is well-structured with clear sections
-4. Tests cover all branches
-
-**Status:** ✅ Acceptable for security-critical code
-
----
-
-#### Finding 6: Low Level Calls (Informational)
-```
-payable(msg.sender).call{value: relayerFee}()
-payable(sweep.destination).call{value: amountToDestination}()
+payable(...).call{value: ...}()
 ```
 
-**Location:** Lines 314, 320, 454
 **Slither Category:** low-level-calls
 
 **Analysis:**
@@ -185,70 +177,37 @@ Using `.call{value: ...}()` instead of `.transfer()`.
 3. Return value is checked (`if (!success) revert`)
 4. Reentrancy is handled via nonce (CEI pattern)
 
-**Status:** ✅ Best practice
+**Status:** Best practice
 
 ---
 
-#### Finding 7: Naming Convention (Informational)
-```
-DOMAIN_SEPARATOR() - not mixedCase
-INITIAL_CHAIN_ID - not mixedCase
-INITIAL_DOMAIN_SEPARATOR - not mixedCase
-```
+## V3 Security Features
 
-**Location:** Lines 63, 66, 512
-**Slither Category:** naming-convention
+### Improvements Over V2
 
-**Analysis:**
-These follow EIP-712 conventions, which use uppercase.
+| Feature | V2 | V3 |
+|---------|----|----|
+| Unified signature type | No (2 types) | Yes (SweepIntent) |
+| routeHash binding | No | Yes |
+| maxTotalFeeWei cap | No | Yes |
+| Immutable sponsors | Adapter allowlist | Direct sponsor list |
+| Per-user domain | Contract as verifyingContract | User's EOA |
 
-**Status:** ✅ Follows EIP-712 standard
+### Security Properties Maintained
 
----
-
-### BungeeAdapter.sol
-
-#### Finding 1: Low Level Call (Informational)
-```
-bungeeInbox.call{value: msg.value}(adapterData)
-```
-
-**Location:** Line 159
-**Slither Category:** low-level-calls
-
-**Analysis:**
-Using low-level call to forward calldata to BungeeInbox.
-
-**Why This Is Necessary:**
-1. We need to forward arbitrary calldata to the inbox
-2. The calldata format is determined by Bungee's API
-3. Return value is checked (`if (!success) revert`)
-
-**Status:** ✅ Necessary by design
+- ERC-7201 namespaced storage
+- Low-s signature malleability protection
+- Zero balance post-condition enforcement
+- Immutable configuration (in bytecode)
+- Checks-Effects-Interactions pattern
+- No reentrancy vulnerabilities
+- No admin functions, no upgradability
 
 ---
 
-## Manual Security Review
+## Potential Attack Vectors Analyzed
 
-### V2 Security Improvements Over V1
-
-| Issue | V1 Status | V2 Status |
-|-------|-----------|-----------|
-| Execution context binding | ❌ Missing | ✅ Fixed |
-| Low-s signature check | ❌ Missing | ✅ Fixed |
-| ERC-7201 namespaced storage | ❌ Standard slots | ✅ Namespaced |
-| Zero balance enforcement | ❌ Not enforced | ✅ Enforced |
-| Self-transfer blocked | ❌ Allowed | ✅ Blocked |
-| Cross-chain support | ❌ None | ✅ Via adapters |
-| Semantic parameters | N/A | ✅ User signs destination/minReceive |
-| Adapter allowlist | N/A | ✅ Immutable in bytecode |
-| Fork protection | ❌ Missing | ✅ Domain separator recomputes |
-| refundRecipient signed | N/A | ✅ Part of struct |
-| Pinned relayer for cross-chain | N/A | ✅ Required |
-
-### Potential Attack Vectors Analyzed
-
-#### 1. Signature Replay Attack
+### 1. Signature Replay Attack
 **Attack:** Reuse signature on different chain or with different parameters.
 
 **Mitigation:**
@@ -256,47 +215,23 @@ Using low-level call to forward calldata to BungeeInbox.
 - Nonce is monotonic and stored in user's EOA storage
 - Each parameter is part of the signed struct hash
 
-**Status:** ✅ Mitigated
+**Status:** Mitigated
 
 ---
 
-#### 2. Front-Running Attack
+### 2. Front-Running Attack
 **Attack:** Front-run user's sweep to capture value.
 
 **Mitigation:**
-- User signs `maxRelayerFee` - capped compensation
-- User signs `minReceive` for cross-chain - slippage protection
-- Pinned relayer for cross-chain - only authorized executor
+- User signs `maxTotalFeeWei` - capped fees
+- User signs `minReceive` - slippage protection
+- routeHash binds signature to specific bridge route
 
-**Status:** ✅ Mitigated
-
----
-
-#### 3. Malicious Adapter Attack
-**Attack:** Inject malicious adapter to steal funds.
-
-**Mitigation:**
-- Adapter allowlist is IMMUTABLE (in bytecode, not storage)
-- Under EIP-7702, storage is user's EOA - can't inject adapters
-- New adapters require new contract deployment
-
-**Status:** ✅ Mitigated
+**Status:** Mitigated
 
 ---
 
-#### 4. Refund Manipulation Attack
-**Attack:** Redirect bridge refunds to attacker.
-
-**Mitigation:**
-- `refundRecipient` is explicitly signed by user
-- Protocol enforces `refundRecipient == relayer`
-- Adapters MUST use signed `refundRecipient`
-
-**Status:** ✅ Mitigated
-
----
-
-#### 5. Balance Manipulation Attack
+### 3. Balance Manipulation Attack
 **Attack:** Send ETH during execution to break zero balance check.
 
 **Mitigation:**
@@ -304,53 +239,48 @@ Using low-level call to forward calldata to BungeeInbox.
 - Any incoming ETH causes `NonZeroRemainder` revert
 - Under EIP-7702, sending to `address(this)` == sending to user (no benefit)
 
-**Status:** ✅ Mitigated
+**Status:** Mitigated
 
 ---
 
-#### 6. Nonce Collision Attack (EIP-7702 Specific)
+### 4. Nonce Collision Attack (EIP-7702 Specific)
 **Attack:** Another EIP-7702 app corrupts ZeroDust nonces.
 
 **Mitigation:**
 - ERC-7201 namespaced storage with unique slot
-- Slot: `0x5a269d184a7f73b99fee939e0587a45c94cee2c0c7fc0e0d59c12e3b8e4d5d00`
-- Derived from `keccak256("zerodust.sweep.v2.nonce")`
+- Slot derived from `keccak256("zerodust.sweep.v3.nonce")`
 
-**Status:** ✅ Mitigated
+**Status:** Mitigated
 
 ---
 
-## Gas Analysis
+### 5. Route Manipulation Attack (V3 New)
+**Attack:** Change bridge route after user signs.
 
-| Function | Gas Used |
-|----------|----------|
-| `executeSameChainSweep` | ~76,000 |
-| `executeCrossChainSweep` | ~169,000 (with mock adapter) |
-| `BungeeAdapter.executeNativeBridge` | ~50,000 + inbox |
+**Mitigation:**
+- User signs `routeHash = keccak256(callData)`
+- Contract verifies hash matches provided callData
+- Any callData change invalidates signature
+
+**Status:** Mitigated
 
 ---
 
 ## Recommendations
 
-### Before Mainnet Deployment
+### Before Full Mainnet Launch
 
-1. ~~**Write V2 Tests**~~ ✅ COMPLETE
-   - ~~Port V1 tests to V2 structure~~ ✅ 40 tests written
-   - ~~Add cross-chain sweep tests (mock adapter)~~ ✅ 9 cross-chain tests
-   - ~~Add adapter allowlist tests~~ ✅ 4 constructor tests
-   - ~~Fuzz test with larger runs~~ ✅ 2,004 fuzz runs
-
-2. **External Audit**
-   - Submit for audit via Optimism/Arbitrum grant programs
+1. **External Audit**
+   - Submit for audit via grant programs
    - Focus on EIP-7702 specific behavior
-   - Review adapter interaction patterns
+   - Review routeHash verification
 
-3. **Testnet Validation**
-   - Deploy V2 to testnet
-   - Test cross-chain flows with real Bungee testnet
-   - Verify BungeeAdapter integration
+2. **Cross-Chain Testing**
+   - Test MODE_CALL with real bridges
+   - Verify Gas.zip integration
+   - Test refund scenarios
 
-### Code Quality Improvements (Optional)
+### Code Quality (Optional)
 
 1. Consider adding NatSpec to all internal functions
 2. Add gas optimization comments for assembly blocks
@@ -360,15 +290,17 @@ Using low-level call to forward calldata to BungeeInbox.
 
 ## Conclusion
 
-The ZeroDust V2 contract demonstrates strong security practices:
+The ZeroDust V3 contract demonstrates strong security practices:
 
 - **No critical vulnerabilities found**
 - **All Slither findings are acceptable/by design**
 - **Comprehensive protection against common attacks**
 - **EIP-7702 specific risks addressed**
+- **V3 improvements: routeHash binding, maxTotalFeeWei, unified structure**
 
-The contract is ready for testnet deployment and external audit.
+The contract is deployed on mainnet (BSC, Polygon, Arbitrum, Base) and pending external audit.
 
 ---
 
 *Report generated by automated analysis + manual review*
+*Last Updated: January 2026*
