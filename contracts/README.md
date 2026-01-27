@@ -85,20 +85,52 @@ V3 uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 ### Mainnet Deployments (V3)
 
-| Chain | Chain ID | Contract Address | Explorer |
-|-------|----------|------------------|----------|
-| BSC | 56 | `0x...` | [View](#) |
-| Polygon | 137 | `0x...` | [View](#) |
-| Arbitrum | 42161 | `0x...` | [View](#) |
-| Base | 8453 | `0x...` | [View](#) |
+**Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
+
+Deployed via CREATE2 for deterministic addresses across all chains.
+
+| Chain | Chain ID | Native Token | Explorer |
+|-------|----------|--------------|----------|
+| Ethereum | 1 | ETH | [View](https://etherscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Optimism | 10 | ETH | [View](https://optimistic.etherscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| BSC | 56 | BNB | [View](https://bscscan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Gnosis | 100 | xDAI | [View](https://gnosisscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Unichain | 130 | ETH | [View](https://unichain.blockscout.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Polygon | 137 | POL | [View](https://polygonscan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Sonic | 146 | S | [View](https://sonicscan.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| X Layer | 196 | OKB | [View](https://www.oklink.com/xlayer/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Fraxtal | 252 | frxETH | [View](https://fraxscan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| World Chain | 480 | ETH | [View](https://worldscan.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Sei | 1329 | SEI | [View](https://seitrace.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Astar zkEVM | 1514 | ETH | [View](https://astar-zkevm.explorer.startale.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Soneium | 1868 | ETH | [View](https://soneium.blockscout.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Mantle | 5000 | MNT | [View](https://mantlescan.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Kaia | 5330 | KAIA | [View](https://kaiascan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Base | 8453 | ETH | [View](https://basescan.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Plasma | 9745 | XPL | [View](https://explorer.plasma.to/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| ApeChain | 33139 | APE | [View](https://apescan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Mode | 34443 | ETH | [View](https://explorer.mode.network/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Arbitrum | 42161 | ETH | [View](https://arbiscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Celo | 42220 | CELO | [View](https://celoscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Redstone | 57073 | ETH | [View](https://explorer.redstone.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| BOB | 60808 | ETH | [View](https://explorer.gobob.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Berachain | 80094 | BERA | [View](https://berascan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Scroll | 534352 | ETH | [View](https://scrollscan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Zora | 7777777 | ETH | [View](https://explorer.zora.energy/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+
+**Total: 26 mainnet chains**
 
 ### Testnet Deployments (V3TEST)
+
+**Contract Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (most chains)
 
 | Chain | Chain ID | Contract Address | Explorer |
 |-------|----------|------------------|----------|
 | Sepolia | 11155111 | `0x8102a8a8029F0dFFC3C5f6528a298437d5D2c2e7` | [View](https://sepolia.etherscan.io/address/0x8102a8a8029F0dFFC3C5f6528a298437d5D2c2e7) |
-| Base Sepolia | 84532 | TBD | - |
-| Arbitrum Sepolia | 421614 | TBD | - |
+| Base Sepolia | 84532 | `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` | [View](https://sepolia.basescan.org/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Arbitrum Sepolia | 421614 | `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` | [View](https://sepolia.arbiscan.io/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+
+See `broadcast/` directory for full testnet deployment records (46 chains).
 
 ## Development
 
