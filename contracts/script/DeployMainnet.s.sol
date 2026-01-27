@@ -16,7 +16,7 @@ contract DeployMainnet is Script {
     uint256 constant MIN_OVERHEAD_GAS_UNITS = 50_000;
     uint256 constant MAX_OVERHEAD_GAS_UNITS = 300_000;
     uint256 constant MAX_PROTOCOL_FEE_GAS_UNITS = 100_000;
-    uint256 constant MAX_EXTRA_FEE_WEI = 0.0005 ether;
+    uint256 constant MAX_EXTRA_FEE_WEI = 1000 ether; // Supports tokens as cheap as $0.00005 for $0.05 min fee
     uint256 constant MAX_REIMB_GAS_PRICE_CAP_WEI = 1000 gwei;
 
     function run() external returns (ZeroDustSweep sweep) {
@@ -98,7 +98,7 @@ contract ComputeMainnetAddress is Script {
     uint256 constant MIN_OVERHEAD_GAS_UNITS = 50_000;
     uint256 constant MAX_OVERHEAD_GAS_UNITS = 300_000;
     uint256 constant MAX_PROTOCOL_FEE_GAS_UNITS = 100_000;
-    uint256 constant MAX_EXTRA_FEE_WEI = 0.0005 ether;
+    uint256 constant MAX_EXTRA_FEE_WEI = 1000 ether; // Supports tokens as cheap as $0.00005 for $0.05 min fee
     uint256 constant MAX_REIMB_GAS_PRICE_CAP_WEI = 1000 gwei;
 
     function run() public view {

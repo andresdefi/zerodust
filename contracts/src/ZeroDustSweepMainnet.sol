@@ -199,7 +199,7 @@ contract ZeroDustSweep {
         // Sanity checks to prevent deploying with absurd values
         require(maxOverheadGasUnits <= 1_000_000, "MAX_OVERHEAD_TOO_HIGH");
         require(maxProtocolFeeGasUnits <= 500_000, "MAX_PROTOCOL_FEE_TOO_HIGH");
-        require(maxExtraFeeWei <= 1 ether, "MAX_EXTRA_FEE_TOO_HIGH");
+        require(maxExtraFeeWei <= 1000 ether, "MAX_EXTRA_FEE_TOO_HIGH"); // Supports tokens as cheap as $0.00005
         require(maxReimbGasPriceCapWei <= 10_000 gwei, "MAX_GAS_CAP_TOO_HIGH");
 
         MIN_OVERHEAD_GAS_UNITS = minOverheadGasUnits;
@@ -426,6 +426,16 @@ contract ZeroDustSweep {
     function _exitNonReentrant() internal {
         _entered = 0;
     }
+
+    // ========= ETH receive =========
+
+    /**
+     * @notice Allow delegated wallets to receive native tokens.
+     * @dev Without this, plain ETH/BNB transfers to a delegated wallet would revert.
+     *      This is a safety net so users don't get stuck if they receive funds while delegated.
+     *      The sweep() function will sweep any accumulated balance to exactly zero.
+     */
+    receive() external payable {}
 
     // ========= ETH send =========
 
