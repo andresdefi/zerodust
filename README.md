@@ -42,17 +42,29 @@ The Problem:
 
 ## Supported Chains
 
-All chains with EIP-7702 support:
+**Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
-| Chain | Native Token | Status |
-|-------|--------------|--------|
-| BSC | BNB | **Mainnet** |
-| Polygon | POL | **Mainnet** |
-| Arbitrum | ETH | **Mainnet** |
-| Base | ETH | **Mainnet** |
-| + 46 testnets | Various | Testnet |
+V3 is deployed on **26 mainnet chains** with EIP-7702 support:
 
-See [contracts/README.md](./contracts/README.md) for full deployment list.
+| Chain | ID | Token | Chain | ID | Token |
+|-------|---:|-------|-------|---:|-------|
+| Ethereum | 1 | ETH | Sei | 1329 | SEI |
+| Optimism | 10 | ETH | Astar zkEVM | 1514 | ETH |
+| BSC | 56 | BNB | Soneium | 1868 | ETH |
+| Gnosis | 100 | xDAI | Mantle | 5000 | MNT |
+| Unichain | 130 | ETH | Kaia | 5330 | KAIA |
+| Polygon | 137 | POL | Base | 8453 | ETH |
+| Sonic | 146 | S | Plasma | 9745 | XPL |
+| X Layer | 196 | OKB | ApeChain | 33139 | APE |
+| Fraxtal | 252 | frxETH | Mode | 34443 | ETH |
+| World Chain | 480 | ETH | Arbitrum | 42161 | ETH |
+| Celo | 42220 | CELO | Redstone | 57073 | ETH |
+| BOB | 60808 | ETH | Berachain | 80094 | BERA |
+| Scroll | 534352 | ETH | Zora | 7777777 | ETH |
+
+Plus **46 testnets** for development.
+
+See [contracts/README.md](./contracts/README.md) for explorer links.
 
 ## Project Structure
 
@@ -147,25 +159,25 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Smart Contract:** V3 deployed on 4 mainnets + 46 testnets
+**Smart Contract:** V3 deployed on **26 mainnets** + 46 testnets
 
 ### Contract Versions
 
 | Version | Status | Features |
 |---------|--------|----------|
-| V3 (ZeroDustSweepMainnet) | **Mainnet** | Unified SweepIntent, granular fees, sponsor model |
+| V3 (ZeroDustSweepMainnet) | **Production** | Unified SweepIntent, granular fees, sponsor model |
 | V3 (ZeroDustSweepV3TEST) | Testnet | Same as mainnet, for testing |
 
-### Mainnet Deployments (V3)
+### Verified Mainnet Sweeps
 
-| Chain | Chain ID | Status |
-|-------|----------|--------|
-| BSC | 56 | Deployed |
-| Polygon | 137 | Deployed |
-| Arbitrum | 42161 | Deployed |
-| Base | 8453 | Deployed |
+| Chain | Swept | TX |
+|-------|-------|-----|
+| Base | $3.46 → 0 | [View](https://basescan.org/tx/0x2f59a4598c7fcdce404c2330d361fda1cbab84b841e85bec82ca12164101b73d) |
+| Arbitrum | $3.57 → 0 | [View](https://arbiscan.io/tx/0xffa0a26008157b0225a7c15c2263b80b6e386520dce69b58827320ced0dc5c62) |
+| BSC | $2.25 → 0 | [View](https://bscscan.com/tx/0xc94f52c8689268118e3d42dd678916982b5479adb0e69227ddd1c3142ea52972) |
+| Polygon | $7.55 → 0 | [View](https://polygonscan.com/tx/0xc21c4c29dbe1624c06a2a9a7692ac68409f3407f0c1960f01100ef39ceeb369f) |
 
-See [contracts/README.md](./contracts/README.md) for contract addresses.
+See [contracts/README.md](./contracts/README.md) for full deployment list.
 
 ### Testnets NOT Supporting EIP-7702
 
@@ -191,4 +203,4 @@ MIT License - see [LICENSE](./LICENSE)
 
 ---
 
-**Production deployed on BSC, Polygon, Arbitrum, and Base.**
+**Production deployed on 26 mainnet chains.** Contract: `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
