@@ -1,14 +1,14 @@
-# ZeroDustSweepV3 Specification
+# ZeroDustSweep Specification
 
 **Version:** 3.0
-**Last Updated:** January 12, 2026
-**Status:** Design Complete - Ready for Implementation
+**Last Updated:** January 31, 2026
+**Status:** Production - Deployed to 26 Mainnets
 
 ---
 
 ## Overview
 
-ZeroDustSweepV3 is a significant evolution from V2, designed for operational simplicity across 40+ chains while maintaining security guarantees. The key innovations are:
+ZeroDustSweep is designed for operational simplicity across 40+ chains while maintaining security guarantees. The key innovations are:
 
 1. **Unified Entry Point** - Single `sweep()` function handles both same-chain and cross-chain
 2. **Sponsor-Only Execution** - No permissionless mode; single trusted sponsor
@@ -18,7 +18,7 @@ ZeroDustSweepV3 is a significant evolution from V2, designed for operational sim
 
 ---
 
-## V2 vs V3 Comparison
+## Architecture Evolution (V2 vs Current)
 
 ### Architecture Changes
 
@@ -69,7 +69,7 @@ SweepIntent(uint8 mode, address user, address destination, uint256 destinationCh
 
 ---
 
-## What V3 Removes
+## Key Changes from V2
 
 ### 1. Adapter Allowlist
 
@@ -108,7 +108,7 @@ SweepIntent(uint8 mode, address user, address destination, uint256 destinationCh
 
 ---
 
-## What V3 Adds
+## New Features
 
 ### 1. Per-Intent Gas Price Cap
 
@@ -355,7 +355,7 @@ bytes32 domainSeparator = keccak256(
 5. **Deadlines enforced** - `DeadlineExpired` check
 6. **Signature malleability protected** - Low-s check (EIP-2)
 
-### New in V3
+### Current Implementation
 
 1. **Route binding** - `routeHash` prevents route substitution
 2. **Gas price protection** - Per-intent `reimbGasPriceCapWei`
@@ -414,7 +414,7 @@ All new development, testing, and deployments should use V3 exclusively. Existin
 
 ```bash
 # Deploy with identical params on all chains
-forge create src/ZeroDustSweepV3.sol:ZeroDustSweepV3 \
+forge create src/ZeroDustSweepMainnet.sol:ZeroDustSweepMainnet \
   --constructor-args \
     $SPONSOR_ADDRESS \
     300000 \
@@ -429,7 +429,7 @@ forge create src/ZeroDustSweepV3.sol:ZeroDustSweepV3 \
 
 ```bash
 forge verify-contract $CONTRACT_ADDRESS \
-  src/ZeroDustSweepV3.sol:ZeroDustSweepV3 \
+  src/ZeroDustSweepMainnet.sol:ZeroDustSweepMainnet \
   --constructor-args $(cast abi-encode "constructor(address,uint256,uint256,uint256,uint256)" \
     $SPONSOR_ADDRESS 300000 100000 500000000000000 1000000000000) \
   --chain-id $CHAIN_ID
@@ -455,4 +455,4 @@ bytes32 public constant SWEEP_TYPEHASH = keccak256(
 
 ---
 
-*This specification defines ZeroDustSweepV3. Implementation should follow this document exactly.*
+*This specification defines ZeroDustSweep. Implementation should follow this document exactly.*

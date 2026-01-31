@@ -4,7 +4,7 @@ Smart contracts for ZeroDust - an intent-based exit system for sweeping native g
 
 ## Overview
 
-ZeroDust V3 enables users to sweep their entire native token balance from any EIP-7702-compatible chain. The sponsor (relayer) executes sweeps on behalf of users, paying gas costs and receiving reimbursement from the swept funds.
+ZeroDust enables users to sweep their entire native token balance from any EIP-7702-compatible chain. The sponsor (relayer) executes sweeps on behalf of users, paying gas costs and receiving reimbursement from the swept funds.
 
 **Key Features:**
 - Sweep native tokens to exactly 0 balance
@@ -16,7 +16,7 @@ ZeroDust V3 enables users to sweep their entire native token balance from any EI
 
 ## Contracts
 
-### ZeroDustSweepMainnet.sol (V3 Production)
+### ZeroDustSweepMainnet.sol (Production)
 
 Production contract for mainnet deployments.
 
@@ -28,11 +28,11 @@ Production contract for mainnet deployments.
 - Immutable sponsor addresses
 - EIP-712 signatures with user's EOA as verifyingContract
 
-### ZeroDustSweepV3TEST.sol (V3 Testnet)
+### ZeroDustSweepTEST.sol (Testnet)
 
 Testnet contract for development and testing. Identical functionality to mainnet contract.
 
-## V3 Architecture
+## Architecture
 
 ### SweepIntent Structure
 
@@ -48,7 +48,7 @@ struct SweepIntent {
     uint256 maxTotalFeeWei;        // Hard cap on total fees
     uint256 overheadGasUnits;      // Gas overhead (50k-300k)
     uint256 protocolFeeGasUnits;   // DEPRECATED - use extraFeeWei
-    uint256 extraFeeWei;           // Service fee (5%, $0.05 min, $0.50 max)
+    uint256 extraFeeWei;           // Service fee (1%, $0.05 min, $0.50 max)
     uint256 reimbGasPriceCapWei;   // Gas price cap for reimbursement
     uint256 deadline;              // Signature expiration (unix timestamp)
     uint256 nonce;                 // Per-user nonce
@@ -57,20 +57,20 @@ struct SweepIntent {
 
 ### Fee Structure
 
-**Service Fee:** 5% of swept value, with $0.05 minimum and $0.50 maximum.
+**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum.
 
 ```
 Total Fee = Gas Reimbursement + Service Fee + Bridge Fee (if cross-chain)
 
 Where:
 - Gas Reimbursement = (overheadGasUnits) × reimbGasPriceCapWei
-- Service Fee = min(max(balance × 5%, $0.05), $0.50) → goes in extraFeeWei
+- Service Fee = min(max(balance × 1%, $0.05), $0.50) → goes in extraFeeWei
 - Bridge Fee = Destination chain gas (cross-chain only)
 ```
 
 ### EIP-712 Domain
 
-V3 uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
+ZeroDust uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 ```solidity
 {
@@ -83,7 +83,7 @@ V3 uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 ## Deployments
 
-### Mainnet Deployments (V3)
+### Mainnet Deployments
 
 **Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
@@ -120,7 +120,7 @@ Deployed via CREATE2 for deterministic addresses across all chains.
 
 **Total: 26 mainnet chains**
 
-### Testnet Deployments (V3TEST)
+### Testnet Deployments
 
 **Contract Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (most chains)
 
@@ -156,13 +156,6 @@ forge test -vvvv
 ```
 
 ### Deployment
-
-**Testnet (V3TEST):**
-```bash
-cd /Users/dev/zerodust/contracts
-source .env
-forge script script/DeployV3.s.sol:DeployV3 --rpc-url $RPC_URL --broadcast -vvvv
-```
 
 **Mainnet:**
 ```bash
@@ -225,27 +218,24 @@ The following chains do not support EIP-7702 and cannot use ZeroDust:
 ```
 contracts/
 ├── src/
-│   ├── ZeroDustSweepMainnet.sol    # V3 production contract
-│   └── ZeroDustSweepV3TEST.sol     # V3 testnet contract
+│   ├── ZeroDustSweepMainnet.sol    # Production contract
+│   └── ZeroDustSweepTEST.sol       # Testnet contract
 ├── script/
-│   ├── DeployMainnet.s.sol         # Mainnet deployment
-│   ├── DeployV3.s.sol              # Testnet deployment
+│   ├── DeployMainnet.s.sol         # Mainnet deployment (CREATE2)
 │   ├── mainnet-e2e-test.mjs        # E2E test (viem)
 │   └── verify-eip7702.sh           # EIP-7702 chain verification
-├── broadcast/                       # Deployment logs
-│   ├── DeployMainnet.s.sol/        # Mainnet broadcasts
-│   └── DeployV3.s.sol/             # Testnet broadcasts
-├── V3_DEPLOYMENT.md                 # Deployment guide
-├── V3_SPECIFICATION.md              # Technical specification
+├── broadcast/
+│   └── DeployMainnet.s.sol/        # Deployment logs by chain
+├── DEPLOYMENT.md                    # Deployment guide
+├── SPECIFICATION.md                 # Technical specification
 ├── foundry.toml                     # Foundry config
 └── .env.example                     # Environment template
 ```
 
 ## Related Documentation
 
-- [V3 Deployment Guide](./V3_DEPLOYMENT.md)
-- [V3 Specification](./V3_SPECIFICATION.md)
-- [Backend Migration Guide](../../../zerodust-backend/docs/V2_TO_V3_MIGRATION.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+- [Specification](./SPECIFICATION.md)
 
 ## License
 

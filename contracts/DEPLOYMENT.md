@@ -1,6 +1,6 @@
-# ZeroDustSweepV3 Deployment Guide
+# ZeroDustSweep Deployment Guide
 
-**Last Updated:** January 12, 2026
+**Last Updated:** January 31, 2026
 
 ---
 
@@ -8,8 +8,8 @@
 
 | Contract | Purpose | Status |
 |----------|---------|--------|
-| `ZeroDustSweepV3TEST` | Testnet testing | **Active** |
-| `ZeroDustSweepV3` | Mainnet production | Pending (rename before mainnet) |
+| `ZeroDustSweepTEST` | Testnet testing | **Active** |
+| `ZeroDustSweepMainnet` | Mainnet production | **Active** (deployed to 26 chains) |
 
 ---
 
@@ -29,7 +29,7 @@ This is the deployer address that will also serve as the sponsor for testnet dep
 address[] memory sponsors = new address[](1);
 sponsors[0] = 0x16c9af121C797A56902170a7f808eDF1a857ED49;
 
-new ZeroDustSweepV3TEST(
+new ZeroDustSweepTEST(
     sponsors,
     50_000,              // minOverheadGasUnits
     300_000,             // maxOverheadGasUnits
@@ -46,7 +46,7 @@ cd /Users/dev/zerodust/contracts
 source .env
 
 # Deploy to any testnet
-forge script script/DeployV3.s.sol:DeployV3 --rpc-url $RPC_URL --broadcast -vvvv
+forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --broadcast -vvvv
 ```
 
 ---
@@ -55,9 +55,8 @@ forge script script/DeployV3.s.sol:DeployV3 --rpc-url $RPC_URL --broadcast -vvvv
 
 ### ⚠️ CRITICAL: Before Mainnet Deployment
 
-1. **Rename contract:**
-   - Change `ZeroDustSweepV3TEST` → `ZeroDustSweepV3`
-   - Rename file `ZeroDustSweepV3TEST.sol` → `ZeroDustSweepV3.sol`
+1. **Use mainnet contract:**
+   - Deploy `ZeroDustSweepMainnet` (not the TEST contract)
 
 2. **Change sponsor addresses:**
    - **DO NOT use the testnet sponsor address on mainnet**
@@ -83,7 +82,7 @@ address[] memory sponsors = new address[](2);  // or 3 for full redundancy
 sponsors[0] = 0x...;  // SPONSOR_1 - primary
 sponsors[1] = 0x...;  // SPONSOR_2 - backup
 
-new ZeroDustSweepV3(
+new ZeroDustSweepMainnet(
     sponsors,
     50_000,              // minOverheadGasUnits
     300_000,             // maxOverheadGasUnits
@@ -131,7 +130,7 @@ new ZeroDustSweepV3(
 - [ ] RPC URL is configured
 
 ### Before Mainnet Deployment
-- [ ] Rename contract to `ZeroDustSweepV3`
+- [ ] Use `ZeroDustSweepMainnet` contract
 - [ ] External audit completed
 - [ ] Sponsor addresses are production KMS-protected EOAs
 - [ ] Sponsor keys are NOT the testnet/deployer key

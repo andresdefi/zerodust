@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 /**
- * @title ZeroDustSweepV3
+ * @title ZeroDustSweepTEST
  * @author ZeroDust
  * @notice Immutable exit primitive for sweeping native gas to EXACTLY 0 in EIP-7702 execution context.
  *
@@ -29,7 +29,7 @@ pragma solidity 0.8.28;
  *  - To add/remove sponsors, redeploy the contract.
  *  - Start with 1-2 sponsors, expand to 3 as needed (requires redeploy).
  */
-contract ZeroDustSweepV3TEST2 {
+contract ZeroDustSweepTEST {
     // ========= Errors =========
     error NotSponsor();
     error Reentrancy();
@@ -157,7 +157,7 @@ contract ZeroDustSweepV3TEST2 {
     // ========= Constructor =========
 
     /**
-     * @notice Deploy ZeroDustSweepV3 with sponsor allowlist and parameter bounds.
+     * @notice Deploy ZeroDustSweepTEST with sponsor allowlist and parameter bounds.
      * @dev Sponsors must be EOAs at deploy time. To change sponsors, redeploy.
      * @param sponsors Array of sponsor EOA addresses (1-3 sponsors)
      * @param minOverheadGasUnits Minimum overhead to protect sponsor (e.g., 50000)

@@ -44,7 +44,7 @@ The Problem:
 
 **Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
-V3 is deployed on **26 mainnet chains** with EIP-7702 support:
+ZeroDust is deployed on **26 mainnet chains** with EIP-7702 support:
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
@@ -72,18 +72,17 @@ See [contracts/README.md](./contracts/README.md) for explorer links.
 zerodust/
 ├── contracts/          # Smart contracts (Foundry)
 │   ├── src/
-│   │   ├── ZeroDustSweepMainnet.sol   # V3 production contract
-│   │   └── ZeroDustSweepV3TEST.sol    # V3 testnet contract
+│   │   ├── ZeroDustSweepMainnet.sol   # Production contract
+│   │   └── ZeroDustSweepTEST.sol      # Testnet contract
 │   ├── script/
-│   │   ├── DeployMainnet.s.sol        # Mainnet deployment
-│   │   └── DeployV3.s.sol             # Testnet deployment
+│   │   └── DeployMainnet.s.sol        # Mainnet deployment (CREATE2)
 │   └── broadcast/                      # Deployment logs
 └── docs/
 ```
 
 ## Architecture
 
-### V3 Contract Architecture
+### Contract Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -129,22 +128,22 @@ zerodust/
 
 ## Fee Structure
 
-**Service Fee:** 5% of swept value, with $0.05 minimum and $0.50 maximum.
+**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum.
 
 ```
 Total Fee = Gas Reimbursement + Service Fee + Bridge Fee (if cross-chain)
 
 Examples:
-- $2 balance → $0.10 fee (5%) → User receives ~$1.90
-- $1 balance → $0.05 fee (min) → User receives ~$0.95
-- $15 balance → $0.50 fee (max) → User receives ~$14.50
+- $5 balance → $0.05 fee (1% = $0.05, at min) → User receives ~$4.95
+- $10 balance → $0.10 fee (1%) → User receives ~$9.90
+- $60 balance → $0.50 fee (max) → User receives ~$59.50
 ```
 
 ## Documentation
 
 - [contracts/README.md](./contracts/README.md) - Contract details and deployment
-- [contracts/V3_SPECIFICATION.md](./contracts/V3_SPECIFICATION.md) - V3 technical specification
-- [contracts/V3_DEPLOYMENT.md](./contracts/V3_DEPLOYMENT.md) - Deployment guide
+- [contracts/SPECIFICATION.md](./contracts/SPECIFICATION.md) - Technical specification
+- [contracts/DEPLOYMENT.md](./contracts/DEPLOYMENT.md) - Deployment guide
 
 ## Security
 
@@ -159,14 +158,14 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Smart Contract:** V3 deployed on **26 mainnets** + 46 testnets
+**Smart Contract:** Deployed on **26 mainnets** + 46 testnets
 
 ### Contract Versions
 
-| Version | Status | Features |
+| Contract | Status | Features |
 |---------|--------|----------|
-| V3 (ZeroDustSweepMainnet) | **Production** | Unified SweepIntent, granular fees, sponsor model |
-| V3 (ZeroDustSweepV3TEST) | Testnet | Same as mainnet, for testing |
+| ZeroDustSweepMainnet | **Production** | Unified SweepIntent, granular fees, sponsor model |
+| ZeroDustSweepTEST | Testnet | Same as mainnet, for testing |
 
 ### Verified Mainnet Sweeps
 
@@ -189,7 +188,7 @@ Abstract, Lens, zkSync, Taiko, opBNB, Avalanche, Swell, Cyber, Boba, Metis, Fuse
 
 ## Cross-Chain Bridging
 
-ZeroDust V3 supports cross-chain sweeps via the MODE_CALL pattern:
+ZeroDust supports cross-chain sweeps via the MODE_CALL pattern:
 
 - **callTarget**: Bridge contract address
 - **callData**: Bridge-specific transaction data
