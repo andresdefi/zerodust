@@ -16,12 +16,12 @@ V3 is the production contract deployed on mainnet. It simplifies the architectur
 | Domain verifyingContract | Contract address | User's EOA |
 | Executor naming | Relayer | Sponsor |
 
-### V3 Contract Files
+### Contract Files
 
 | Contract | Purpose |
 |----------|---------|
-| `ZeroDustSweepMainnet.sol` | V3 production (mainnet) |
-| `ZeroDustSweepV3TEST.sol` | V3 testnet |
+| `ZeroDustSweepMainnet.sol` | Production (mainnet) |
+| `ZeroDustSweepTEST.sol` | Testnet |
 
 ### V3 Mainnet Deployments (January 2026)
 

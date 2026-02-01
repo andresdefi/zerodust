@@ -1,7 +1,7 @@
 # ZeroDust Security Report
 
 **Date:** January 2026
-**Contracts Analyzed:** ZeroDustSweepMainnet (V3), ZeroDustSweepV3TEST
+**Contracts Analyzed:** ZeroDustSweepMainnet (V3), ZeroDustSweepTEST
 **Tools Used:** Slither v0.10.x, Foundry Forge Tests
 
 ---
@@ -11,7 +11,7 @@
 | Contract | Critical | High | Medium | Low | Informational |
 |----------|----------|------|--------|-----|---------------|
 | ZeroDustSweepMainnet (V3) | 0 | 0 | 0 | 2 | 5 |
-| ZeroDustSweepV3TEST | 0 | 0 | 0 | 2 | 5 |
+| ZeroDustSweepTEST | 0 | 0 | 0 | 2 | 5 |
 
 **Overall Assessment:** No critical or high severity issues found. All findings are either accepted risks (by design) or informational.
 
