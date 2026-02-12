@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.zerodustxyz/zerodust",
-  "description": "Sweep native gas tokens to exactly zero across 25+ EVM chains. Check balances, get quotes, and execute sweeps via AI agents.",
+  "description": "Sweep native gas tokens to exactly zero across 25+ EVM chains via AI agents.",
   "repository": {
     "url": "https://github.com/zerodustxyz/zerodust",
     "source": "github"
