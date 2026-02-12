@@ -58,7 +58,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zerodustxyz/zerodust"
+    "url": "git+https://github.com/zerodustxyz/zerodust.git"
   },
   "homepage": "https://zerodust.xyz",
   "bugs": {

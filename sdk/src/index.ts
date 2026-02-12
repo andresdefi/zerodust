@@ -40,6 +40,18 @@
 // Main client
 export { ZeroDust } from './client.js';
 
+// Agent module (for AI agents and automated systems)
+export {
+  ZeroDustAgent,
+  createAgentFromPrivateKey,
+  type ZeroDustAgentConfig,
+  type AgentSweepRequest,
+  type AgentBatchSweepRequest,
+  type AgentSweepResult,
+  type AgentBatchSweepResult,
+  type AgentSweepOptions,
+} from './agent.js';
+
 // Types
 export type {
   // Configuration

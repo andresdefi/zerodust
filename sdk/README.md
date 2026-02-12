@@ -38,7 +38,7 @@ const zerodust = new ZeroDust({ environment: 'mainnet' });
 
 // 2. Check balances across all chains
 const balances = await zerodust.getBalances('0xYourAddress...');
-console.log('Sweepable balances:', balances.balances.filter(b => b.isSweepable));
+console.log('Sweepable balances:', balances.chains.filter(b => b.canSweep));
 
 // 3. Get a quote for sweeping
 const quote = await zerodust.getQuote({
@@ -52,7 +52,7 @@ console.log('You will receive:', quote.minReceiveWei);
 console.log('Total fees:', quote.fees.totalFeeWei);
 
 // 4. Create authorization for signing
-const { typedData, eip7702 } = await zerodust.createAuthorization(quote.quoteId);
+const { typedData, contractAddress } = await zerodust.createAuthorization(quote.quoteId);
 
 // 5. Sign with your wallet (example using viem)
 const account = privateKeyToAccount('0x...');
@@ -67,9 +67,7 @@ const signature = await walletClient.signTypedData(typedData);
 
 // Sign the EIP-7702 authorization
 const eip7702Authorization = await walletClient.signAuthorization({
-  contractAddress: eip7702.contractAddress,
-  chainId: eip7702.chainId,
-  nonce: eip7702.nonce,
+  contractAddress,
 });
 
 // 6. Submit the sweep
@@ -78,9 +76,9 @@ const sweep = await zerodust.submitSweep({
   signature,
   eip7702Authorization: {
     chainId: eip7702Authorization.chainId,
-    contractAddress: eip7702Authorization.contractAddress,
-    nonce: eip7702Authorization.nonce,
-    yParity: eip7702Authorization.yParity,
+    contractAddress,
+    nonce: Number(eip7702Authorization.nonce),
+    yParity: eip7702Authorization.yParity as 0 | 1,
     r: eip7702Authorization.r,
     s: eip7702Authorization.s,
   },
@@ -146,12 +144,12 @@ console.log(base.name); // 'Base'
 Get balances for an address across all supported chains.
 
 ```typescript
-const { balances, totalUsd } = await zerodust.getBalances('0x...');
+const { chains, totalUsd } = await zerodust.getBalances('0x...');
 
 console.log(`Total value: $${totalUsd}`);
 
-balances.forEach(balance => {
-  if (balance.isSweepable) {
+chains.forEach(balance => {
+  if (balance.canSweep) {
     console.log(`${balance.chainName}: ${balance.balanceFormatted}`);
   }
 });
@@ -164,7 +162,7 @@ Get balance for a specific chain.
 ```typescript
 const balance = await zerodust.getBalance('0x...', 8453);
 
-if (balance.isSweepable) {
+if (balance.canSweep) {
   console.log(`Can sweep ${balance.balanceFormatted} from Base`);
 }
 ```
@@ -209,10 +207,10 @@ console.log('Expires:', quote.expiresAt);
 Create EIP-712 typed data for signing.
 
 ```typescript
-const { typedData, eip7702, expiresAt } = await zerodust.createAuthorization(quote.quoteId);
+const { typedData, contractAddress, expiresAt } = await zerodust.createAuthorization(quote.quoteId);
 
 // typedData: EIP-712 typed data to sign (SweepIntent)
-// eip7702: Contract address and nonce for EIP-7702 authorization
+// contractAddress: ZeroDust contract to delegate to via EIP-7702
 // expiresAt: When the authorization expires
 ```
 
@@ -520,6 +518,41 @@ import type {
 } from '@zerodust/sdk';
 ```
 
+## AI Agent Integration
+
+ZeroDust provides a specialized module for autonomous AI agents that control their own wallets:
+
+```typescript
+import { createAgentFromPrivateKey } from '@zerodust/sdk';
+
+// Create an agent that handles all signing automatically
+const agent = await createAgentFromPrivateKey('0x...', {
+  environment: 'mainnet',
+  apiKey: 'zd_...', // Optional: for higher rate limits
+});
+
+// Single sweep
+await agent.sweep({
+  fromChainId: 42161, // Arbitrum
+  toChainId: 8453,    // Base
+});
+
+// Batch sweep multiple chains
+await agent.batchSweep({
+  sweeps: [
+    { fromChainId: 42161 },
+    { fromChainId: 10 },
+    { fromChainId: 137 },
+  ],
+  toChainId: 8453,
+});
+
+// Sweep all chains with balance
+await agent.sweepAll({ toChainId: 8453 });
+```
+
+For detailed AI agent integration guide, see [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md).
+
 ## Supported Chains
 
 ZeroDust supports all EVM chains with EIP-7702 support. Current mainnet chains include:
@@ -540,13 +573,14 @@ ZeroDust charges a small service fee for sweeps:
 
 - **Minimum fee:** $0.05 equivalent
 - **Maximum fee:** $0.50 equivalent
-- **Standard fee:** 5% of transferred value (between min/max)
+- **Standard fee:** 1% of transferred value (between min/max)
+- **Free tier:** No service fee for sweeps under $1
 
 Additionally:
 - **Gas reimbursement:** Actual gas cost paid by the relayer
 - **Bridge fee:** Near-zero (only destination gas for cross-chain)
 
-Example: Sweeping $5 worth of ETH → ~$0.25 service fee + gas
+Example: Sweeping $5 worth of ETH → ~$0.05 service fee + gas
 
 ## Browser Support
 
