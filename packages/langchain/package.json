@@ -1,0 +1,52 @@
+{
+  "name": "@zerodust/langchain",
+  "version": "0.1.0",
+  "description": "LangChain tools for ZeroDust - sweep native gas tokens to zero via AI agents",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "zerodust",
+    "langchain",
+    "ai-agent",
+    "ethereum",
+    "eip-7702",
+    "sweep",
+    "blockchain",
+    "tools"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodustxyz/zerodust.git",
+    "directory": "packages/langchain"
+  },
+  "homepage": "https://zerodust.xyz",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@zerodust/sdk": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.2.0",
+    "zod": ">=3.22.0"
+  },
+  "devDependencies": {
+    "@langchain/core": "^0.3.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "zod": "^3.22.0"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "@zerodust/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for ZeroDust - sweep native gas tokens to zero via AI agents",
+  "type": "module",
+  "bin": {
+    "zerodust-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "zerodust",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "ethereum",
+    "eip-7702",
+    "sweep",
+    "blockchain"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodustxyz/zerodust.git",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://zerodust.xyz",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.2.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

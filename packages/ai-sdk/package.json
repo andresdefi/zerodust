@@ -1,0 +1,52 @@
+{
+  "name": "@zerodust/ai-sdk",
+  "version": "0.1.0",
+  "description": "Vercel AI SDK tools for ZeroDust - sweep native gas tokens to zero via AI agents",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "zerodust",
+    "vercel-ai-sdk",
+    "ai-agent",
+    "ethereum",
+    "eip-7702",
+    "sweep",
+    "blockchain",
+    "tools"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodustxyz/zerodust.git",
+    "directory": "packages/ai-sdk"
+  },
+  "homepage": "https://zerodust.xyz",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@zerodust/sdk": "^0.1.0"
+  },
+  "peerDependencies": {
+    "ai": ">=3.0.0",
+    "zod": ">=3.22.0"
+  },
+  "devDependencies": {
+    "ai": "^4.0.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "zod": "^3.22.0"
+  }
+}
