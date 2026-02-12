@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zerodustxyz/zerodust",
+  "description": "Sweep native gas tokens to exactly zero across 25+ EVM chains. Check balances, get quotes, and execute sweeps via AI agents.",
+  "repository": {
+    "url": "https://github.com/zerodustxyz/zerodust",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@zerodust/mcp-server",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Custom API URL (defaults to https://api.zerodust.xyz)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_API_URL"
+        },
+        {
+          "description": "API key for higher rate limits",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "ZERODUST_API_KEY"
+        }
+      ]
+    }
+  ]
+}
