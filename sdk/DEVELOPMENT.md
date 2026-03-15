@@ -219,6 +219,6 @@ PRIVATE_KEY=0x... npx tsx examples/basic-sweep.ts
 ## Contact & Resources
 
 - **SDK Package**: `@zerodust/sdk` on npm
-- **Repository**: https://github.com/zerodustxyz/zerodust
+- **Repository**: https://github.com/andresdefi/zerodust
 - **Website**: https://zerodust.xyz
-- **Backend Repo**: https://github.com/zerodustxyz/zerodust-backend (private)
+- **Backend Repo**: https://github.com/andresdefi/zerodust-backend (private)

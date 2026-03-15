@@ -49,8 +49,8 @@ import {
  * Default API base URLs
  */
 const API_URLS: Record<Environment, string> = {
-  mainnet: 'https://api.zerodust.xyz',
-  testnet: 'https://api-testnet.zerodust.xyz',
+  mainnet: 'https://zerodust-backend.onrender.com',
+  testnet: 'https://zerodust-backend.onrender.com',
 };
 
 /**

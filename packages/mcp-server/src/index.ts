@@ -11,7 +11,7 @@
  *   npx @zerodust/mcp-server
  *
  * Configuration via environment variables:
- *   ZERODUST_API_URL - Custom API URL (default: https://api.zerodust.xyz)
+ *   ZERODUST_API_URL - Custom API URL (default: https://zerodust-backend.onrender.com)
  *   ZERODUST_API_KEY - Optional API key for higher rate limits
  */
 
@@ -19,7 +19,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const API_BASE = process.env.ZERODUST_API_URL || "https://api.zerodust.xyz";
+const API_BASE = process.env.ZERODUST_API_URL || "https://zerodust-backend.onrender.com";
 const API_KEY = process.env.ZERODUST_API_KEY;
 
 const server = new McpServer({

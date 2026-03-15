@@ -1,6 +1,6 @@
 # @zerodust/sdk
 
-[![CI](https://github.com/zerodustxyz/zerodust/actions/workflows/ci.yml/badge.svg)](https://github.com/zerodustxyz/zerodust/actions/workflows/ci.yml)
+[![CI](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml/badge.svg)](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@zerodust/sdk.svg)](https://www.npmjs.com/package/@zerodust/sdk)
 [![npm downloads](https://img.shields.io/npm/dm/@zerodust/sdk.svg)](https://www.npmjs.com/package/@zerodust/sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -97,7 +97,7 @@ const zerodust = new ZeroDust({
   environment: 'mainnet',
 
   // Optional: Custom API URL (overrides environment)
-  baseUrl: 'https://api.zerodust.xyz',
+  baseUrl: 'https://zerodust-backend.onrender.com',
 
   // Optional: API key for higher rate limits
   apiKey: 'your-api-key',
@@ -603,5 +603,5 @@ MIT
 
 - [Website](https://zerodust.xyz)
 - [Documentation](https://docs.zerodust.xyz)
-- [GitHub](https://github.com/zerodustxyz/zerodust)
+- [GitHub](https://github.com/andresdefi/zerodust)
 - [Discord](https://discord.gg/zerodust)
