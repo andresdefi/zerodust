@@ -17,7 +17,7 @@
       },
       "environmentVariables": [
         {
-          "description": "Custom API URL (defaults to https://zerodust-backend.onrender.com)",
+          "description": "Custom API URL (defaults to https://api.zerodust.xyz)",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

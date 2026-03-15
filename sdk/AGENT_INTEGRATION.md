@@ -66,7 +66,7 @@ import { ZeroDust } from '@zerodust/sdk';
 // Register your agent
 const client = new ZeroDust({ environment: 'mainnet' });
 
-const response = await fetch('https://zerodust-backend.onrender.com/agent/register', {
+const response = await fetch('https://api.zerodust.xyz/agent/register', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -111,7 +111,7 @@ const config: ZeroDustAgentConfig = {
   account: privateKeyToAccount('0x...'),
   environment: 'mainnet', // or 'testnet'
   apiKey: 'zd_...', // optional
-  baseUrl: 'https://zerodust-backend.onrender.com', // optional custom URL
+  baseUrl: 'https://api.zerodust.xyz', // optional custom URL
 };
 
 const agent = new ZeroDustAgent(config);
@@ -197,7 +197,7 @@ console.log(`Balance: ${balance.balanceFormatted} ETH`);
 For maximum efficiency, use the batch sweep endpoint directly:
 
 ```typescript
-const response = await fetch('https://zerodust-backend.onrender.com/agent/batch-sweep', {
+const response = await fetch('https://api.zerodust.xyz/agent/batch-sweep', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -341,7 +341,7 @@ await agent.sweep(request, {
 Use the /agent/me endpoint to check usage:
 
 ```typescript
-const stats = await fetch('https://zerodust-backend.onrender.com/agent/me', {
+const stats = await fetch('https://api.zerodust.xyz/agent/me', {
   headers: { 'Authorization': `Bearer ${apiKey}` }
 }).then(r => r.json());
 
