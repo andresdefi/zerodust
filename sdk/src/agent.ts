@@ -39,7 +39,7 @@
 import {
   type Address,
   type Hex,
-  type Account,
+  type LocalAccount,
   type WalletClient,
   createWalletClient,
   http,
@@ -61,10 +61,10 @@ import { ZeroDustError } from './errors.js';
  */
 export interface ZeroDustAgentConfig extends ZeroDustConfig {
   /**
-   * Viem account (from privateKeyToAccount or similar)
-   * This account will be used for all signing operations.
+   * Viem local account (from privateKeyToAccount or similar).
+   * Must be a LocalAccount with signing capability — browser/JSON-RPC accounts won't work.
    */
-  account: Account;
+  account: LocalAccount;
 
   /**
    * Optional: Custom RPC URLs per chain
@@ -181,7 +181,7 @@ export class ZeroDustAgent {
   public readonly client: ZeroDust;
 
   /** Agent's account */
-  public readonly account: Account;
+  public readonly account: LocalAccount;
 
   /** Agent's address */
   public readonly address: Address;

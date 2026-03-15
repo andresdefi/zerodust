@@ -208,10 +208,7 @@ server.registerTool(
           extraFeeWei: string;
         };
         validForSeconds: number;
-      }>("/quote", {
-        method: "POST",
-        body: { fromChainId, toChainId, userAddress, destination },
-      });
+      }>(`/quote?fromChainId=${fromChainId}&toChainId=${toChainId}&userAddress=${encodeURIComponent(userAddress)}&destination=${encodeURIComponent(destination)}`);
 
       const text = [
         `Quote ID: ${data.quoteId}`,
@@ -267,7 +264,7 @@ server.registerTool(
         toChainId: number;
         errorMessage?: string;
         bridgeTrackingUrl?: string;
-      }>(`/sweep/${sweepId}/status`);
+      }>(`/sweep/${sweepId}`);
 
       const lines = [
         `Sweep ID: ${data.sweepId}`,

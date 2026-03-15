@@ -95,10 +95,12 @@ curl https://zerodust-backend.onrender.com/sweep/SWEEP_ID
 
 ZeroDust exposes an MCP server at `https://zerodust-backend.onrender.com/mcp` with these tools:
 
-- `check_balances` - Check native token balances across all 25 chains
-- `get_sweep_quote` - Get a quote for sweeping
-- `get_supported_chains` - List all supported chains
-- `get_service_info` - Service details, pricing, integration info
+- `zerodust_get_chains` - List all supported chains
+- `zerodust_get_balances` - Check native token balances across all 25 chains
+- `zerodust_get_quote` - Get a quote for sweeping
+- `zerodust_get_sweep_status` - Check status of a submitted sweep
+- `zerodust_list_sweeps` - List past sweeps for an address
+- `zerodust_info` - Service details, pricing, integration info
 
 ## Agent API (Simplified)
 
