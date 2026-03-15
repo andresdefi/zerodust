@@ -1,8 +1,8 @@
 # ZeroDust API Reference
 
-Base URL: `https://zerodust-backend.onrender.com`
+Base URL: `https://api.zerodust.xyz`
 
-API docs with Swagger UI: `https://zerodust-backend.onrender.com/docs`
+API docs with Swagger UI: `https://api.zerodust.xyz/docs`
 
 ## Core Endpoints
 
@@ -224,7 +224,7 @@ Self-revoke API key (cannot be undone).
 
 ## MCP Server
 
-Endpoint: `POST https://zerodust-backend.onrender.com/mcp`
+Endpoint: `POST https://api.zerodust.xyz/mcp`
 
 Protocol: JSON-RPC 2.0 (MCP spec version 2024-11-05)
 

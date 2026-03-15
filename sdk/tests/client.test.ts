@@ -506,7 +506,7 @@ describe('ZeroDust with custom config', () => {
     await client.getChains();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('zerodust-backend.onrender.com'),
+      expect.stringContaining('api.zerodust.xyz'),
       expect.any(Object)
     );
   });

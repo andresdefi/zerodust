@@ -67,18 +67,18 @@ const results = await agent.sweepAll({ toChainId: 8453 });
 
 ```bash
 # 1. Check balances
-curl https://zerodust-backend.onrender.com/balances/0xYOUR_ADDRESS?testnet=false
+curl https://api.zerodust.xyz/balances/0xYOUR_ADDRESS?testnet=false
 
 # 2. Get quote
-curl "https://zerodust-backend.onrender.com/quote?fromChainId=42161&toChainId=8453&userAddress=0x...&destination=0x..."
+curl "https://api.zerodust.xyz/quote?fromChainId=42161&toChainId=8453&userAddress=0x...&destination=0x..."
 
 # 3. Get signing data
-curl -X POST https://zerodust-backend.onrender.com/authorization \
+curl -X POST https://api.zerodust.xyz/authorization \
   -H "Content-Type: application/json" \
   -d '{"quoteId": "uuid-from-step-2"}'
 
 # 4. Submit signed sweep
-curl -X POST https://zerodust-backend.onrender.com/sweep \
+curl -X POST https://api.zerodust.xyz/sweep \
   -H "Content-Type: application/json" \
   -d '{
     "quoteId": "...",
@@ -88,12 +88,12 @@ curl -X POST https://zerodust-backend.onrender.com/sweep \
   }'
 
 # 5. Check status
-curl https://zerodust-backend.onrender.com/sweep/SWEEP_ID
+curl https://api.zerodust.xyz/sweep/SWEEP_ID
 ```
 
 ## Quick Start: MCP
 
-ZeroDust exposes an MCP server at `https://zerodust-backend.onrender.com/mcp` with these tools:
+ZeroDust exposes an MCP server at `https://api.zerodust.xyz/mcp` with these tools:
 
 - `zerodust_get_chains` - List all supported chains
 - `zerodust_get_balances` - Check native token balances across all 25 chains
@@ -108,13 +108,13 @@ For AI agents, there are dedicated endpoints that reduce round trips:
 
 ```bash
 # Register for an API key
-curl -X POST https://zerodust-backend.onrender.com/agent/register \
+curl -X POST https://api.zerodust.xyz/agent/register \
   -H "Content-Type: application/json" \
   -d '{"name": "My Agent", "agentId": "agent-001"}'
 # Returns: { "apiKey": "zd_..." }
 
 # Single sweep (combines quote + auth data)
-curl -X POST https://zerodust-backend.onrender.com/agent/sweep \
+curl -X POST https://api.zerodust.xyz/agent/sweep \
   -H "Authorization: Bearer zd_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -125,7 +125,7 @@ curl -X POST https://zerodust-backend.onrender.com/agent/sweep \
   }'
 
 # Batch sweep (multiple chains at once)
-curl -X POST https://zerodust-backend.onrender.com/agent/batch-sweep \
+curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
   -H "Authorization: Bearer zd_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -194,7 +194,7 @@ Mainnet address (same on all 25 chains via CREATE2):
 ## Links
 
 - Website: https://zerodust.xyz
-- API Docs: https://zerodust-backend.onrender.com/docs
-- MCP Server: https://zerodust-backend.onrender.com/mcp
+- API Docs: https://api.zerodust.xyz/docs
+- MCP Server: https://api.zerodust.xyz/mcp
 - ERC-8004 Agent: https://www.8004scan.io/agents/base/1435
 - GitHub: https://github.com/andresdefi

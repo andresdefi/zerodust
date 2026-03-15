@@ -97,7 +97,7 @@ const zerodust = new ZeroDust({
   environment: 'mainnet',
 
   // Optional: Custom API URL (overrides environment)
-  baseUrl: 'https://zerodust-backend.onrender.com',
+  baseUrl: 'https://api.zerodust.xyz',
 
   // Optional: API key for higher rate limits
   apiKey: 'your-api-key',
