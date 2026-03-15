@@ -267,7 +267,7 @@ export function wrapError(error: unknown, context?: string): ZeroDustError {
 
     // Check for common network errors
     if (error.name === 'AbortError' || error.message.includes('timeout')) {
-      return new TimeoutError(30000, { originalError: error.message });
+      return new TimeoutError(0, { originalError: error.message });
     }
 
     if (error.message.includes('fetch') || error.message.includes('network')) {

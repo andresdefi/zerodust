@@ -50,7 +50,7 @@ import {
  */
 const API_URLS: Record<Environment, string> = {
   mainnet: 'https://zerodust-backend.onrender.com',
-  testnet: 'https://zerodust-backend.onrender.com',
+  testnet: 'https://zerodust-backend.onrender.com', // TODO: separate testnet backend when available
 };
 
 /**
@@ -119,7 +119,9 @@ class HttpClient {
     try {
       return await this.fetchWithTimeout(url, options);
     } catch (error) {
-      if (retriesLeft > 0) {
+      // Don't retry on AbortError (our own timeout) — fail fast instead of compounding latency
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (retriesLeft > 0 && !isAbort) {
         // Exponential backoff
         const delay = Math.min(1000 * 2 ** (this.retries - retriesLeft), 10000);
         await new Promise((resolve) => setTimeout(resolve, delay));

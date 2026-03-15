@@ -230,10 +230,12 @@ Protocol: JSON-RPC 2.0 (MCP spec version 2024-11-05)
 
 ### Available Tools
 
-- **check_balances** `{address}` - Balances across all chains
-- **get_sweep_quote** `{userAddress, sourceChainId, destinationChainId, destinationAddress}` - Quote
-- **get_supported_chains** `{}` - Chain list
-- **get_service_info** `{}` - Pricing, features, integration details
+- **zerodust_get_chains** `{}` - List all supported chains
+- **zerodust_get_balances** `{address}` - Balances across all chains
+- **zerodust_get_quote** `{fromChainId, toChainId, userAddress, destination}` - Quote with fee breakdown
+- **zerodust_get_sweep_status** `{sweepId}` - Check sweep status
+- **zerodust_list_sweeps** `{address}` - List past sweeps
+- **zerodust_info** `{}` - Pricing, features, integration details
 
 ### Example MCP Call
 
@@ -243,7 +245,7 @@ Protocol: JSON-RPC 2.0 (MCP spec version 2024-11-05)
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "check_balances",
+    "name": "zerodust_get_balances",
     "arguments": {
       "address": "0x1234567890abcdef1234567890abcdef12345678"
     }
