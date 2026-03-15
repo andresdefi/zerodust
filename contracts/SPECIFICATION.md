@@ -132,7 +132,7 @@ uint256 protocolFeeGasUnits;   // per-intent protocol margin (<= MAX_PROTOCOL_FE
 **Purpose:** Your on-chain revenue mechanism.
 
 **How it works:**
-- Quote engine calculates service fee (5%, min $0.05, max $0.50)
+- Quote engine calculates service fee (1%, free under $1, min $0.05, max $0.50)
 - Converts to gas units: `protocolFeeGasUnits = serviceFeeWei / expectedGasPrice`
 - Reimbursement includes: `protocolFeeGasUnits × actualGasPrice`
 
@@ -241,8 +241,8 @@ reimbursement = (measuredGas + overheadGasUnits + protocolFeeGasUnits)
 ### Off-Chain (Quote Engine)
 
 ```typescript
-// Service fee: 5% with min $0.05, max $0.50
-const serviceFeeUsd = Math.max(0.05, Math.min(0.50, balanceUsd * 0.05));
+// Service fee: 1% with free tier under $1, min $0.05, max $0.50
+const serviceFeeUsd = balanceUsd < 1 ? 0 : Math.max(0.05, Math.min(0.50, balanceUsd * 0.01));
 const serviceFeeWei = BigInt(Math.ceil(serviceFeeUsd / ethPriceUsd * 1e18));
 
 // Convert to gas units for on-chain

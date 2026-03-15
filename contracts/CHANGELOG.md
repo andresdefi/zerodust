@@ -55,7 +55,7 @@ struct SweepIntent {
 
 ### V3 Fee Structure
 
-- **Service Fee:** 5% of swept value
+- **Service Fee:** 1% of swept value (free for sweeps under $1)
 - **Minimum:** $0.05
 - **Maximum:** $0.50
 - **Service fee goes in `extraFeeWei`** (not `protocolFeeGasUnits`)
