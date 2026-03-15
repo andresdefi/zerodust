@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.zerodustxyz/zerodust",
+  "name": "io.github.andresdefi/zerodust",
   "description": "Sweep native gas tokens to exactly zero across 25+ EVM chains via AI agents.",
   "repository": {
-    "url": "https://github.com/zerodustxyz/zerodust",
+    "url": "https://github.com/andresdefi/zerodust",
     "source": "github"
   },
   "version": "0.1.1",
@@ -17,7 +17,7 @@
       },
       "environmentVariables": [
         {
-          "description": "Custom API URL (defaults to https://api.zerodust.xyz)",
+          "description": "Custom API URL (defaults to https://zerodust-backend.onrender.com)",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

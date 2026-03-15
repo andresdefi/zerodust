@@ -50,7 +50,7 @@ Add to your `.claude/settings.json`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZERODUST_API_URL` | Custom API URL | `https://api.zerodust.xyz` |
+| `ZERODUST_API_URL` | Custom API URL | `https://zerodust-backend.onrender.com` |
 | `ZERODUST_API_KEY` | API key for higher rate limits | - |
 
 ## Available Tools

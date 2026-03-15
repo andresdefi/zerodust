@@ -1,7 +1,7 @@
 {
   "name": "@zerodust/mcp-server",
   "version": "0.1.1",
-  "mcpName": "io.github.zerodustxyz/zerodust",
+  "mcpName": "io.github.andresdefi/zerodust",
   "description": "MCP server for ZeroDust - sweep native gas tokens to zero via AI agents",
   "type": "module",
   "bin": {
@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zerodustxyz/zerodust.git",
+    "url": "git+https://github.com/andresdefi/zerodust.git",
     "directory": "packages/mcp-server"
   },
   "homepage": "https://zerodust.xyz",
