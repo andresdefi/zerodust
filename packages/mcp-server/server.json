@@ -6,12 +6,12 @@
     "url": "https://github.com/andresdefi/zerodust",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zerodust/mcp-server",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },
@@ -29,6 +29,27 @@
           "format": "string",
           "isSecret": true,
           "name": "ZERODUST_API_KEY"
+        },
+        {
+          "description": "Set to \"true\" to enable the sweep tools. Sweeping moves real funds, so it is off by default and also requires ZERODUST_PRIVATE_KEY.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_ALLOW_EXECUTE"
+        },
+        {
+          "description": "Private key for the agent's own wallet, used locally to sign the EIP-7702 authorization and EIP-712 sweep intent. Never transmitted; only the resulting signatures are sent.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "ZERODUST_PRIVATE_KEY"
+        },
+        {
+          "description": "Comma-separated allowlist of sweep destinations. When unset, funds can only be swept to the agent's own address.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_ALLOWED_DESTINATIONS"
         }
       ]
     }
