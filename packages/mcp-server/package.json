@@ -1,6 +1,6 @@
 {
   "name": "@zerodust/mcp-server",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "mcpName": "io.github.andresdefi/zerodust",
   "description": "MCP server for ZeroDust - sweep native gas tokens to zero via AI agents",
   "type": "module",
@@ -43,6 +43,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.2.0",
+    "@zerodust/sdk": "^0.1.0",
+    "viem": "^2.21.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

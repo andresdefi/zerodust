@@ -193,3 +193,8 @@ CLAUDE.md
 Claude.md
 Plan.md
 Milestones.md
+
+# Credentials
+# ===================
+# MCP registry publish tokens — never commit
+.mcpregistry_*
