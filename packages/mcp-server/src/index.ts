@@ -13,11 +13,15 @@
  * Configuration via environment variables:
  *   ZERODUST_API_URL - Custom API URL (default: https://api.zerodust.xyz)
  *   ZERODUST_API_KEY - Optional API key for higher rate limits
+ *
+ * Sweeping is read-only by default. To let an agent actually move funds, see
+ * `execute.ts` for the ZERODUST_ALLOW_EXECUTE / ZERODUST_PRIVATE_KEY opt-in.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { readExecuteConfig, registerExecuteTools } from "./execute.js";
 
 const API_BASE = process.env.ZERODUST_API_URL || "https://api.zerodust.xyz";
 const API_KEY = process.env.ZERODUST_API_KEY;
@@ -423,6 +427,12 @@ server.registerTool(
             "  - SDK: npm install @zerodust/sdk viem",
             "  - API: POST /quote, POST /sweep, GET /sweep/:id/status",
             "  - MCP: This server (stdio transport)",
+            "",
+            "Sweeping from this MCP server:",
+            "  Read-only by default. To execute sweeps, set both",
+            "  ZERODUST_PRIVATE_KEY and ZERODUST_ALLOW_EXECUTE=true, which adds the",
+            "  zerodust_sweep and zerodust_sweep_all tools. Funds may only be sent to",
+            "  the agent's own address unless ZERODUST_ALLOWED_DESTINATIONS lists more.",
           ].join("\n"),
         },
       ],
@@ -433,9 +443,18 @@ server.registerTool(
 // ============ Start Server ============
 
 async function main() {
+  const executeConfig = readExecuteConfig();
+  if (executeConfig) {
+    registerExecuteTools(server, executeConfig);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("ZeroDust MCP Server running on stdio");
+  console.error(
+    executeConfig
+      ? "ZeroDust MCP Server running on stdio (sweep execution ENABLED)"
+      : "ZeroDust MCP Server running on stdio (read-only; set ZERODUST_ALLOW_EXECUTE=true to sweep)"
+  );
 }
 
 main().catch((error) => {
