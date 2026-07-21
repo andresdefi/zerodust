@@ -2,7 +2,7 @@
   "name": "@zerodust/mcp-server",
   "version": "0.2.0",
   "mcpName": "io.github.andresdefi/zerodust",
-  "description": "MCP server for ZeroDust - sweep native gas tokens to zero via AI agents",
+  "description": "MCP server that lets an AI agent sweep its own wallet to exactly zero on 25+ EVM chains, with no gas left stranded.",
   "type": "module",
   "bin": {
     "zerodust-mcp": "dist/index.js"
@@ -28,7 +28,22 @@
     "ethereum",
     "eip-7702",
     "sweep",
-    "blockchain"
+    "blockchain",
+    "ai-agent-tools",
+    "agent-wallet",
+    "autonomous-agent",
+    "onchain-agent",
+    "agent-tools",
+    "dust",
+    "gas",
+    "gas-token",
+    "multichain",
+    "cross-chain",
+    "evm",
+    "wallet",
+    "mcp-server",
+    "claude",
+    "claude-code"
   ],
   "author": "",
   "license": "MIT",
