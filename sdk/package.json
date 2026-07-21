@@ -1,7 +1,7 @@
 {
   "name": "@zerodust/sdk",
   "version": "0.1.0",
-  "description": "TypeScript SDK for ZeroDust - sweep native gas tokens to zero",
+  "description": "Sweep 100% of a wallet's native gas token off any EVM chain, leaving exactly zero. TypeScript SDK for AI agents and onchain automation.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -51,7 +51,17 @@
     "viem",
     "typescript",
     "cross-chain",
-    "bridge"
+    "bridge",
+    "ai-agent",
+    "ai-agent-tools",
+    "agent-wallet",
+    "autonomous-agent",
+    "onchain-agent",
+    "agent-tools",
+    "dust",
+    "gas-token",
+    "multichain",
+    "wallet"
   ],
   "author": "",
   "license": "MIT",
