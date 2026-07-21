@@ -4,6 +4,53 @@
 
 ZeroDust is an intent-based exit system that enables users to sweep their entire native gas token balance to exactly zero via EIP-7702 sponsored execution.
 
+## For AI agents
+
+Agents accumulate dust as a byproduct of existing. Anything doing multi-chain
+work — arbitrage, bridging, testing, deployment — ends up with stranded gas on
+chains it will never touch again. A human notices and shrugs; an unattended
+agent leaks capital indefinitely.
+
+ZeroDust is an **MCP server**, so any MCP-compatible agent can sweep its own
+wallet to exactly zero:
+
+```json
+{
+  "mcpServers": {
+    "zerodust": {
+      "command": "npx",
+      "args": ["@zerodust/mcp-server"],
+      "env": {
+        "ZERODUST_ALLOW_EXECUTE": "true",
+        "ZERODUST_PRIVATE_KEY": "0x..."
+      }
+    }
+  }
+}
+```
+
+Read-only by default. Sweeping requires the explicit opt-in above, and funds can
+only go to the agent's own address unless `ZERODUST_ALLOWED_DESTINATIONS` says
+otherwise — so a prompt-injected agent still cannot send funds somewhere you
+never approved.
+
+| Package | Use |
+|---------|-----|
+| [`@zerodust/mcp-server`](https://www.npmjs.com/package/@zerodust/mcp-server) | MCP (Claude Code, Claude Desktop, any MCP client) |
+| [`@zerodust/sdk`](https://www.npmjs.com/package/@zerodust/sdk) | TypeScript, direct — `createAgentFromPrivateKey` |
+| [`@zerodust/langchain`](https://www.npmjs.com/package/@zerodust/langchain) | LangChain tools |
+| [`@zerodust/ai-sdk`](https://www.npmjs.com/package/@zerodust/ai-sdk) | Vercel AI SDK tools |
+
+**Verified on mainnet** (2026-07-21): Optimism → Base, source balance to exactly
+0, delegation auto-revoked, 99.88% delivered, 23.2s end to end —
+[`0x19456ea8…`](https://optimistic.etherscan.io/tx/0x19456ea86ed91097847ddad6d6b8cfd6a5240dedac3b100d1a06eb64c86def6c).
+
+> **Note on wallets:** the browser UI needs the non-standard
+> `wallet_signAuthorization` RPC, which no shipping wallet exposes yet
+> ([MetaMask #7836](https://github.com/MetaMask/core/pull/7836),
+> [Rabby #3411](https://github.com/RabbyHub/Rabby/pull/3411)). Agents are
+> unaffected — they hold their own keys and sign locally.
+
 ## The Problem
 
 When users want to fully exit a blockchain, they face an impossible situation:
