@@ -1,0 +1,7 @@
+node_modules
+dist
+*.log
+.env
+.env.*
+.mcpregistry_*
+.DS_Store
