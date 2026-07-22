@@ -28,7 +28,7 @@ const API_KEY = process.env.ZERODUST_API_KEY;
 
 const server = new McpServer({
   name: "zerodust",
-  version: "0.1.0",
+  version: "0.2.1",
 });
 
 // Helper to make API requests
