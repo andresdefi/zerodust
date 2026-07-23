@@ -118,36 +118,60 @@ export function checkDestination(
   );
 }
 
+/** Suffix appended to every sweep tool description so the gate is self-documenting. */
+const GATE_NOTE =
+  " Requires ZERODUST_ALLOW_EXECUTE=true and ZERODUST_PRIVATE_KEY; without them this tool returns an error and moves no funds.";
+
+const DISABLED_MESSAGE = [
+  "Sweep execution is disabled on this ZeroDust MCP server, so nothing was moved.",
+  "",
+  "To enable it, restart the server with both:",
+  "  ZERODUST_ALLOW_EXECUTE=true",
+  "  ZERODUST_PRIVATE_KEY=0x...   (the agent's own wallet)",
+  "",
+  "Optionally set ZERODUST_ALLOWED_DESTINATIONS to permit sweeping to addresses",
+  "other than the agent's own. The read-only tools (balances, quotes, status)",
+  "work without any of this.",
+].join("\n");
+
 /**
  * Registers the sweep-execution tools on an MCP server.
  *
- * Call only when {@link readExecuteConfig} returned a config; the read-only
- * server is fully functional without these tools.
+ * Pass the result of {@link readExecuteConfig}, including null. The tools are
+ * registered either way: an agent has to be able to *see* that sweeping exists
+ * in order to tell the user how to turn it on, and a directory that introspects
+ * the server with no environment set should still discover the real tool
+ * surface. When config is null every handler refuses before touching a key, so
+ * advertising the tool grants no capability.
  */
-export function registerExecuteTools(server: McpServer, config: ExecuteConfig): void {
+export function registerExecuteTools(server: McpServer, config: ExecuteConfig | null): void {
   // The agent is constructed lazily so a bad key surfaces on first use with a
   // clear message, rather than crashing the whole server at startup.
   let agentPromise: Promise<import("@zerodust/sdk").ZeroDustAgent> | null = null;
 
-  async function getAgent() {
+  async function getAgent(enabled: ExecuteConfig) {
     if (!agentPromise) {
       agentPromise = import("@zerodust/sdk").then(({ createAgentFromPrivateKey }) =>
-        createAgentFromPrivateKey(config.privateKey, { environment: "mainnet" })
+        createAgentFromPrivateKey(enabled.privateKey, { environment: "mainnet" })
       );
     }
     return agentPromise;
   }
 
+  const disabled = () => text(DISABLED_MESSAGE, true);
+
   server.registerTool(
     "zerodust_get_agent_address",
     {
       description:
-        "Get the wallet address this ZeroDust MCP server signs with, plus which sweep destinations are permitted. Use before sweeping to confirm which wallet will be swept.",
+        "Get the wallet address this ZeroDust MCP server signs with, plus which sweep destinations are permitted. Use before sweeping to confirm which wallet will be swept." +
+        GATE_NOTE,
       inputSchema: {},
     },
     async () => {
+      if (!config) return disabled();
       try {
-        const agent = await getAgent();
+        const agent = await getAgent(config);
         const allowed =
           config.allowedDestinations.length === 0
             ? "own address only"
@@ -169,7 +193,8 @@ export function registerExecuteTools(server: McpServer, config: ExecuteConfig): 
     "zerodust_sweep",
     {
       description:
-        "Sweep 100% of the native gas token from one chain, leaving exactly zero balance. Moves real funds. Call zerodust_get_quote first to show the user what they will receive.",
+        "Sweep 100% of the native gas token from one chain, leaving exactly zero balance. Moves real funds. Call zerodust_get_quote first to show the user what they will receive." +
+        GATE_NOTE,
       inputSchema: {
         fromChainId: z.number().int().positive().describe("Chain to sweep from"),
         toChainId: z
@@ -185,8 +210,9 @@ export function registerExecuteTools(server: McpServer, config: ExecuteConfig): 
       },
     },
     async ({ fromChainId, toChainId, destination }) => {
+      if (!config) return disabled();
       try {
-        const agent = await getAgent();
+        const agent = await getAgent(config);
         const target = destination ?? agent.address;
 
         const denial = checkDestination(target, agent.address, config.allowedDestinations);
@@ -219,7 +245,8 @@ export function registerExecuteTools(server: McpServer, config: ExecuteConfig): 
     "zerodust_sweep_all",
     {
       description:
-        "Sweep every chain that holds a sweepable balance, consolidating to one destination chain. Moves real funds across multiple chains. Call zerodust_get_balances first to show the user what will be swept.",
+        "Sweep every chain that holds a sweepable balance, consolidating to one destination chain. Moves real funds across multiple chains. Call zerodust_get_balances first to show the user what will be swept." +
+        GATE_NOTE,
       inputSchema: {
         toChainId: z
           .number()
@@ -234,8 +261,9 @@ export function registerExecuteTools(server: McpServer, config: ExecuteConfig): 
       },
     },
     async ({ toChainId, destination }) => {
+      if (!config) return disabled();
       try {
-        const agent = await getAgent();
+        const agent = await getAgent(config);
         const target = destination ?? agent.address;
 
         const denial = checkDestination(target, agent.address, config.allowedDestinations);
