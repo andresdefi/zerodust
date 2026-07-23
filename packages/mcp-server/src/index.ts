@@ -429,10 +429,10 @@ server.registerTool(
             "  - MCP: This server (stdio transport)",
             "",
             "Sweeping from this MCP server:",
-            "  Read-only by default. To execute sweeps, set both",
-            "  ZERODUST_PRIVATE_KEY and ZERODUST_ALLOW_EXECUTE=true, which adds the",
-            "  zerodust_sweep and zerodust_sweep_all tools. Funds may only be sent to",
-            "  the agent's own address unless ZERODUST_ALLOWED_DESTINATIONS lists more.",
+            "  The zerodust_sweep and zerodust_sweep_all tools are always listed, but",
+            "  refuse to move funds unless both ZERODUST_PRIVATE_KEY and",
+            "  ZERODUST_ALLOW_EXECUTE=true are set. Funds may only be sent to the",
+            "  agent's own address unless ZERODUST_ALLOWED_DESTINATIONS lists more.",
           ].join("\n"),
         },
       ],
@@ -444,16 +444,17 @@ server.registerTool(
 
 async function main() {
   const executeConfig = readExecuteConfig();
-  if (executeConfig) {
-    registerExecuteTools(server, executeConfig);
-  }
+  // Registered unconditionally: when executeConfig is null the sweep tools are
+  // visible but every handler refuses, so agents and directories can discover
+  // the real tool surface without the server granting any spend capability.
+  registerExecuteTools(server, executeConfig);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(
     executeConfig
       ? "ZeroDust MCP Server running on stdio (sweep execution ENABLED)"
-      : "ZeroDust MCP Server running on stdio (read-only; set ZERODUST_ALLOW_EXECUTE=true to sweep)"
+      : "ZeroDust MCP Server running on stdio (sweep tools listed but DISABLED; set ZERODUST_ALLOW_EXECUTE=true and ZERODUST_PRIVATE_KEY to enable)"
   );
 }
 
