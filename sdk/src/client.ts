@@ -296,14 +296,14 @@ export class ZeroDust {
   /**
    * Get list of supported chains
    *
-   * @param testnet - Whether to include testnet chains (default: true)
+   * @param testnet - Query testnet chains instead of mainnet (default: false)
    * @returns List of supported chains
    *
    * @example
    * const chains = await zerodust.getChains();
    * chains.forEach(c => console.log(c.name, c.chainId));
    */
-  async getChains(testnet = true): Promise<Chain[]> {
+  async getChains(testnet = false): Promise<Chain[]> {
     // Check cache
     if (
       this.cachedChains &&
@@ -343,14 +343,14 @@ export class ZeroDust {
    * Get balances for an address across all supported chains
    *
    * @param address - User's address
-   * @param testnet - Whether to include testnet chains (default: true)
+   * @param testnet - Query testnet chains instead of mainnet (default: false)
    * @returns Balances for each chain
    *
    * @example
    * const balances = await zerodust.getBalances('0x1234...');
    * const sweepable = balances.chains.filter(c => c.canSweep);
    */
-  async getBalances(address: string, testnet = true): Promise<BalancesResponse> {
+  async getBalances(address: string, testnet = false): Promise<BalancesResponse> {
     const validatedAddress = validateAddress(address, 'address');
     return this.http.get<BalancesResponse>(`/balances/${validatedAddress}`, {
       testnet,
