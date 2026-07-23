@@ -1,6 +1,6 @@
 {
   "name": "@zerodust/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Sweep 100% of a wallet's native gas token off any EVM chain, leaving exactly zero. TypeScript SDK for AI agents and onchain automation.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
