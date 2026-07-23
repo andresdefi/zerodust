@@ -18,6 +18,7 @@
  * `execute.ts` for the ZERODUST_ALLOW_EXECUTE / ZERODUST_PRIVATE_KEY opt-in.
  */
 
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -26,9 +27,16 @@ import { readExecuteConfig, registerExecuteTools } from "./execute.js";
 const API_BASE = process.env.ZERODUST_API_URL || "https://api.zerodust.xyz";
 const API_KEY = process.env.ZERODUST_API_KEY;
 
+// Read from package.json rather than hardcoding: the literal here drifted to
+// 0.2.1 behind the package and shipped a wrong version over the wire, which
+// directory listings surface to users.
+const { version: VERSION } = createRequire(import.meta.url)("../package.json") as {
+  version: string;
+};
+
 const server = new McpServer({
   name: "zerodust",
-  version: "0.2.1",
+  version: VERSION,
 });
 
 // Helper to make API requests
