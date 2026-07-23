@@ -1,6 +1,6 @@
 {
   "name": "@zerodust/mcp-server",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "mcpName": "io.github.andresdefi/zerodust",
   "description": "MCP server that lets an AI agent sweep its own wallet to exactly zero on 25+ EVM chains, with no gas left stranded.",
   "type": "module",
