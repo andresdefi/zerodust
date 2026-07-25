@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.andresdefi/zerodust",
-  "description": "Sweep native gas tokens to exactly zero across 25+ EVM chains via AI agents.",
+  "description": "Recover stranded native gas: empty a chain's balance to exactly zero on 25 EVM chains.",
   "repository": {
     "url": "https://github.com/andresdefi/zerodust",
     "source": "github"
@@ -24,21 +24,56 @@
           "name": "ZERODUST_API_URL"
         },
         {
-          "description": "API key for higher rate limits",
+          "description": "API key for higher rate limits. An agent can issue itself one with the zerodust_register_api_key tool, with no human signup step.",
           "isRequired": false,
           "format": "string",
           "isSecret": true,
           "name": "ZERODUST_API_KEY"
         },
         {
-          "description": "Set to \"true\" to enable the sweep tools. Sweeping moves real funds, so it is off by default and also requires ZERODUST_PRIVATE_KEY.",
+          "description": "Set to \"true\" to enable the sweep tools. Sweeping moves real funds, so it is off by default and also requires one of the four signing-key variables below.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,
           "name": "ZERODUST_ALLOW_EXECUTE"
         },
         {
-          "description": "Private key for the agent's own wallet, used locally to sign the EIP-7702 authorization and EIP-712 sweep intent. Never transmitted; only the resulting signatures are sent.",
+          "description": "Path or specifier of a module whose default export returns a viem LocalAccount. This is how Turnkey, Privy, AWS KMS or any other custody service is used, without a raw key ever reaching this server. Preferred over ZERODUST_PRIVATE_KEY.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_SIGNER_MODULE"
+        },
+        {
+          "description": "Path to an encrypted V3 keystore (as produced by `cast wallet import` or geth). Requires ZERODUST_KEYSTORE_PASSWORD_FILE or ZERODUST_KEYSTORE_PASSWORD.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_KEYSTORE_FILE"
+        },
+        {
+          "description": "Path to a file containing the keystore password, so the password never enters the MCP config.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_KEYSTORE_PASSWORD_FILE"
+        },
+        {
+          "description": "Keystore password inline. Prefer ZERODUST_KEYSTORE_PASSWORD_FILE.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "ZERODUST_KEYSTORE_PASSWORD"
+        },
+        {
+          "description": "Path to a file containing a hex private key, so the key stays out of the MCP config.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ZERODUST_PRIVATE_KEY_FILE"
+        },
+        {
+          "description": "Private key for the agent's own wallet, inline. Used locally to sign the EIP-7702 authorization and EIP-712 sweep intent; never transmitted, only the resulting signatures are sent. The signer-module, keystore and key-file options above keep it out of your config entirely.",
           "isRequired": false,
           "format": "string",
           "isSecret": true,
@@ -52,6 +87,12 @@
           "name": "ZERODUST_ALLOWED_DESTINATIONS"
         }
       ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.zerodust.xyz/mcp"
     }
   ]
 }
