@@ -867,6 +867,78 @@ contract ZeroDustSweepTest is Test {
         vm.expectRevert(ZeroDustSweep.SponsorMustBeEOA.selector);
         new ZeroDustSweep(one, MIN_OVERHEAD, MAX_OVERHEAD, MAX_PROTOCOL_FEE, MAX_EXTRA_FEE, MAX_GAS_CAP);
     }
+
+    // ============ Production quote shape ============
+
+    /// Mirrors the backend's maxTotalFeeWei formula in routes/quote.ts:
+    ///   (estimatedMeasuredGas + overhead) * quoteGasPrice * 1.20 + extraFee
+    /// with estimatedMeasuredGas = 15_000.
+    function _productionReserve(uint256 overhead, uint256 quoteGasPrice, uint256 extraFee)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 units = 15_000 + overhead;
+        return (units * quoteGasPrice * 120) / 100 + extraFee;
+    }
+
+    function _sweepAtGasPct(uint256 pct, uint256 extraFee) internal returns (bool settled) {
+        _delegate();
+        vm.deal(user, 0.0005 ether);
+
+        uint256 quoteGasPrice = 1 gwei;
+        ZeroDustSweep.SweepIntent memory s = _baseIntent(0);
+        s.overheadGasUnits = 100_000; // same-chain default in quote.ts
+        s.reimbGasPriceCapWei = (quoteGasPrice * 120) / 100;
+        s.extraFeeWei = extraFee;
+        s.maxTotalFeeWei = _productionReserve(100_000, quoteGasPrice, extraFee);
+        bytes memory sig = _sign(s, USER_PK);
+
+        vm.txGasPrice((quoteGasPrice * pct) / 100);
+        vm.prank(sponsor);
+        try ZeroDustSweep(payable(user)).sweep(s, sig, "") {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * The quote engine reserves 120% of the gas cost it estimated. If the gas
+     * price FALLS before execution, the real reimbursement shrinks while the
+     * reserve does not, and the 150% overestimate guardrail eventually rejects
+     * the sweep.
+     *
+     * This pins the measured tolerance so a change to the fee formula that
+     * narrows it shows up here rather than as reverting sweeps in production.
+     * The same class of mistake already shipped once: estimatedMeasuredGas was
+     * 60_000 and caused OverestimateTooHigh on BSC before being cut to 15_000.
+     *
+     * Quotes are valid ~55 seconds, so this is the window that matters.
+     */
+    function test_quoteToleratesGasPriceFallingToSeventyPercent() public {
+        assertTrue(_sweepAtGasPct(100, 0), "must settle at the quoted gas price");
+    }
+
+    function test_quoteSurvivesA30PercentGasPriceDrop() public {
+        assertTrue(_sweepAtGasPct(70, 0), "must still settle when gas falls to 70% of quote");
+    }
+
+    function test_quoteRejectedWhenGasPriceHalves() public {
+        // Documents the limit rather than endorsing it. A sweep quoted during a
+        // congestion spike that settles after it clears will revert - the user
+        // keeps their funds and must re-quote.
+        assertFalse(_sweepAtGasPct(50, 0), "a 50% gas drop is outside the guardrail");
+    }
+
+    function test_serviceFeeDoesNotWidenTheGasDropTolerance() public {
+        // Worth pinning: the fee appears on both sides of the guardrail, so it
+        // buys almost no extra room. Free-tier (sub-$1) and paid sweeps have the
+        // same tolerance, and dust is exactly the sub-$1 case.
+        uint256 serviceFee = 0.00002 ether;
+        assertTrue(_sweepAtGasPct(70, serviceFee), "paid tier at 70%");
+        assertFalse(_sweepAtGasPct(50, serviceFee), "paid tier at 50%");
+    }
 }
 
 // ============ Mocks ============
