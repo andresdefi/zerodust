@@ -63,6 +63,23 @@ const result = await agent.sweep({
 const results = await agent.sweepAll({ toChainId: 8453 });
 ```
 
+**Prove it before moving anything.** Pass `dryRun: true` to run the whole flow —
+real quote, real EIP-712 typed data, all three real signatures — and stop before
+submitting. Nothing is broadcast and no balance changes.
+
+```typescript
+const check = await agent.sweep(
+  { fromChainId: 42161, toChainId: 8453 },
+  { dryRun: true }
+);
+check.dryRun;                  // true
+check.sweepId;                 // undefined - nothing was submitted
+check.quote?.estimatedReceive; // what would have arrived
+```
+
+There is no testnet environment (the API serves no testnet chains), so `dryRun`
+is the way to validate an integration safely.
+
 ## Quick Start: REST API
 
 ```bash
@@ -93,14 +110,35 @@ curl https://api.zerodust.xyz/sweep/SWEEP_ID
 
 ## Quick Start: MCP
 
-ZeroDust exposes an MCP server at `https://api.zerodust.xyz/mcp` with these tools:
+Two servers, same tool names. Pick by whether the agent needs to actually sweep.
 
-- `zerodust_get_chains` - List all supported chains
-- `zerodust_get_balances` - Check native token balances across all 25 chains
-- `zerodust_get_quote` - Get a quote for sweeping
-- `zerodust_get_sweep_status` - Check status of a submitted sweep
-- `zerodust_list_sweeps` - List past sweeps for an address
-- `zerodust_info` - Service details, pricing, integration info
+**Hosted, no install** — connect to `https://api.zerodust.xyz/mcp`. Read-only,
+because it holds no keys.
+
+**Local stdio** — `npx @zerodust/mcp-server`. Can sweep, because the key stays
+on the agent's machine.
+
+| Tool | Purpose | Where |
+|------|---------|-------|
+| `zerodust_get_chains` | List supported chains | both |
+| `zerodust_get_balances` | Find stranded gas across all chains | both |
+| `zerodust_get_quote` | Price emptying a chain to zero | both |
+| `zerodust_get_sweep_status` | Check a submitted sweep | both |
+| `zerodust_list_sweeps` | List past sweeps | both |
+| `zerodust_register_api_key` | Self-issue an API key, no human signup | both |
+| `zerodust_info` | Service details, pricing, integration | both |
+| `zerodust_get_agent_address` | Show the signing wallet and its allowlist | stdio only |
+| `zerodust_sweep` | Empty one chain to exactly zero | stdio only |
+| `zerodust_sweep_all` | Empty every chain with a balance | stdio only |
+
+The sweep tools accept `dryRun: true`, which rehearses the whole flow and moves
+nothing. Use it first.
+
+Sweeping requires `ZERODUST_ALLOW_EXECUTE=true` plus a signing key. The key can
+come from a signer module returning a viem `LocalAccount` (Turnkey, Privy, KMS),
+an encrypted V3 keystore, a key file, or `ZERODUST_PRIVATE_KEY` inline. Funds can
+only go to the agent's own address unless `ZERODUST_ALLOWED_DESTINATIONS` lists
+more.
 
 ## Agent API (Simplified)
 
@@ -145,13 +183,13 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
 |-------|----|-------|-------|----|-------|
 | Ethereum | 1 | ETH | Arbitrum | 42161 | ETH |
 | Optimism | 10 | ETH | Celo | 42220 | CELO |
-| BSC | 56 | BNB | Ink | 57073 | ETH |
+| BNB Chain | 56 | BNB | Ink | 57073 | ETH |
 | Gnosis | 100 | xDAI | BOB | 60808 | ETH |
 | Unichain | 130 | ETH | Berachain | 80094 | BERA |
 | Polygon | 137 | POL | Scroll | 534352 | ETH |
 | Sonic | 146 | S | Zora | 7777777 | ETH |
 | X Layer | 196 | OKB | Sei | 1329 | SEI |
-| Fraxtal | 252 | frxETH | Story | 1514 | IP |
+| Fraxtal | 252 | FRAX | Story | 1514 | IP |
 | World Chain | 480 | ETH | Soneium | 1868 | ETH |
 | Mantle | 5000 | MNT | Superseed | 5330 | ETH |
 | Base | 8453 | ETH | Mode | 34443 | ETH |
