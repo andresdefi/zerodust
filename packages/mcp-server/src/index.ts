@@ -15,10 +15,18 @@
  *   ZERODUST_API_KEY - Optional API key for higher rate limits
  *
  * Sweeping is read-only by default. To let an agent actually move funds, see
- * `execute.ts` for the ZERODUST_ALLOW_EXECUTE / ZERODUST_PRIVATE_KEY opt-in.
+ * `execute.ts` for the ZERODUST_ALLOW_EXECUTE opt-in and `signer.ts` for the
+ * four accepted ways to supply a signing key.
+ *
+ * Tool descriptions here lead with the problem rather than the product. An
+ * agent picks a tool by matching the user's words against a description, and
+ * "check balances" collides with every other balance tool in the client. What
+ * is actually distinctive is the impossibility ZeroDust removes: you cannot
+ * send 100% of a native gas token, because sending it costs it.
  */
 
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -72,7 +80,14 @@ server.registerTool(
   "zerodust_get_chains",
   {
     description:
-      "Get a list of all blockchain chains supported by ZeroDust for sweeping native gas tokens. Returns chain IDs, names, native tokens, and contract addresses.",
+      "List the EVM chains a native gas balance can be emptied to exactly zero on. Returns " +
+      "chain IDs, names, and native tokens. Call this to check whether a specific chain is " +
+      "supported before quoting or sweeping.",
+    annotations: {
+      title: "List supported chains",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {},
   },
   async () => {
@@ -122,7 +137,18 @@ server.registerTool(
   "zerodust_get_balances",
   {
     description:
-      "Check native gas token balances across all supported chains for a wallet address. Shows which chains have sweepable balances and their USD values.",
+      "Find leftover native gas token (ETH, BNB, POL, ...) stranded across every supported EVM " +
+      "chain for one address, and report which of it can be recovered. Normally these balances " +
+      "are unrecoverable: you cannot transfer 100% of a gas token, because paying for the " +
+      "transfer consumes the thing you are transferring, so a remainder is always left behind. " +
+      "This reports what is stuck and what could be moved out. Useful when a wallet has small " +
+      "amounts scattered over many chains, when someone cannot send their full balance, or " +
+      "before closing out, winding down or decommissioning a wallet.",
+    annotations: {
+      title: "Find stranded gas across chains",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       address: z
         .string()
@@ -194,7 +220,15 @@ server.registerTool(
   "zerodust_get_quote",
   {
     description:
-      "Get a quote for sweeping native gas tokens from one chain. Returns the estimated amount the user will receive, fee breakdown, and a quote ID for executing the sweep. Quotes expire in 60 seconds.",
+      "Price out emptying a chain's native gas balance to exactly zero: how much actually " +
+      "arrives, the full fee breakdown, and whether the balance is even large enough to be " +
+      "worth recovering. Call this before sweeping so the user sees the numbers first. Returns " +
+      "a quote ID; quotes expire after about 60 seconds.",
+    annotations: {
+      title: "Quote emptying a chain",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       fromChainId: z.number().int().positive().describe("Source chain ID to sweep from"),
       toChainId: z.number().int().positive().describe("Destination chain ID to receive funds"),
@@ -256,7 +290,14 @@ server.registerTool(
   "zerodust_get_sweep_status",
   {
     description:
-      "Check the status of a previously submitted sweep. Returns the current status (pending, simulating, executing, bridging, completed, failed), transaction hash if available, and error messages if failed.",
+      "Check how a previously submitted sweep is progressing. Returns the current status " +
+      "(pending, simulating, executing, bridging, completed, failed), the transaction hash once " +
+      "there is one, and the error message if it failed.",
+    annotations: {
+      title: "Check sweep status",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       sweepId: z
         .string()
@@ -319,7 +360,13 @@ server.registerTool(
   "zerodust_list_sweeps",
   {
     description:
-      "List past sweeps for a wallet address. Shows sweep history with status and amounts.",
+      "List past sweeps for a wallet address, with status and amounts. Useful for confirming a " +
+      "chain was already emptied before trying again.",
+    annotations: {
+      title: "List past sweeps",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       address: z
         .string()
@@ -393,13 +440,106 @@ server.registerTool(
   }
 );
 
+// ============ Tool: Register API Key ============
+
+server.registerTool(
+  "zerodust_register_api_key",
+  {
+    description:
+      "Issue this agent its own ZeroDust API key for higher rate limits, with no human signup " +
+      "step. The read-only tools work without a key, so only call this when rate limits are " +
+      "actually being hit, or when setting up an unattended agent that will run repeatedly. " +
+      "The key is returned once and is not stored by this server - report it to the operator " +
+      "so they can set ZERODUST_API_KEY.",
+    annotations: {
+      title: "Get an API key for this agent",
+      readOnlyHint: false,
+      // Creates a credential, but destroys nothing and touches no funds.
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    inputSchema: {
+      name: z
+        .string()
+        .min(3)
+        .max(100)
+        .describe("Human-readable name for this agent, e.g. 'arbitrage-bot-prod'"),
+      agentId: z
+        .string()
+        .max(255)
+        .optional()
+        .describe("Stable unique identifier for this agent, if it has one"),
+      contactEmail: z
+        .string()
+        .email()
+        .optional()
+        .describe("Contact email for support and abuse notices"),
+    },
+  },
+  async ({ name, agentId, contactEmail }) => {
+    try {
+      const body: Record<string, string> = { name };
+      if (agentId) body.agentId = agentId;
+      if (contactEmail) body.contactEmail = contactEmail;
+
+      const data = await apiRequest<{
+        apiKey: string;
+        keyPrefix: string;
+        keyType: string;
+        rateLimits?: { perMinute: number; daily: number };
+      }>("/agent/register", { method: "POST", body });
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: [
+              "API key issued. It is shown once and is not stored by this server.",
+              "",
+              `  ZERODUST_API_KEY=${data.apiKey}`,
+              "",
+              `Key type: ${data.keyType}`,
+              data.rateLimits
+                ? `Rate limits: ${data.rateLimits.perMinute}/minute, ${data.rateLimits.daily}/day`
+                : null,
+              "",
+              "Give this to the operator to add to the server environment. Treat it as a",
+              "secret: it raises rate limits, it does not authorise moving funds.",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error registering API key: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
 // ============ Tool: Service Info ============
 
 server.registerTool(
   "zerodust_info",
   {
     description:
-      "Get information about ZeroDust service, including what it does, fee structure, and how to use it. Use this tool when the user asks about ZeroDust or needs to understand the service.",
+      "Explain how a native gas balance can be emptied to exactly zero, what it costs, and how " +
+      "to set this server up to do it. Call this when asked how ZeroDust works, why a full " +
+      "balance normally cannot be sent, or what sweeping will cost.",
+    annotations: {
+      title: "How ZeroDust works",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {},
   },
   async () => {
@@ -428,19 +568,36 @@ server.registerTool(
             "  - Gas costs: Paid by relayer, reimbursed from swept amount",
             "  - Users always receive the quoted amount or more",
             "",
-            "Supported chains: 25+ EVM chains including Ethereum, Arbitrum, Base,",
-            "  Optimism, Polygon, BSC, Gnosis, and more.",
+            "Supported chains:",
+            "  25 EVM chains with EIP-7702 support. Call zerodust_get_chains for the",
+            "  authoritative live list rather than relying on any written-down count.",
             "",
             "Integration:",
             "  - SDK: npm install @zerodust/sdk viem",
-            "  - API: POST /quote, POST /sweep, GET /sweep/:id/status",
-            "  - MCP: This server (stdio transport)",
+            "  - API: GET /quote, POST /authorization, POST /sweep, GET /sweep/:id",
+            "  - MCP: this server (stdio), or https://api.zerodust.xyz/mcp (no install)",
+            "",
+            "Trying it safely:",
+            "  Every sweep tool accepts dryRun=true. That fetches a real quote and",
+            "  produces the real signatures, then stops before submitting, so an",
+            "  integration can be proven end to end without moving any funds.",
             "",
             "Sweeping from this MCP server:",
             "  The zerodust_sweep and zerodust_sweep_all tools are always listed, but",
-            "  refuse to move funds unless both ZERODUST_PRIVATE_KEY and",
-            "  ZERODUST_ALLOW_EXECUTE=true are set. Funds may only be sent to the",
-            "  agent's own address unless ZERODUST_ALLOWED_DESTINATIONS lists more.",
+            "  refuse to move funds unless ZERODUST_ALLOW_EXECUTE=true and a signing",
+            "  key are both configured. A key may be supplied four ways:",
+            "    ZERODUST_SIGNER_MODULE     module returning a viem LocalAccount,",
+            "                               which is how Turnkey, Privy and KMS are used",
+            "    ZERODUST_KEYSTORE_FILE     encrypted V3 keystore + password file",
+            "    ZERODUST_PRIVATE_KEY_FILE  hex key in a file, not in the config",
+            "    ZERODUST_PRIVATE_KEY       hex key inline",
+            "  Funds may only be sent to the agent's own address unless",
+            "  ZERODUST_ALLOWED_DESTINATIONS lists more.",
+            "",
+            "Rate limits:",
+            "  The read-only tools work with no credential at all. For higher limits an",
+            "  agent can issue itself an API key with zerodust_register_api_key, with no",
+            "  human signup step, then pass it as ZERODUST_API_KEY.",
           ].join("\n"),
         },
       ],
@@ -449,6 +606,15 @@ server.registerTool(
 );
 
 // ============ Start Server ============
+
+/**
+ * The server instance with every read-only tool registered.
+ *
+ * Exported so tests can attach the execution tools and introspect the real tool
+ * surface over an in-memory transport, rather than asserting against a copy of
+ * the tool list that could drift from what agents actually see.
+ */
+export { server };
 
 async function main() {
   const executeConfig = readExecuteConfig();
@@ -461,12 +627,22 @@ async function main() {
   await server.connect(transport);
   console.error(
     executeConfig
-      ? "ZeroDust MCP Server running on stdio (sweep execution ENABLED)"
-      : "ZeroDust MCP Server running on stdio (sweep tools listed but DISABLED; set ZERODUST_ALLOW_EXECUTE=true and ZERODUST_PRIVATE_KEY to enable)"
+      ? `ZeroDust MCP Server running on stdio (sweep execution ENABLED via ${executeConfig.signer.description})`
+      : "ZeroDust MCP Server running on stdio (sweep tools listed but DISABLED; set " +
+          "ZERODUST_ALLOW_EXECUTE=true plus one of ZERODUST_SIGNER_MODULE, " +
+          "ZERODUST_KEYSTORE_FILE, ZERODUST_PRIVATE_KEY_FILE or ZERODUST_PRIVATE_KEY to enable)"
   );
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Only start the transport when run as a binary. Importing this module — which
+// the tests do — must not take over stdio.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
