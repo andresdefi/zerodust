@@ -10,15 +10,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(HERE, "fixtures");
-const AGENT_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+import { createSignerFixtures, TEST_ADDRESS } from "./helpers/signer-fixtures.js";
+
+// Generated rather than committed - see helpers/signer-fixtures.ts.
+const fixtures = createSignerFixtures();
+const AGENT_ADDRESS = TEST_ADDRESS;
 
 /** Records every call the tools make into the SDK. */
 const calls: Array<{ method: "sweep" | "sweepAll"; request: unknown; options: unknown }> = [];
@@ -69,7 +69,7 @@ async function connectedClient() {
   const { readExecuteConfig, registerExecuteTools } = await import("../src/execute.js");
 
   const config = readExecuteConfig({
-    ZERODUST_SIGNER_MODULE: join(FIXTURES, "signer-module.mjs"),
+    ZERODUST_SIGNER_MODULE: fixtures.signerModule,
     ZERODUST_ALLOW_EXECUTE: "true",
   });
 

@@ -1,6 +1,6 @@
 # @zerodust/sdk
 
-[![CI](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml/badge.svg)](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml)
+[![CI](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/andresdefi/zerodust/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@zerodust/sdk.svg)](https://www.npmjs.com/package/@zerodust/sdk)
 [![npm downloads](https://img.shields.io/npm/dm/@zerodust/sdk.svg)](https://www.npmjs.com/package/@zerodust/sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

@@ -1,0 +1,168 @@
+name: CI
+
+# This file has to live at the repository root. Workflows were previously kept in
+# sdk/.github/workflows/ and contracts/.github/workflows/, where GitHub never
+# looks, so nothing in this repo had ever been tested by CI. The SDK README even
+# carried a passing-looking badge for a workflow that could not run.
+#
+# There is no root package.json (each package is installed independently), so
+# every job sets its own working-directory.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sdk:
+    name: SDK (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run --exclude '**/integration/**'
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify published contents
+        # Guards against a test fixture or key file reaching the tarball.
+        run: |
+          npm pack --dry-run
+          if npm pack --dry-run 2>&1 | grep -qE '(tests?/|\.key|fixtures)'; then
+            echo "::error::tarball contains test files or key material"
+            exit 1
+          fi
+
+  mcp-server:
+    name: MCP server (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+    defaults:
+      run:
+        working-directory: packages/mcp-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: packages/mcp-server/package-lock.json
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Must precede the tests: tests/binary.test.ts spawns dist/index.js and
+      # skips (loudly) when it is absent.
+      - name: Build
+        run: npm run build
+
+      - name: Tests, including the spawned-binary suite
+        run: npm test
+
+      - name: Start via a bin symlink, as npx and every MCP client do
+        # 0.3.0 shipped a server that did not start this way. The unit tests all
+        # import the module, so none of them could have caught it. This runs the
+        # published shape end to end.
+        run: |
+          npm pack
+          mkdir -p /tmp/bincheck && cd /tmp/bincheck
+          npm init -y >/dev/null
+          npm i "$GITHUB_WORKSPACE"/packages/mcp-server/zerodust-mcp-server-*.tgz >/dev/null
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            | ./node_modules/.bin/zerodust-mcp > out.json 2>err.txt || true
+          cat err.txt
+          if ! grep -q '"serverInfo"' out.json; then
+            echo "::error::server produced no initialize response when run via node_modules/.bin symlink"
+            exit 1
+          fi
+          echo "bin symlink OK:"; cat out.json
+
+      - name: Verify published contents
+        run: |
+          if npm pack --dry-run 2>&1 | grep -qE '(tests?/|\.key|fixtures)'; then
+            echo "::error::tarball contains test files or key material"
+            exit 1
+          fi
+
+  docs-drift:
+    name: Chain docs match the live API
+    runs-on: ubuntu-latest
+    # Depends on api.zerodust.xyz being reachable, so a failure here can mean the
+    # API is down rather than the docs being wrong. Warn, do not block the merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check for drift
+        run: node scripts/generate-chain-docs.mjs --check
+
+  registry-manifest:
+    name: MCP registry manifest is valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate server.json against the published schema
+        # The registry enforces limits the local editor does not, such as a
+        # 100-character cap on `description`.
+        run: |
+          npm i --no-save ajv ajv-formats >/dev/null
+          curl -sfo /tmp/schema.json https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json
+          node -e "
+            const fs = require('fs');
+            const Ajv = require('ajv');
+            const ajv = new Ajv({ strict: false, allErrors: true });
+            require('ajv-formats')(ajv);
+            const validate = ajv.compile(JSON.parse(fs.readFileSync('/tmp/schema.json', 'utf8')));
+            const doc = JSON.parse(fs.readFileSync('packages/mcp-server/server.json', 'utf8'));
+            if (validate(doc)) { console.log('server.json is valid'); process.exit(0); }
+            for (const e of validate.errors) console.error((e.instancePath || '/') + ' ' + e.message);
+            process.exit(1);
+          "
+
+      - name: server.json version matches package.json
+        # The registry entry drifted behind the package once already.
+        run: |
+          pkg=$(node -p "require('./packages/mcp-server/package.json').version")
+          srv=$(node -p "require('./packages/mcp-server/server.json').version")
+          inner=$(node -p "require('./packages/mcp-server/server.json').packages[0].version")
+          echo "package.json=$pkg server.json=$srv packages[0]=$inner"
+          if [ "$pkg" != "$srv" ] || [ "$pkg" != "$inner" ]; then
+            echo "::error::version mismatch between package.json and server.json"
+            exit 1
+          fi
