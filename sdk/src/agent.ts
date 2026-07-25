@@ -118,6 +118,23 @@ export interface AgentSweepResult {
   error?: string;
   /** Quote used for the sweep */
   quote?: QuoteResponse;
+  /**
+   * True when the sweep ran as a dry run. Everything up to and including
+   * signing happened; nothing was submitted and no funds moved.
+   */
+  dryRun?: boolean;
+  /**
+   * Signatures produced by a dry run, so callers can verify the signing path
+   * works end to end without broadcasting. Only set when `dryRun` is true.
+   */
+  signatures?: {
+    /** EIP-712 SweepIntent signature */
+    intent: Hex;
+    /** EIP-7702 delegation authorization */
+    delegation: EIP7702Authorization;
+    /** EIP-7702 revoke authorization (delegation nonce + 1) */
+    revoke: EIP7702Authorization;
+  };
 }
 
 /**
@@ -144,6 +161,18 @@ export interface AgentSweepOptions {
   timeoutMs?: number;
   /** Callback for status updates */
   onStatusChange?: (status: SweepStatusResponse) => void;
+  /**
+   * Run every step except the final submission (default: false).
+   *
+   * A dry run fetches a real quote, requests the real EIP-712 typed data, and
+   * produces all three real signatures with the configured account — then stops
+   * before `POST /sweep`. No transaction is broadcast and no funds move, so it
+   * is a safe way to prove an integration works before risking a balance.
+   *
+   * The returned result carries `dryRun: true` plus the `signatures` that
+   * would have been submitted.
+   */
+  dryRun?: boolean;
 }
 
 // ============ Agent Class ============
@@ -268,12 +297,27 @@ export class ZeroDustAgent {
    *   console.log('Sweep completed! TX:', result.txHash);
    * }
    * ```
+   *
+   * @example
+   * ```typescript
+   * // Prove the integration works without moving anything
+   * const check = await agent.sweep(
+   *   { fromChainId: 42161, toChainId: 8453 },
+   *   { dryRun: true }
+   * );
+   * console.log('Would receive:', check.quote?.estimatedReceive);
+   * ```
    */
   async sweep(
     request: AgentSweepRequest,
     options: AgentSweepOptions = {}
   ): Promise<AgentSweepResult> {
-    const { waitForCompletion = true, timeoutMs = 120000, onStatusChange } = options;
+    const {
+      waitForCompletion = true,
+      timeoutMs = 120000,
+      onStatusChange,
+      dryRun = false,
+    } = options;
     const destination = request.destination ?? this.address;
 
     try {
@@ -303,6 +347,22 @@ export class ZeroDustAgent {
         chainId: request.fromChainId,
         nonce: eip7702Authorization.nonce + 1,
       });
+
+      // A dry run stops here. Everything above is real — real quote, real
+      // typed data, real signatures from the real key — but nothing has been
+      // sent to the relayer, so the balance is untouched.
+      if (dryRun) {
+        return {
+          success: true,
+          dryRun: true,
+          quote,
+          signatures: {
+            intent: signature,
+            delegation: eip7702Authorization,
+            revoke: revokeAuthorization,
+          },
+        };
+      }
 
       // 6. Submit sweep
       const sweep = await this.client.submitSweep({

@@ -551,6 +551,28 @@ await agent.batchSweep({
 await agent.sweepAll({ toChainId: 8453 });
 ```
 
+### Try it without moving funds
+
+Pass `dryRun: true` to run the entire flow except the final submission. You get
+a real quote, real EIP-712 typed data, and all three real signatures from your
+key — then it stops before `POST /sweep`. Nothing is broadcast and no balance
+changes, so this is the safe way to prove an integration works first.
+
+```typescript
+const check = await agent.sweep(
+  { fromChainId: 42161, toChainId: 8453 },
+  { dryRun: true }
+);
+
+console.log(check.dryRun);                    // true
+console.log(check.sweepId);                   // undefined - nothing submitted
+console.log(check.quote?.estimatedReceive);   // what you would have received
+console.log(check.signatures?.intent);        // the signature that would have been sent
+```
+
+`dryRun` works on `batchSweep()` and `sweepAll()` too, so you can preview an
+entire multi-chain consolidation before committing to it.
+
 For detailed AI agent integration guide, see [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md).
 
 ## Supported Chains
