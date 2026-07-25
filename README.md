@@ -11,8 +11,18 @@ work — arbitrage, bridging, testing, deployment — ends up with stranded gas 
 chains it will never touch again. A human notices and shrugs; an unattended
 agent leaks capital indefinitely.
 
-ZeroDust is an **MCP server**, so any MCP-compatible agent can sweep its own
-wallet to exactly zero:
+### Look first, no install, no key
+
+The hosted MCP server needs nothing installed. Point any MCP client at:
+
+```
+https://api.zerodust.xyz/mcp
+```
+
+That is enough to find out whether an address has anything stranded and what
+recovering it would cost. It is read-only, because it holds no keys.
+
+### Then sweep, with the key wherever you keep it
 
 ```json
 {
@@ -22,17 +32,52 @@ wallet to exactly zero:
       "args": ["@zerodust/mcp-server"],
       "env": {
         "ZERODUST_ALLOW_EXECUTE": "true",
-        "ZERODUST_PRIVATE_KEY": "0x..."
+        "ZERODUST_SIGNER_MODULE": "./my-signer.mjs"
       }
     }
   }
 }
 ```
 
-Read-only by default. Sweeping requires the explicit opt-in above, and funds can
-only go to the agent's own address unless `ZERODUST_ALLOWED_DESTINATIONS` says
-otherwise — so a prompt-injected agent still cannot send funds somewhere you
-never approved.
+Read-only by default. Sweeping needs the explicit opt-in above plus a signing
+key, and there are four ways to supply one so a raw key never has to sit in a
+config file:
+
+| Variable | Key lives in |
+|----------|--------------|
+| `ZERODUST_SIGNER_MODULE` | your custody provider — any module returning a viem `LocalAccount`, which is what Turnkey, Privy and KMS adapters produce |
+| `ZERODUST_KEYSTORE_FILE` | an encrypted V3 keystore, with the password in a separate file |
+| `ZERODUST_PRIVATE_KEY_FILE` | a file on disk, not in the config |
+| `ZERODUST_PRIVATE_KEY` | the config (simplest, least private) |
+
+Funds can only go to the agent's own address unless
+`ZERODUST_ALLOWED_DESTINATIONS` says otherwise — so a prompt-injected agent still
+cannot send funds somewhere you never approved.
+
+### Try it without risking anything
+
+Every sweep tool and every SDK sweep accepts `dryRun`. It fetches a real quote,
+produces all three real signatures, and stops before submitting. Nothing is
+broadcast and no balance moves:
+
+> "Do a dry run of sweeping my Arbitrum balance to Base"
+
+There is deliberately no testnet mode: the API serves no testnet chains, so a
+testnet flag would only return empty chain lists and failing quotes. `dryRun`
+gives the same confidence against production.
+
+### Agents can provision their own credentials
+
+The read-only tools work with no credential at all. For higher limits an agent
+can issue itself a key with no human in the loop, via the `zerodust_register_api_key`
+tool or directly:
+
+```bash
+curl -X POST https://api.zerodust.xyz/agent/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "agentId": "my-agent-1"}'
+# -> { "apiKey": "zd_...", "rateLimits": { "perMinute": 300, "daily": 1000 } }
+```
 
 | Package | Use |
 |---------|-----|
@@ -91,25 +136,43 @@ The Problem:
 
 **Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
-ZeroDust is deployed on **26 mainnet chains** with EIP-7702 support:
+The contract is deployed on 26 mainnets. **25 of those are live in the API** —
+Apechain (33139) is deployed but disabled, because it turned out not to support
+EIP-7702.
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
-| Ethereum | 1 | ETH | Sei | 1329 | SEI |
-| Optimism | 10 | ETH | Astar zkEVM | 1514 | ETH |
-| BSC | 56 | BNB | Soneium | 1868 | ETH |
-| Gnosis | 100 | xDAI | Mantle | 5000 | MNT |
-| Unichain | 130 | ETH | Kaia | 5330 | KAIA |
-| Polygon | 137 | POL | Base | 8453 | ETH |
-| Sonic | 146 | S | Plasma | 9745 | XPL |
-| X Layer | 196 | OKB | ApeChain | 33139 | APE |
-| Fraxtal | 252 | frxETH | Mode | 34443 | ETH |
-| World Chain | 480 | ETH | Arbitrum | 42161 | ETH |
-| Celo | 42220 | CELO | Redstone | 57073 | ETH |
-| BOB | 60808 | ETH | Berachain | 80094 | BERA |
-| Scroll | 534352 | ETH | Zora | 7777777 | ETH |
+| Ethereum | 1 | ETH | Mantle | 5000 | MNT |
+| Optimism | 10 | ETH | Superseed | 5330 | ETH |
+| BNB Chain | 56 | BNB | Base | 8453 | ETH |
+| Gnosis | 100 | xDAI | Plasma | 9745 | XPL |
+| Unichain | 130 | ETH | Mode | 34443 | ETH |
+| Polygon | 137 | POL | Arbitrum | 42161 | ETH |
+| Sonic | 146 | S | Celo | 42220 | CELO |
+| X Layer | 196 | OKB | Ink | 57073 | ETH |
+| Fraxtal | 252 | FRAX | BOB | 60808 | ETH |
+| World Chain | 480 | ETH | Berachain | 80094 | BERA |
+| Sei | 1329 | SEI | Scroll | 534352 | ETH |
+| Story | 1514 | IP | Zora | 7777777 | ETH |
+| Soneium | 1868 | ETH | | | |
 
-Plus **46 testnets** for development.
+This table is generated from the live API, which is the only authoritative
+answer to what an integration can actually use:
+
+```bash
+node scripts/generate-chain-docs.mjs          # regenerate
+node scripts/generate-chain-docs.mjs --check  # fail if a doc has drifted
+curl https://api.zerodust.xyz/chains          # the source of truth
+```
+
+Please do not hand-edit it. Earlier versions of this table claimed 26 live
+chains and named 1514 "Astar zkEVM", 5330 "Kaia" and 57073 "Redstone" — three
+chains that are not the ones deployed there. An agent that acts on a wrong chain
+name gets an error and reasonably concludes the service is broken.
+
+The contract is also on 46 testnets, but **the API serves no testnet chains**, so
+there is no testnet environment to integrate against. Use the `dryRun` option in
+the SDK or the MCP server to exercise the full flow without moving funds.
 
 See [contracts/README.md](./contracts/README.md) for explorer links.
 
@@ -205,7 +268,8 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Smart Contract:** Deployed on **26 mainnets** + 46 testnets
+**Smart Contract:** Deployed on 26 mainnets + 46 testnets. **25 mainnets are
+enabled in the API**; the API serves no testnets.
 
 ### Contract Versions
 
@@ -249,4 +313,5 @@ MIT License - see [LICENSE](./LICENSE)
 
 ---
 
-**Production deployed on 26 mainnet chains.** Contract: `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
+**Live on 25 mainnet chains.** Contract: `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
+(same address on every chain, via CREATE2).
