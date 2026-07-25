@@ -6,15 +6,16 @@
  * thing standing between a prompt-injected agent and someone else's address.
  */
 
-import { describe, it, expect } from "vitest";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { describe, it, expect, beforeAll } from "vitest";
 import { checkDestination, readExecuteConfig } from "../src/execute.js";
+import { createSignerFixtures, TEST_KEY, type SignerFixtures } from "./helpers/signer-fixtures.js";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(HERE, "fixtures");
+// Generated rather than committed - see helpers/signer-fixtures.ts.
+let fixtures: SignerFixtures;
 
-const TEST_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+beforeAll(() => {
+  fixtures = createSignerFixtures();
+});
 const OWN = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 const OTHER = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 const THIRD = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
@@ -56,8 +57,8 @@ describe("readExecuteConfig", () => {
 
   it("enables execution with a keystore", () => {
     const config = readExecuteConfig({
-      ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
-      ZERODUST_KEYSTORE_PASSWORD_FILE: join(FIXTURES, "password.txt"),
+      ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
+      ZERODUST_KEYSTORE_PASSWORD_FILE: fixtures.passwordFile,
       ZERODUST_ALLOW_EXECUTE: "true",
     });
 
@@ -66,7 +67,7 @@ describe("readExecuteConfig", () => {
 
   it("enables execution with a signer module", () => {
     const config = readExecuteConfig({
-      ZERODUST_SIGNER_MODULE: join(FIXTURES, "signer-module.mjs"),
+      ZERODUST_SIGNER_MODULE: fixtures.signerModule,
       ZERODUST_ALLOW_EXECUTE: "true",
     });
 

@@ -7,17 +7,27 @@
  * agent discovers it mid-sweep.
  */
 
-import { describe, it, expect } from "vitest";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { describe, it, expect, beforeAll } from "vitest";
+import { join } from "node:path";
 import { hasSignerEnv, resolveSignerSource } from "../src/signer.js";
+import {
+  createSignerFixtures,
+  KEYSTORE_PASSWORD,
+  TEST_ADDRESS,
+  TEST_KEY,
+  type SignerFixtures,
+} from "./helpers/signer-fixtures.js";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = join(HERE, "fixtures");
+// Fixtures are generated at run time rather than committed. `.gitignore` has
+// `*.key`, so a checked-in key file was silently untracked and these tests
+// passed only on the machine that created it.
+let fixtures: SignerFixtures;
 
-// The address for the throwaway key used in every fixture.
-const EXPECTED_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-const TEST_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+beforeAll(() => {
+  fixtures = createSignerFixtures();
+});
+
+const EXPECTED_ADDRESS = TEST_ADDRESS;
 
 describe("hasSignerEnv", () => {
   it("is false for an empty environment", () => {
@@ -45,7 +55,7 @@ describe("resolveSignerSource", () => {
     expect(() =>
       resolveSignerSource({
         ZERODUST_PRIVATE_KEY: TEST_KEY,
-        ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
+        ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
       })
     ).toThrow(/Multiple signing keys configured/);
   });
@@ -79,7 +89,7 @@ describe("resolveSignerSource", () => {
   describe("key file", () => {
     it("loads the account and tolerates a trailing newline", async () => {
       const source = resolveSignerSource({
-        ZERODUST_PRIVATE_KEY_FILE: join(FIXTURES, "agent.key"),
+        ZERODUST_PRIVATE_KEY_FILE: fixtures.keyFile,
       })!;
       expect(source.kind).toBe("key-file");
 
@@ -89,7 +99,7 @@ describe("resolveSignerSource", () => {
 
     it("reports the path, not the key, when the file is missing", async () => {
       const source = resolveSignerSource({
-        ZERODUST_PRIVATE_KEY_FILE: join(FIXTURES, "does-not-exist.key"),
+        ZERODUST_PRIVATE_KEY_FILE: join(fixtures.dir, "does-not-exist.key"),
       })!;
       await expect(source.load()).rejects.toThrow(/ZERODUST_PRIVATE_KEY_FILE could not be read/);
     });
@@ -98,8 +108,8 @@ describe("resolveSignerSource", () => {
   describe("keystore", () => {
     it("decrypts a scrypt keystore", async () => {
       const source = resolveSignerSource({
-        ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
-        ZERODUST_KEYSTORE_PASSWORD: "test-password",
+        ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
+        ZERODUST_KEYSTORE_PASSWORD: KEYSTORE_PASSWORD,
       })!;
       expect(source.kind).toBe("keystore");
 
@@ -109,8 +119,8 @@ describe("resolveSignerSource", () => {
 
     it("decrypts a pbkdf2 keystore", async () => {
       const source = resolveSignerSource({
-        ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-pbkdf2.json"),
-        ZERODUST_KEYSTORE_PASSWORD: "test-password",
+        ZERODUST_KEYSTORE_FILE: fixtures.keystorePbkdf2,
+        ZERODUST_KEYSTORE_PASSWORD: KEYSTORE_PASSWORD,
       })!;
 
       const account = await source.load();
@@ -119,8 +129,8 @@ describe("resolveSignerSource", () => {
 
     it("reads the password from a file, stripping the trailing newline", async () => {
       const source = resolveSignerSource({
-        ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
-        ZERODUST_KEYSTORE_PASSWORD_FILE: join(FIXTURES, "password.txt"),
+        ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
+        ZERODUST_KEYSTORE_PASSWORD_FILE: fixtures.passwordFile,
       })!;
 
       const account = await source.load();
@@ -129,7 +139,7 @@ describe("resolveSignerSource", () => {
 
     it("rejects a wrong password via the MAC check", async () => {
       const source = resolveSignerSource({
-        ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
+        ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
         ZERODUST_KEYSTORE_PASSWORD: "wrong-password",
       })!;
 
@@ -139,7 +149,7 @@ describe("resolveSignerSource", () => {
     it("requires a password up front rather than failing at sweep time", () => {
       expect(() =>
         resolveSignerSource({
-          ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
+          ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
         })
       ).toThrow(/no password was provided/);
     });
@@ -147,9 +157,9 @@ describe("resolveSignerSource", () => {
     it("refuses two password sources", () => {
       expect(() =>
         resolveSignerSource({
-          ZERODUST_KEYSTORE_FILE: join(FIXTURES, "keystore-scrypt.json"),
-          ZERODUST_KEYSTORE_PASSWORD: "test-password",
-          ZERODUST_KEYSTORE_PASSWORD_FILE: join(FIXTURES, "password.txt"),
+          ZERODUST_KEYSTORE_FILE: fixtures.keystoreScrypt,
+          ZERODUST_KEYSTORE_PASSWORD: KEYSTORE_PASSWORD,
+          ZERODUST_KEYSTORE_PASSWORD_FILE: fixtures.passwordFile,
         })
       ).toThrow(/Choose one/);
     });
@@ -158,7 +168,7 @@ describe("resolveSignerSource", () => {
   describe("signer module", () => {
     it("loads an account from a module's default export", async () => {
       const source = resolveSignerSource({
-        ZERODUST_SIGNER_MODULE: join(FIXTURES, "signer-module.mjs"),
+        ZERODUST_SIGNER_MODULE: fixtures.signerModule,
       })!;
       expect(source.kind).toBe("module");
 
@@ -168,7 +178,7 @@ describe("resolveSignerSource", () => {
 
     it("reports a module that cannot be loaded", async () => {
       const source = resolveSignerSource({
-        ZERODUST_SIGNER_MODULE: join(FIXTURES, "no-such-module.mjs"),
+        ZERODUST_SIGNER_MODULE: join(fixtures.dir, "no-such-module.mjs"),
       })!;
 
       await expect(source.load()).rejects.toThrow(/could not be loaded/);
@@ -178,7 +188,7 @@ describe("resolveSignerSource", () => {
       // A plain viem account without signAuthorization would fail deep inside a
       // sweep; it has to be caught when the signer is resolved instead.
       const source = resolveSignerSource({
-        ZERODUST_SIGNER_MODULE: join(FIXTURES, "signer-module-bad.mjs"),
+        ZERODUST_SIGNER_MODULE: fixtures.signerModuleBad,
       })!;
 
       await expect(source.load()).rejects.toThrow(/signAuthorization/);
