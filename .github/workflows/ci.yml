@@ -111,6 +111,30 @@ jobs:
             exit 1
           fi
 
+  contracts:
+    name: Contracts (Foundry)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build
+        run: forge build --sizes
+
+      # The ci profile raises fuzz to 10k runs and invariant to 1k, per
+      # foundry.toml. The contract is immutable and deployed to 26 mainnets, so
+      # the fuzzing is worth the extra minute.
+      - name: Test
+        run: forge test -vvv
+        env:
+          FOUNDRY_PROFILE: ci
+
   docs-drift:
     name: Chain docs match the live API
     runs-on: ubuntu-latest
