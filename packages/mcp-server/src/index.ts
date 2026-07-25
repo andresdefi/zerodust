@@ -26,6 +26,7 @@
  */
 
 import { createRequire } from "node:module";
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -634,13 +635,32 @@ async function main() {
   );
 }
 
-// Only start the transport when run as a binary. Importing this module — which
-// the tests do — must not take over stdio.
-const invokedDirectly =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+/**
+ * True when this module is the process entry point rather than an import.
+ *
+ * The realpath resolution is load-bearing, not defensive. npm installs a `bin`
+ * as a **symlink** (`node_modules/.bin/zerodust-mcp` ->
+ * `../@zerodust/mcp-server/dist/index.js`), so `process.argv[1]` is the symlink
+ * path while `import.meta.url` is the resolved target. Comparing them raw makes
+ * this false for every real invocation — `npx @zerodust/mcp-server` and every
+ * MCP client — and the server silently never starts. Version 0.3.0 shipped
+ * exactly that bug.
+ */
+function isEntryPoint(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
 
-if (invokedDirectly) {
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    // argv[1] may not exist on disk (some runners pass a virtual path). Falling
+    // back to the unresolved comparison is still better than crashing.
+    return import.meta.url === pathToFileURL(entry).href;
+  }
+}
+
+// Importing this module — which the tests do — must not take over stdio.
+if (isEntryPoint()) {
   main().catch((error) => {
     console.error("Fatal error:", error);
     process.exit(1);
