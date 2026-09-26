@@ -44,6 +44,36 @@ import {
   createWalletClient,
   http,
 } from 'viem';
+import {
+  arbitrum,
+  arbitrumSepolia,
+  base,
+  baseSepolia,
+  berachain,
+  bob,
+  bsc,
+  celo,
+  fraxtal,
+  gnosis,
+  ink,
+  mainnet,
+  mantle,
+  mode,
+  optimism,
+  plasma,
+  polygon,
+  scroll,
+  sei,
+  sepolia,
+  soneium,
+  sonic,
+  story,
+  superseed,
+  unichain,
+  worldchain,
+  xLayer,
+  zora,
+} from 'viem/chains';
 import { ZeroDust } from './client.js';
 import type {
   ZeroDustConfig,
@@ -341,6 +371,17 @@ export class ZeroDustAgent {
         chainId: request.fromChainId,
       });
 
+      // The backend reads the nonce from its own RPC for the source chain. If
+      // ours disagrees, one of them is looking at the wrong chain or a stale
+      // state, and the delegation would fail on-chain. Stop before submitting.
+      if (eip7702Authorization.nonce !== quote.authNonce) {
+        throw new ZeroDustError(
+          'NONCE_MISMATCH',
+          `Authorization nonce ${eip7702Authorization.nonce} does not match the quote's ${quote.authNonce} on chain ${request.fromChainId}`,
+          { signed: eip7702Authorization.nonce, quoted: quote.authNonce, chainId: request.fromChainId }
+        );
+      }
+
       // 5. Sign revoke authorization (nonce = delegation nonce + 1)
       const revokeAuthorization = await this.signEIP7702Authorization({
         contractAddress: '0x0000000000000000000000000000000000000000' as Address,
@@ -609,27 +650,38 @@ export class ZeroDustAgent {
 
   /**
    * Get default public RPC URL for a chain
+   *
+   * Throws for an unknown chain rather than guessing. An RPC for the wrong
+   * chain returns the wrong account nonce, which produces an EIP-7702
+   * authorization that is well-formed but can never be applied.
    * @internal
    */
   private getDefaultRpcUrl(chainId: number): string {
-    // Map of chain IDs to default public RPC URLs
-    const defaults: Record<number, string> = {
-      1: 'https://eth.llamarpc.com',
-      10: 'https://mainnet.optimism.io',
-      56: 'https://bsc-dataseed.binance.org',
-      100: 'https://rpc.gnosischain.com',
-      137: 'https://polygon-rpc.com',
-      8453: 'https://mainnet.base.org',
-      42161: 'https://arb1.arbitrum.io/rpc',
-      // Testnets
-      11155111: 'https://rpc.sepolia.org',
-      84532: 'https://sepolia.base.org',
-      421614: 'https://sepolia-rollup.arbitrum.io/rpc',
-    };
-
-    return defaults[chainId] ?? `https://rpc.ankr.com/eth`;
+    const rpcUrl = DEFAULT_CHAINS[chainId]?.rpcUrls.default.http[0];
+    if (!rpcUrl) {
+      throw new ZeroDustError(
+        'CHAIN_NOT_SUPPORTED',
+        `No default RPC for chain ${chainId}. Pass one via the rpcUrls option.`,
+        { chainId }
+      );
+    }
+    return rpcUrl;
   }
 }
+
+/**
+ * Chains with a known public RPC, keyed by chain ID. Covers every chain the
+ * API serves, plus the testnets used in development.
+ */
+const DEFAULT_CHAINS: Record<number, { rpcUrls: { default: { http: readonly string[] } } }> =
+  Object.fromEntries(
+    [
+      mainnet, optimism, bsc, gnosis, unichain, polygon, sonic, xLayer, fraxtal,
+      worldchain, sei, story, soneium, mantle, superseed, base, plasma, mode,
+      arbitrum, celo, ink, bob, berachain, scroll, zora,
+      sepolia, baseSepolia, arbitrumSepolia,
+    ].map((chain) => [chain.id, chain])
+  );
 
 // ============ Factory Function ============
 
