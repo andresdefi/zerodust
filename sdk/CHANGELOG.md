@@ -5,6 +5,22 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-09-27
+
+### Fixed
+
+- **Sweeps on 18 of the 25 supported chains signed an unusable EIP-7702
+  authorization.** The agent knew public RPCs for only seven chains and fell
+  back to an Ethereum RPC for the rest, so it read the account's *Ethereum*
+  nonce. The authorization was well-formed but could never apply, and the sweep
+  failed on-chain. Default RPCs now come from viem's chain definitions for every
+  chain the API serves.
+- An unknown chain with no `rpcUrls` entry now throws `CHAIN_NOT_SUPPORTED`
+  instead of silently signing against Ethereum.
+- The signed delegation nonce is checked against the quote's `authNonce`; a
+  mismatch throws `NONCE_MISMATCH` before anything is submitted, so any future
+  wrong-RPC or stale-nonce problem fails loudly and for free.
+
 ## [0.2.0] - 2026-07-25
 
 ### Added
