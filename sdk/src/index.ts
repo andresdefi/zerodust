@@ -60,6 +60,8 @@ export type {
   // Chain types
   Chain,
   ChainsResponse,
+  Destination,
+  DestinationsResponse,
   // Balance types
   ChainBalance,
   BalancesResponse,

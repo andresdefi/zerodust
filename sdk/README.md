@@ -128,6 +128,17 @@ chains.forEach(chain => {
 });
 ```
 
+#### `getDestinations(fromChainId: number): Promise<Destination[]>`
+
+Chains a cross-chain sweep from `fromChainId` can deliver native gas to. Not
+limited to ZeroDust chains: any EVM chain a bridge serves qualifies, and the
+native token received there is listed (e.g. HYPE on HyperEVM, BNB on BSC).
+
+```typescript
+const destinations = await zerodust.getDestinations(42161);
+destinations.forEach(d => console.log(d.name, d.nativeSymbol, d.bridges));
+```
+
 #### `getChain(chainId: number): Promise<Chain>`
 
 Get a specific chain by ID.

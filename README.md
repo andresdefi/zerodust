@@ -136,25 +136,35 @@ The Problem:
 
 **Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
-The contract is deployed on 26 mainnets. **25 of those are live in the API** —
-Apechain (33139) is deployed but disabled, because it turned out not to support
-EIP-7702.
+The contract is deployed on 45 mainnets, all live in the API. Sweeps can be sent
+to any EVM chain a bridge (Gas.zip, Relay, Across) delivers native gas to, not
+only these: `GET /destinations?fromChainId=` lists them.
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
-| Ethereum | 1 | ETH | Mantle | 5000 | MNT |
-| Optimism | 10 | ETH | Superseed | 5330 | ETH |
-| BNB Chain | 56 | BNB | Base | 8453 | ETH |
-| Gnosis | 100 | xDAI | Plasma | 9745 | XPL |
-| Unichain | 130 | ETH | Mode | 34443 | ETH |
-| Polygon | 137 | POL | Arbitrum | 42161 | ETH |
-| Sonic | 146 | S | Celo | 42220 | CELO |
-| X Layer | 196 | OKB | Ink | 57073 | ETH |
-| Fraxtal | 252 | FRAX | BOB | 60808 | ETH |
-| World Chain | 480 | ETH | Berachain | 80094 | BERA |
-| Sei | 1329 | SEI | Scroll | 534352 | ETH |
-| Story | 1514 | IP | Zora | 7777777 | ETH |
-| Soneium | 1868 | ETH | | | |
+| Ethereum | 1 | ETH | Somnia | 5031 | SOMI |
+| Optimism | 10 | ETH | Arc | 5042 | USDC |
+| BNB Chain | 56 | BNB | Superseed | 5330 | ETH |
+| Gnosis | 100 | xDAI | Base | 8453 | ETH |
+| Unichain | 130 | ETH | Plasma | 9745 | XPL |
+| Polygon | 137 | POL | Apechain | 33139 | APE |
+| Sonic | 146 | S | Mode | 34443 | ETH |
+| Manta Pacific | 169 | ETH | Mythos | 42018 | ETH |
+| X Layer | 196 | OKB | Arbitrum | 42161 | ETH |
+| Fraxtal | 252 | FRAX | Celo | 42220 | CELO |
+| Shape | 360 | ETH | Hemi | 43111 | ETH |
+| World Chain | 480 | ETH | Zircuit | 48900 | ETH |
+| Stable | 988 | gUSDT | Ink | 57073 | ETH |
+| Lisk | 1135 | ETH | Linea | 59144 | ETH |
+| Sei | 1329 | SEI | BOB | 60808 | ETH |
+| Story | 1514 | IP | Berachain | 80094 | BERA |
+| Pharos | 1672 | PROS | Plume | 98866 | PLUME |
+| Soneium | 1868 | ETH | Taiko | 167000 | ETH |
+| Ronin | 2020 | RON | Scroll | 534352 | ETH |
+| Morph | 2818 | ETH | Gensyn | 685689 | ETH |
+| MegaETH | 4326 | ETH | Katana | 747474 | ETH |
+| Robinhood Chain | 4663 | ETH | Zora | 7777777 | ETH |
+| Mantle | 5000 | MNT |  | |  |
 
 This table is generated from the live API, which is the only authoritative
 answer to what an integration can actually use:
@@ -268,7 +278,7 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Smart Contract:** Deployed on 26 mainnets + 46 testnets. **25 mainnets are
+**Smart Contract:** Deployed on 45 mainnets + 46 testnets. **All 45 mainnets are
 enabled in the API**; the API serves no testnets.
 
 ### Contract Versions

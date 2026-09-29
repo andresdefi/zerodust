@@ -90,6 +90,26 @@ describe('ZeroDust Client', () => {
     });
   });
 
+  describe('getDestinations', () => {
+    it('fetches the destinations reachable from a source chain', async () => {
+      const destinations = [
+        { chainId: 8453, name: 'Base', nativeSymbol: 'ETH', nativeDecimals: 18, bridges: ['across', 'gaszip'], zerodustChain: true },
+        { chainId: 999, name: 'HyperEVM', nativeSymbol: 'HYPE', nativeDecimals: 18, bridges: ['across', 'relay'], zerodustChain: false },
+      ];
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ fromChainId: 42161, destinations }));
+
+      const result = await client.getDestinations(42161);
+
+      expect(result).toEqual(destinations);
+      expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/destinations\?fromChainId=42161$/);
+    });
+
+    it('rejects an invalid source chain ID without calling the API', async () => {
+      await expect(client.getDestinations(0)).rejects.toThrow(/Invalid chain ID/);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getChain', () => {
     it('should fetch specific chain by ID', async () => {
       const mockChain = { chainId: 8453, name: 'Base' };

@@ -132,6 +132,64 @@ server.registerTool(
   }
 );
 
+// ============ Tool: Get Destinations ============
+
+server.registerTool(
+  "zerodust_get_destinations",
+  {
+    description:
+      "List the chains a balance on fromChainId can be swept to, receiving that chain's native gas " +
+      "(e.g. ETH on Base, BNB on BSC, HYPE on HyperEVM). Destinations are not limited to the chains " +
+      "ZeroDust sweeps from: any EVM chain a bridge serves qualifies. Call this before quoting a " +
+      "cross-chain sweep to pick where the funds should go.",
+    annotations: {
+      title: "List sweep destinations",
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
+    inputSchema: {
+      fromChainId: z.number().int().positive().describe("Source chain ID (a ZeroDust chain)"),
+    },
+  },
+  async ({ fromChainId }) => {
+    try {
+      const data = await apiRequest<{
+        fromChainId: number;
+        destinations: Array<{
+          chainId: number;
+          name: string;
+          nativeSymbol: string;
+          bridges: string[];
+          zerodustChain: boolean;
+        }>;
+      }>(`/destinations?fromChainId=${fromChainId}`);
+
+      const text = data.destinations
+        .map((d) => `${d.name} (chainId: ${d.chainId}) - receives ${d.nativeSymbol} via ${d.bridges.join(", ")}`)
+        .join("\n");
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Destinations from chain ${fromChainId} (${data.destinations.length}):\n${text}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error fetching destinations: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
 // ============ Tool: Get Balances ============
 
 server.registerTool(
