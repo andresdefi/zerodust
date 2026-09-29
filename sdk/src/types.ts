@@ -61,6 +61,33 @@ export interface ChainsResponse {
   chains: Chain[];
 }
 
+/**
+ * A chain a cross-chain sweep can deliver native gas to. Destinations need no
+ * ZeroDust contract: any EVM chain a bridge serves from the source qualifies.
+ */
+export interface Destination {
+  /** Chain ID */
+  chainId: number;
+  /** Human-readable chain name */
+  name: string;
+  /** Native gas token delivered there (e.g. 'ETH', 'BNB', 'HYPE') */
+  nativeSymbol: string;
+  /** Native token decimals */
+  nativeDecimals: number;
+  /** Bridges that list a route from the source to this chain */
+  bridges: string[];
+  /** Also a ZeroDust chain (its balance can be swept too) */
+  zerodustChain: boolean;
+}
+
+/**
+ * Response from GET /destinations
+ */
+export interface DestinationsResponse {
+  fromChainId: number;
+  destinations: Destination[];
+}
+
 // ============ Balance Types ============
 
 /**

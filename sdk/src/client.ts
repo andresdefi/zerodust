@@ -15,6 +15,8 @@ import type {
   Environment,
   Chain,
   ChainsResponse,
+  Destination,
+  DestinationsResponse,
   ChainBalance,
   BalancesResponse,
   QuoteRequest,
@@ -335,6 +337,26 @@ export class ZeroDust {
   async getChain(chainId: number): Promise<Chain> {
     const validatedChainId = validateChainId(chainId);
     return this.http.get<Chain>(`/chains/${validatedChainId}`);
+  }
+
+  /**
+   * Chains a cross-chain sweep from `fromChainId` can deliver native gas to.
+   *
+   * Not limited to ZeroDust chains: any EVM chain a bridge serves from the
+   * source is listed (e.g. HyperEVM, Avalanche). This is what bridges advertise;
+   * `getQuote` confirms a route live.
+   *
+   * @param fromChainId - Source chain (must be a ZeroDust chain)
+   * @returns Destinations sorted by name
+   *
+   * @example
+   * const destinations = await zerodust.getDestinations(42161);
+   * const hyperEvm = destinations.find(d => d.chainId === 999); // delivers HYPE
+   */
+  async getDestinations(fromChainId: number): Promise<Destination[]> {
+    const validatedChainId = validateChainId(fromChainId);
+    const response = await this.http.get<DestinationsResponse>('/destinations', { fromChainId: validatedChainId });
+    return response.destinations;
   }
 
   // ============ Balance Methods ============

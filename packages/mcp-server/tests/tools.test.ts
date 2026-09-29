@@ -11,7 +11,7 @@
  * exploration is how the stranded-balance problem gets noticed at all.
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "../src/index.js";
@@ -30,6 +30,7 @@ type ListedTool = {
 
 const READ_TOOLS = [
   "zerodust_get_chains",
+  "zerodust_get_destinations",
   "zerodust_get_balances",
   "zerodust_get_quote",
   "zerodust_get_sweep_status",
@@ -40,6 +41,7 @@ const READ_TOOLS = [
 const SWEEP_TOOLS = ["zerodust_sweep", "zerodust_sweep_all"];
 
 let tools: ListedTool[];
+let client: Client;
 
 function byName(name: string): ListedTool {
   const tool = tools.find((t) => t.name === name);
@@ -53,7 +55,7 @@ beforeAll(async () => {
   registerExecuteTools(server, null);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: "test", version: "1.0.0" });
+  client = new Client({ name: "test", version: "1.0.0" });
 
   await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 
@@ -190,5 +192,30 @@ describe("with execution disabled", () => {
     expect(message).toContain("ZERODUST_SIGNER_MODULE");
     expect(message).toContain("ZERODUST_KEYSTORE_FILE");
     expect(message).toContain("ZERODUST_PRIVATE_KEY_FILE");
+  });
+});
+
+describe("zerodust_get_destinations", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("requires the source chain", () => {
+    expect(byName("zerodust_get_destinations").inputSchema.required).toEqual(["fromChainId"]);
+  });
+
+  it("lists destinations with the native gas each one receives", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      fromChainId: 42161,
+      destinations: [
+        { chainId: 8453, name: "Base", nativeSymbol: "ETH", nativeDecimals: 18, bridges: ["across", "gaszip"], zerodustChain: true },
+        { chainId: 999, name: "HyperEVM", nativeSymbol: "HYPE", nativeDecimals: 18, bridges: ["relay"], zerodustChain: false },
+      ],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await client.callTool({ name: "zerodust_get_destinations", arguments: { fromChainId: 42161 } });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("/destinations?fromChainId=42161");
+    expect(text).toContain("Destinations from chain 42161 (2)");
+    expect(text).toContain("HyperEVM (chainId: 999) - receives HYPE via relay");
   });
 });
