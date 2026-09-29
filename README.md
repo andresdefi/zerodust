@@ -248,7 +248,7 @@ zerodust/
 
 ## Fee Structure
 
-**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum.
+**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum; balances under $1 pay 5% with no minimum.
 
 ```
 Total Fee = Gas Reimbursement + Service Fee + Bridge Fee (if cross-chain)

@@ -48,7 +48,7 @@ struct SweepIntent {
     uint256 maxTotalFeeWei;        // Hard cap on total fees
     uint256 overheadGasUnits;      // Gas overhead (50k-300k)
     uint256 protocolFeeGasUnits;   // DEPRECATED - use extraFeeWei
-    uint256 extraFeeWei;           // Service fee (1%, $0.05 min, $0.50 max)
+    uint256 extraFeeWei;           // Service fee (5% under $1; else 1%, $0.05 min, $0.50 max)
     uint256 reimbGasPriceCapWei;   // Gas price cap for reimbursement
     uint256 deadline;              // Signature expiration (unix timestamp)
     uint256 nonce;                 // Per-user nonce
@@ -57,7 +57,7 @@ struct SweepIntent {
 
 ### Fee Structure
 
-**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum.
+**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum; balances under $1 pay 5% with no minimum.
 
 ```
 Total Fee = Gas Reimbursement + Service Fee + Bridge Fee (if cross-chain)

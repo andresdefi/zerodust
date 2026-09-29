@@ -1,6 +1,6 @@
 ---
 name: zerodust
-description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports 25 mainnet chains including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC. Free for balances under $1."
+description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports 45 mainnet chains including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, and sweeps to any chain a bridge delivers native gas to. Balances under $1 pay a 5% fee with no minimum."
 license: MIT
 compatibility: "Requires network access to ZeroDust API. For programmatic sweeps, requires viem and a private key. For user-facing sweeps, requires a wallet with EIP-7702 support."
 metadata:
@@ -195,13 +195,13 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
 | Base | 8453 | ETH | Mode | 34443 | ETH |
 | Plasma | 9745 | XPL | | | |
 
-All chains support cross-chain sweeps to any other chain via Gas.zip (650 routes).
+Cross-chain sweeps go through Gas.zip, Relay or Across (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
 
 ## Pricing
 
 | Balance | Fee |
 |---------|-----|
-| Under $1 | **Free** (no service fee) |
+| Under $1 | 5% of balance (no minimum) |
 | $1 - $5 | $0.05 (minimum) |
 | $5 - $50 | 1% of balance |
 | Over $50 | $0.50 (maximum) |
