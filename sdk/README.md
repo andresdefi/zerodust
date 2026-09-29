@@ -604,10 +604,8 @@ Use `getChains()` to get the current list of supported chains.
 
 ZeroDust charges a small service fee for sweeps:
 
-- **Minimum fee:** $0.05 equivalent
-- **Maximum fee:** $0.50 equivalent
-- **Standard fee:** 1% of transferred value (between min/max)
-- **Free tier:** No service fee for sweeps under $1
+- **Under $1:** 5% of the balance, no minimum (a $0.20 sweep pays one cent)
+- **From $1:** 1% of the balance, minimum $0.05, maximum $0.50
 
 Additionally:
 - **Gas reimbursement:** Actual gas cost paid by the relayer
