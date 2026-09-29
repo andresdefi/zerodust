@@ -73,6 +73,7 @@ Read-only by default:
 |------|-------------|
 | `zerodust_info` | Get information about ZeroDust service and fees |
 | `zerodust_get_chains` | List all supported blockchain chains |
+| `zerodust_get_destinations` | List the chains a sweep from a given chain can deliver native gas to |
 | `zerodust_get_balances` | Check native token balances across all chains |
 | `zerodust_get_quote` | Get a quote for sweeping a chain |
 | `zerodust_get_sweep_status` | Check status of a submitted sweep |

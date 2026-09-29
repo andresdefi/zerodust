@@ -224,7 +224,7 @@ For SDK usage patterns including the Agent module, see [references/SDK.md](refer
 
 ## Contract
 
-Mainnet address (same on all 25 chains via CREATE2):
+Mainnet address (same on all 45 chains via CREATE2):
 ```
 0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2
 ```

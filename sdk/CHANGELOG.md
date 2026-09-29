@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-29
+
+### Added
+
+- `getDestinations(fromChainId)`: the chains a cross-chain sweep can deliver
+  native gas to, with the native token received there. Destinations are no
+  longer limited to ZeroDust chains; any EVM chain a bridge serves qualifies
+  (HyperEVM, Avalanche, zkSync Era, Monad, ...). `getQuote` already accepted
+  any destination chain ID.
+- `Destination` and `DestinationsResponse` types.
+
 ## [0.2.1] - 2026-09-27
 
 ### Fixed
