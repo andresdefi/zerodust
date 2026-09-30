@@ -11,14 +11,21 @@ import type { EIP712TypedData } from '../types.js';
 // ============ Constants ============
 
 /**
- * EIP-712 domain name
+ * EIP-712 domain name. Must equal the contract's NAME constant.
  */
-export const DOMAIN_NAME = 'ZeroDustSweep';
+export const DOMAIN_NAME = 'ZeroDust';
 
 /**
- * EIP-712 domain version
+ * EIP-712 domain version. Must equal the contract's VERSION constant.
  */
-export const DOMAIN_VERSION = '1';
+export const DOMAIN_VERSION = '3';
+
+/**
+ * The ZeroDust sweep contract. Immutable, deployed with CREATE2 at the same
+ * address on every supported chain. An EIP-7702 delegation to anything else is
+ * refused by the SDK.
+ */
+export const ZERODUST_CONTRACT_ADDRESS: Address = '0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2';
 
 /**
  * Mode for same-chain sweeps (direct transfer)

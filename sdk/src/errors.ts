@@ -221,6 +221,9 @@ const ERROR_MESSAGES: Record<ZeroDustErrorCode, string> = {
   NONCE_MISMATCH: 'Transaction nonce mismatch. Please try again.',
   MISSING_CALL_DATA: 'Missing bridge data. Please try getting a new quote.',
   QUOTE_NOT_FOUND: 'Quote not found. Please request a new quote.',
+
+  // Local safety checks
+  UNSAFE_QUOTE: 'The quote failed a safety check, so nothing was signed.',
 };
 
 /**
