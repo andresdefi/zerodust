@@ -122,6 +122,7 @@ export {
   // Signature utilities
   DOMAIN_NAME,
   DOMAIN_VERSION,
+  ZERODUST_CONTRACT_ADDRESS,
   MODE_TRANSFER,
   MODE_CALL,
   ZERO_ADDRESS,
@@ -133,3 +134,30 @@ export {
   validateSweepIntentParams,
   type SweepIntentParams,
 } from './utils/signature.js';
+
+export {
+  // Local checks run before anything is signed
+  verifySweepQuote,
+  assertAuthorizationMatches,
+  assertSignedAuthorization,
+  maxAcceptableFeeWei,
+  MAX_DEADLINE_WINDOW_SECS,
+  DEADLINE_CLOCK_SKEW_SECS,
+  MAX_GAS_PRICE_CAP_MULTIPLIER,
+  FEE_GAS_BUDGET_UNITS,
+  MAX_SERVICE_FEE_BPS,
+  type QuoteCheckContext,
+  type VerifiedSweep,
+  type SweepTypedData,
+  type SweepIntentMessage,
+} from './utils/intent-guard.js';
+
+export {
+  // Bridge contracts a cross-chain sweep may call
+  bridgeForCallTarget,
+  allowedCallTargets,
+  buildGasZipDepositCalldata,
+  createGasZipChainShortResolver,
+  ZERODUST_MAINNET_CHAIN_IDS,
+  type BridgeName,
+} from './utils/bridge-targets.js';

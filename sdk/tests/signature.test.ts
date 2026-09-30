@@ -20,9 +20,10 @@ import {
 } from '../src/utils/signature.js';
 
 describe('Constants', () => {
-  it('should have correct domain constants', () => {
-    expect(DOMAIN_NAME).toBe('ZeroDustSweep');
-    expect(DOMAIN_VERSION).toBe('1');
+  it('should match the deployed contract (NAME "ZeroDust", VERSION "3")', () => {
+    // Was 'ZeroDustSweep' / '1', a domain the contract never verified against
+    expect(DOMAIN_NAME).toBe('ZeroDust');
+    expect(DOMAIN_VERSION).toBe('3');
   });
 
   it('should have correct mode constants', () => {

@@ -10,15 +10,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { privateKeyToAccount } from 'viem/accounts';
 import * as viemChains from 'viem/chains';
 import { ZeroDustAgent } from '../src/agent.js';
-
-// Deterministic throwaway key. Never funded, never used anywhere else.
-const TEST_KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
-const account = privateKeyToAccount(TEST_KEY);
-
-const CONTRACT = '0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2';
+import { account, makeQuote, makeAuthorization, json, rpcResponse, isSweepPost } from './helpers/sweep-api.js';
 
 // Every chain `GET /chains` serves (2026-09-26).
 const API_CHAIN_IDS = [
@@ -29,15 +23,6 @@ const API_CHAIN_IDS = [
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-function json(data: unknown, status = 200) {
-  return Promise.resolve({
-    ok: status >= 200 && status < 300,
-    status,
-    headers: new Headers({ 'content-type': 'application/json' }),
-    json: () => Promise.resolve(data),
-  } as Response);
-}
-
 function viemRpcFor(chainId: number): string {
   const chain = Object.values(viemChains).find(
     (c) => typeof c === 'object' && c !== null && 'id' in c && c.id === chainId && !c.testnet
@@ -47,61 +32,25 @@ function viemRpcFor(chainId: number): string {
 }
 
 /**
- * Serves the API and answers eth_getTransactionCount with `rpcNonce`,
- * recording which RPC URL was asked.
+ * Serves the API (a same-chain quote on `chainId`) and answers the chain RPC
+ * with `rpcNonce` as the account nonce, recording which RPC URL was asked.
  */
 function installRoutes(opts: { chainId: number; quotedNonce: number; rpcNonce: number }) {
   const rpcUrls: string[] = [];
+  const quote = { ...makeQuote({ fromChainId: opts.chainId }), authNonce: opts.quotedNonce };
   mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
 
     if (url.includes('api.zerodust.xyz')) {
-      if (url.includes('/quote')) {
-        return json({
-          quoteId: '3f7c1a2e-8b4d-4f6a-9c2e-1d5b7a3e9f04',
-          version: 3,
-          userBalance: '1000000000000000',
-          estimatedReceive: '970000000000000',
-          mode: 1,
-          fees: {},
-          autoRevoke: true,
-          intent: {},
-          deadline: 4102444800,
-          nonce: 0,
-          authNonce: opts.quotedNonce,
-          validForSeconds: 55,
-        });
-      }
-      if (url.includes('/authorization')) {
-        return json({
-          sweepType: 'cross-chain',
-          contractAddress: CONTRACT,
-          version: 3,
-          typedData: {
-            types: {
-              SweepIntent: [{ name: 'destination', type: 'address' }],
-            },
-            primaryType: 'SweepIntent',
-            domain: {
-              name: 'ZeroDust',
-              version: '3',
-              chainId: opts.chainId,
-              verifyingContract: account.address,
-            },
-            message: { destination: account.address },
-          },
-        });
-      }
-      if (/\/sweep$/.test(url.split('?')[0] ?? '')) {
-        return json({ sweepId: 'should-never-happen', status: 'pending' });
-      }
+      if (url.includes('/quote')) return json(quote);
+      if (url.includes('/authorization')) return json(makeAuthorization(quote, opts.chainId));
+      if (isSweepPost(input, init)) return json({ sweepId: 'should-never-happen', status: 'pending' });
       return json({ error: `unexpected request: ${url}` }, 500);
     }
 
     // Anything else is a chain RPC.
     rpcUrls.push(normalize(url));
-    const body = JSON.parse(String(init?.body)) as { id: number };
-    return json({ jsonrpc: '2.0', id: body.id, result: `0x${opts.rpcNonce.toString(16)}` });
+    return rpcResponse(String(init?.body), { nonce: opts.rpcNonce, chainId: opts.chainId });
   });
   return rpcUrls;
 }
@@ -111,10 +60,7 @@ function normalize(url: string): string {
 }
 
 function sweepCalls() {
-  return mockFetch.mock.calls.filter(([input, init]) => {
-    const url = typeof input === 'string' ? input : String(input);
-    return (init as RequestInit | undefined)?.method === 'POST' && /\/sweep$/.test(url.split('?')[0] ?? '');
-  });
+  return mockFetch.mock.calls.filter(([input, init]) => isSweepPost(input, init));
 }
 
 describe('ZeroDustAgent RPC selection', () => {
@@ -130,10 +76,7 @@ describe('ZeroDustAgent RPC selection', () => {
     const rpcUrls = installRoutes({ chainId, quotedNonce: 42, rpcNonce: 42 });
     const agent = new ZeroDustAgent({ account, environment: 'mainnet' });
 
-    const result = await agent.sweep(
-      { fromChainId: chainId, toChainId: chainId === 8453 ? 10 : 8453 },
-      { dryRun: true }
-    );
+    const result = await agent.sweep({ fromChainId: chainId, toChainId: chainId }, { dryRun: true });
 
     expect(result.error).toBeUndefined();
     expect(result.success).toBe(true);
@@ -151,7 +94,7 @@ describe('ZeroDustAgent RPC selection', () => {
       rpcUrls: { 146: 'https://my-sonic-rpc.example' },
     });
 
-    const result = await agent.sweep({ fromChainId: 146, toChainId: 8453 }, { dryRun: true });
+    const result = await agent.sweep({ fromChainId: 146, toChainId: 146 }, { dryRun: true });
 
     expect(result.success).toBe(true);
     expect(new Set(rpcUrls)).toEqual(new Set([normalize('https://my-sonic-rpc.example')]));
@@ -161,7 +104,7 @@ describe('ZeroDustAgent RPC selection', () => {
     const rpcUrls = installRoutes({ chainId: 999999, quotedNonce: 0, rpcNonce: 0 });
     const agent = new ZeroDustAgent({ account, environment: 'mainnet' });
 
-    const result = await agent.sweep({ fromChainId: 999999, toChainId: 8453 });
+    const result = await agent.sweep({ fromChainId: 999999, toChainId: 999999 });
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/No default RPC for chain 999999/);
@@ -174,7 +117,7 @@ describe('ZeroDustAgent RPC selection', () => {
     installRoutes({ chainId: 146, quotedNonce: 99, rpcNonce: 359 });
     const agent = new ZeroDustAgent({ account, environment: 'mainnet' });
 
-    const result = await agent.sweep({ fromChainId: 146, toChainId: 8453 });
+    const result = await agent.sweep({ fromChainId: 146, toChainId: 146 });
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/nonce 359 does not match the quote's 99 on chain 146/);

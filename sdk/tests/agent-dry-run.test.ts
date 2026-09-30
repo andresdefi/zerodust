@@ -8,102 +8,62 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { privateKeyToAccount } from 'viem/accounts';
+import { recoverTypedDataAddress } from 'viem';
+import { recoverAuthorizationAddress } from 'viem/utils';
 import { ZeroDustAgent } from '../src/agent.js';
-
-// Deterministic throwaway key. Never funded, never used anywhere else.
-const TEST_KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
-const account = privateKeyToAccount(TEST_KEY);
-
-const QUOTE_ID = '3f7c1a2e-8b4d-4f6a-9c2e-1d5b7a3e9f04';
-const CONTRACT = '0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2';
+import type { AuthorizationResponse, QuoteResponse } from '../src/types.js';
+import {
+  account,
+  makeQuote,
+  makeAuthorization,
+  json,
+  rpcResponse,
+  gasZipChains,
+  isSweepPost,
+  QUOTE_ID,
+  ZERODUST as CONTRACT,
+  ATTACKER,
+} from './helpers/sweep-api.js';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-function json(data: unknown, status = 200) {
-  return Promise.resolve({
-    ok: status >= 200 && status < 300,
-    status,
-    headers: new Headers({ 'content-type': 'application/json' }),
-    json: () => Promise.resolve(data),
-  } as Response);
-}
-
-const quoteResponse = {
-  quoteId: QUOTE_ID,
-  version: 3,
-  userBalance: '1000000000000000',
-  estimatedReceive: '970000000000000',
-  mode: 1,
-  fees: {},
-  autoRevoke: true,
-  intent: {},
-  deadline: 4102444800,
-  nonce: 0,
-  authNonce: 7,
-  validForSeconds: 55,
-};
-
-const authorizationResponse = {
-  sweepType: 'cross-chain',
-  contractAddress: CONTRACT,
-  version: 3,
-  typedData: {
-    types: {
-      EIP712Domain: [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ],
-      SweepIntent: [
-        { name: 'destination', type: 'address' },
-        { name: 'deadline', type: 'uint256' },
-      ],
-    },
-    primaryType: 'SweepIntent',
-    domain: {
-      name: 'ZeroDust',
-      version: '3',
-      chainId: 42161,
-      verifyingContract: account.address,
-    },
-    message: {
-      destination: account.address,
-      deadline: '4102444800',
-    },
-  },
-};
-
 /**
- * Routes the three kinds of call a sweep makes: the ZeroDust API, and the
- * chain RPC that viem hits to look up the authorization nonce.
+ * Routes every call a sweep makes: the ZeroDust API, Gas.zip's chain list and
+ * the source chain's RPC (Base: nonce 7, the recorded balance and gas price).
  */
-function installRoutes() {
+function installRoutes(
+  opts: {
+    quote?: QuoteResponse;
+    authorization?: (quote: QuoteResponse) => AuthorizationResponse;
+    onSweep?: () => Promise<Response>;
+  } = {}
+) {
+  const quote = opts.quote ?? makeQuote({ route: 'relay' });
+  const authorization = opts.authorization ?? ((q: QuoteResponse) => makeAuthorization(q, 8453));
   mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
 
-    if (url.includes('/quote')) return json(quoteResponse);
-    if (url.includes('/authorization')) return json(authorizationResponse);
-
-    // viem's http transport posting eth_getTransactionCount
-    if (init?.method === 'POST' && url.includes('arbitrum')) {
-      const body = JSON.parse(String(init.body)) as { id: number };
-      return json({ jsonrpc: '2.0', id: body.id, result: '0x7' });
+    if (url.includes('api.zerodust.xyz')) {
+      if (url.includes('/quote')) return json(quote);
+      if (url.includes('/authorization')) return json(authorization(quote));
+      if (isSweepPost(input, init)) {
+        return opts.onSweep ? opts.onSweep() : json({ sweepId: 'swept-1', status: 'pending' });
+      }
+      return json({ status: 'completed', txHash: '0xabc' });
     }
+    if (url.includes('gas.zip')) return gasZipChains();
+    if (init?.method === 'POST') return rpcResponse(String(init.body), { nonce: 7 });
 
     return json({ error: `unexpected request: ${url}` }, 500);
   });
 }
 
 function sweepCalls() {
-  return mockFetch.mock.calls.filter(([input, init]) => {
-    const url = typeof input === 'string' ? input : String(input);
-    // POST /sweep, not GET /sweep/:id and not /quote
-    return (init as RequestInit | undefined)?.method === 'POST' && /\/sweep$/.test(url.split('?')[0] ?? '');
-  });
+  return mockFetch.mock.calls.filter(([input, init]) => isSweepPost(input, init));
 }
+
+const SWEEP = { fromChainId: 8453, toChainId: 42161 };
 
 describe('ZeroDustAgent dry run', () => {
   beforeEach(() => {
@@ -121,7 +81,7 @@ describe('ZeroDustAgent dry run', () => {
 
   it('returns a successful result flagged as a dry run', async () => {
     const result = await makeAgent().sweep(
-      { fromChainId: 42161, toChainId: 8453 },
+      SWEEP,
       { dryRun: true }
     );
 
@@ -131,14 +91,14 @@ describe('ZeroDustAgent dry run', () => {
   });
 
   it('never submits the sweep', async () => {
-    await makeAgent().sweep({ fromChainId: 42161, toChainId: 8453 }, { dryRun: true });
+    await makeAgent().sweep(SWEEP, { dryRun: true });
 
     expect(sweepCalls()).toHaveLength(0);
   });
 
   it('produces no sweepId, because nothing was submitted', async () => {
     const result = await makeAgent().sweep(
-      { fromChainId: 42161, toChainId: 8453 },
+      SWEEP,
       { dryRun: true }
     );
 
@@ -148,17 +108,17 @@ describe('ZeroDustAgent dry run', () => {
 
   it('returns the real quote so callers can show what would happen', async () => {
     const result = await makeAgent().sweep(
-      { fromChainId: 42161, toChainId: 8453 },
+      SWEEP,
       { dryRun: true }
     );
 
     expect(result.quote?.quoteId).toBe(QUOTE_ID);
-    expect(result.quote?.estimatedReceive).toBe('970000000000000');
+    expect(result.quote?.estimatedReceive).toBe('529832916922592715');
   });
 
   it('produces all three real signatures', async () => {
     const result = await makeAgent().sweep(
-      { fromChainId: 42161, toChainId: 8453 },
+      SWEEP,
       { dryRun: true }
     );
 
@@ -176,25 +136,104 @@ describe('ZeroDustAgent dry run', () => {
     );
   });
 
-  it('still submits when dryRun is not set', async () => {
-    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      if (url.includes('/quote')) return json(quoteResponse);
-      if (url.includes('/authorization')) return json(authorizationResponse);
-      if (init?.method === 'POST' && url.includes('arbitrum')) {
-        const body = JSON.parse(String(init.body)) as { id: number };
-        return json({ jsonrpc: '2.0', id: body.id, result: '0x7' });
-      }
-      if (init?.method === 'POST') return json({ sweepId: 'swept-1', status: 'pending' });
-      return json({ status: 'completed', txHash: '0xabc' });
+  it('signs the locally built intent, the ZeroDust delegation and the revoke', async () => {
+    const quote = makeQuote({ route: 'relay' });
+    installRoutes({ quote });
+    const result = await makeAgent().sweep(SWEEP, { dryRun: true });
+    const sigs = result.signatures!;
+
+    // The intent signature recovers to the account over the API's own typed
+    // data, i.e. the backend will accept it.
+    const api = makeAuthorization(quote, 8453).typedData;
+    const recovered = await recoverTypedDataAddress({
+      domain: api.domain,
+      types: { SweepIntent: api.types.SweepIntent },
+      primaryType: 'SweepIntent',
+      message: api.message,
+      signature: sigs.intent,
     });
+    expect(recovered).toBe(account.address);
 
-    const result = await makeAgent().sweep(
-      { fromChainId: 42161, toChainId: 8453 },
-      { waitForCompletion: false }
-    );
+    const delegationSigner = await recoverAuthorizationAddress({
+      authorization: { address: sigs.delegation.contractAddress, chainId: sigs.delegation.chainId, nonce: sigs.delegation.nonce },
+      signature: { r: sigs.delegation.r, s: sigs.delegation.s, yParity: sigs.delegation.yParity },
+    });
+    expect(delegationSigner).toBe(account.address);
+    expect(sigs.delegation).toMatchObject({ chainId: 8453, contractAddress: CONTRACT, nonce: 7 });
+    expect(sigs.revoke).toMatchObject({ chainId: 8453, nonce: 8 });
+  });
 
+  it('still submits when dryRun is not set', async () => {
+    const result = await makeAgent().sweep(SWEEP, { waitForCompletion: false });
+
+    expect(result.error).toBeUndefined();
     expect(result.dryRun).toBeUndefined();
     expect(sweepCalls().length).toBeGreaterThan(0);
+  });
+});
+
+describe('ZeroDustAgent refuses an untrusted API before signing', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  function expectRefused(result: Awaited<ReturnType<ZeroDustAgent['sweep']>>, pattern: RegExp) {
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/^Refusing to sign/);
+    expect(result.error).toMatch(pattern);
+    expect(result.signatures).toBeUndefined();
+    expect(sweepCalls()).toHaveLength(0);
+  }
+
+  it('a delegation target other than the ZeroDust contract', async () => {
+    installRoutes({
+      authorization: (q) => ({ ...makeAuthorization(q, 8453), contractAddress: ATTACKER }),
+    });
+    const result = await new ZeroDustAgent({ account }).sweep(SWEEP);
+    expectRefused(result, /not the ZeroDust contract/);
+  });
+
+  it('API typed data for a different domain or type', async () => {
+    installRoutes({
+      authorization: (q) => {
+        const auth = makeAuthorization(q, 8453);
+        auth.typedData.domain = { ...auth.typedData.domain, name: 'Permit2' };
+        return auth;
+      },
+    });
+    expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP), /domain differs/);
+  });
+
+  it('a quote that pays another address', async () => {
+    installRoutes({ quote: makeQuote({ route: 'relay', destination: ATTACKER }) });
+    expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP), /is not the requested/);
+  });
+
+  it('an unknown bridge call target', async () => {
+    const quote = makeQuote({ route: 'relay' });
+    quote.intent.callTarget = ATTACKER;
+    installRoutes({ quote });
+    expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP), /not a known bridge contract/);
+  });
+
+  it('an excessive fee, even on a dry run', async () => {
+    const quote = makeQuote({ route: 'relay' });
+    quote.fees.maxTotalFeeWei = (BigInt(quote.userBalance) / 2n).toString();
+    installRoutes({ quote });
+    expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP, { dryRun: true }), /fee reserve/);
+  });
+
+  it('a Relay route when requireVerifiedRoute is set', async () => {
+    installRoutes();
+    const agent = new ZeroDustAgent({ account, requireVerifiedRoute: true });
+    expectRefused(await agent.sweep(SWEEP), /cannot be verified/);
+  });
+
+  it('accepts a verified Gas.zip route with requireVerifiedRoute', async () => {
+    installRoutes({ quote: makeQuote({ route: 'gaszip' }) });
+    const agent = new ZeroDustAgent({ account, requireVerifiedRoute: true });
+    const result = await agent.sweep(SWEEP, { dryRun: true });
+    expect(result.error).toBeUndefined();
+    expect(result.success).toBe(true);
   });
 });

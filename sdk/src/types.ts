@@ -170,6 +170,11 @@ export interface SweepIntentFields {
   routeHash: Hex;
   /** Minimum amount to receive (wei string) */
   minReceive: string;
+  /**
+   * Bridge calldata for cross-chain (hashes to routeHash). Optional: when the
+   * API returns it, the SDK checks it before signing.
+   */
+  callData?: Hex;
 }
 
 /**
@@ -432,7 +437,9 @@ export type ZeroDustErrorCode =
   | 'CHAIN_ID_MISMATCH'
   | 'NONCE_MISMATCH'
   | 'MISSING_CALL_DATA'
-  | 'QUOTE_NOT_FOUND';
+  | 'QUOTE_NOT_FOUND'
+  // Local safety checks (nothing was signed)
+  | 'UNSAFE_QUOTE';
 
 /**
  * API error response

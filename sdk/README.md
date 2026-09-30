@@ -28,8 +28,14 @@ pnpm add @zerodust/sdk viem
 ## Quick Start
 
 ```typescript
-import { ZeroDust } from '@zerodust/sdk';
-import { createWalletClient, http } from 'viem';
+import {
+  ZeroDust,
+  ZERODUST_CONTRACT_ADDRESS,
+  verifySweepQuote,
+  assertAuthorizationMatches,
+  createGasZipChainShortResolver,
+} from '@zerodust/sdk';
+import { createPublicClient, createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 
@@ -48,24 +54,40 @@ const quote = await zerodust.getQuote({
   destination: '0xDestination...',
 });
 
-console.log('You will receive:', quote.minReceiveWei);
-console.log('Total fees:', quote.fees.totalFeeWei);
+console.log('You will receive:', quote.estimatedReceive);
+console.log('Max fee:', quote.fees.maxTotalFeeWei);
 
-// 4. Create authorization for signing
-const { typedData, contractAddress } = await zerodust.createAuthorization(quote.quoteId);
+// 4. Verify the quote locally and build the typed data yourself. Never sign
+//    the API's typed data or delegate to an address it names: the checks
+//    below bind the destination, route, fees and deadline to what you asked.
+const account = privateKeyToAccount('0x...');
+const publicClient = createPublicClient({ chain: base, transport: http() });
+const { typedData } = await verifySweepQuote(quote, {
+  signer: account.address,
+  fromChainId: 8453,
+  toChainId: 8453,
+  destination: '0xDestination...',
+  balanceWei: await publicClient.getBalance({ address: account.address }),
+  gasPriceWei: await publicClient.getGasPrice(),
+  nowSeconds: Math.floor(Date.now() / 1000),
+  resolveGasZipChainShort: createGasZipChainShortResolver(),
+}); // throws ZeroDustError('UNSAFE_QUOTE') on any mismatch
+
+// The API's authorization must match; it is compared, never signed
+assertAuthorizationMatches(await zerodust.createAuthorization(quote.quoteId), typedData);
 
 // 5. Sign with your wallet (example using viem)
-const account = privateKeyToAccount('0x...');
 const walletClient = createWalletClient({
   account,
   chain: base,
   transport: http(),
 });
 
-// Sign the EIP-712 typed data
+// Sign the locally built EIP-712 typed data
 const signature = await walletClient.signTypedData(typedData);
 
-// Sign the EIP-7702 authorization
+// Sign the EIP-7702 authorization to the ZeroDust contract (same address on every chain)
+const contractAddress = ZERODUST_CONTRACT_ADDRESS;
 const eip7702Authorization = await walletClient.signAuthorization({
   contractAddress,
 });
@@ -215,14 +237,15 @@ console.log('Expires:', quote.expiresAt);
 
 #### `createAuthorization(quoteId: string): Promise<AuthorizationResponse>`
 
-Create EIP-712 typed data for signing.
+Returns the backend's EIP-712 typed data for a quote. Treat it as untrusted:
+build the typed data with `verifySweepQuote()` and check this response with
+`assertAuthorizationMatches()` (see Quick Start). `ZeroDustAgent` does both.
 
 ```typescript
-const { typedData, contractAddress, expiresAt } = await zerodust.createAuthorization(quote.quoteId);
+const { typedData, contractAddress } = await zerodust.createAuthorization(quote.quoteId);
 
-// typedData: EIP-712 typed data to sign (SweepIntent)
-// contractAddress: ZeroDust contract to delegate to via EIP-7702
-// expiresAt: When the authorization expires
+// typedData: the backend's SweepIntent, to compare against your own
+// contractAddress: must equal ZERODUST_CONTRACT_ADDRESS
 ```
 
 ### Sweep Methods
@@ -381,6 +404,7 @@ try {
 | `RPC_ERROR` | RPC node error | Yes |
 | `SERVICE_UNAVAILABLE` | Service temporarily unavailable | Yes |
 | `INTERNAL_ERROR` | Internal server error | Yes |
+| `UNSAFE_QUOTE` | The quote failed a local safety check; nothing was signed | No |
 
 ### Specific Error Classes
 
@@ -457,8 +481,8 @@ import {
 } from '@zerodust/sdk';
 
 // Constants
-console.log(DOMAIN_NAME);    // 'ZeroDustSweep'
-console.log(DOMAIN_VERSION); // '1'
+console.log(DOMAIN_NAME);    // 'ZeroDust'
+console.log(DOMAIN_VERSION); // '3'
 console.log(MODE_TRANSFER);  // 0 (same-chain)
 console.log(MODE_CALL);      // 1 (cross-chain)
 
@@ -583,6 +607,27 @@ console.log(check.signatures?.intent);        // the signature that would have b
 
 `dryRun` works on `batchSweep()` and `sweepAll()` too, so you can preview an
 entire multi-chain consolidation before committing to it.
+
+### What the agent checks before signing
+
+The agent treats the ZeroDust API as untrusted. Before it signs anything it
+builds the EIP-712 SweepIntent itself (domain `ZeroDust` / `3`, the source
+chain, `verifyingContract` = the agent's own address) and refuses the quote
+with `UNSAFE_QUOTE` unless:
+
+- the delegation target is the ZeroDust contract
+  (`0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`) and the revoke targets address 0;
+- the signed destination and destination chain are the ones you asked for;
+- a same-chain sweep is a plain transfer, and a cross-chain sweep calls a known
+  bridge contract for that source chain (Gas.zip, Relay, Across). A Gas.zip
+  route's calldata is rebuilt locally, so its recipient is verified;
+- the fee reserve is at most 1.5M gas units at the signed gas price cap plus 5%
+  of the balance read from your RPC, the cap is at most 3x the current gas
+  price, and the deadline is at most ~60s away.
+
+Relay binds the recipient off-chain and the API does not yet return Across
+calldata, so for those routes only the bridge contract is checked. Pass
+`requireVerifiedRoute: true` to the agent to refuse them.
 
 For detailed AI agent integration guide, see [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md).
 

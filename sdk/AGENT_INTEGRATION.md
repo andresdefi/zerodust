@@ -226,33 +226,42 @@ ZeroDust uses EIP-7702 for gasless execution. The agent signs:
 2. **EIP-712 SweepIntent** - Authorizes the specific sweep parameters
 3. **Revoke Authorization** - Pre-signed to restore EOA after sweep
 
-The `ZeroDustAgent` class handles all signing automatically. For manual signing:
+The `ZeroDustAgent` class handles all signing automatically, and verifies the
+quote locally before it signs anything (see "What the agent checks before
+signing" in the README). For manual signing, never sign the API's typed data or
+delegate to an address the API names; build and check them locally:
 
 ```typescript
-import { signTypedData, signAuthorization } from 'viem/accounts';
+import { ZERODUST_CONTRACT_ADDRESS, verifySweepQuote, assertAuthorizationMatches } from '@zerodust/sdk';
 
-// Get authorization data
-const auth = await client.createAuthorization(quoteId);
-
-// Sign EIP-712 SweepIntent
-const signature = await signTypedData({
-  account,
-  ...auth.typedData,
+// Build the SweepIntent locally from a verified quote (throws UNSAFE_QUOTE)
+const { typedData } = await verifySweepQuote(quote, {
+  signer: account.address,
+  fromChainId,
+  toChainId,
+  destination,
+  balanceWei,   // read from your own RPC
+  gasPriceWei,  // read from your own RPC
+  nowSeconds: Math.floor(Date.now() / 1000),
+  resolveGasZipChainShort, // createGasZipChainShortResolver()
 });
 
-// Sign EIP-7702 delegations
-const delegationAuth = await signAuthorization({
-  account,
-  contractAddress: auth.eip7702.contractAddress,
-  chainId: auth.eip7702.chainId,
-  nonce: auth.eip7702.nonce,
-});
+// The API's authorization must describe the same intent
+assertAuthorizationMatches(await client.createAuthorization(quote.quoteId), typedData);
 
-// Submit signed sweep
-await client.submitSweep({
-  quoteId: quote.quoteId,
-  signature,
-  eip7702Authorization: delegationAuth,
+const signature = await walletClient.signTypedData({ account, ...typedData });
+
+// Delegate to the ZeroDust contract only, then pre-sign the revoke (nonce + 1)
+const delegation = await walletClient.signAuthorization({
+  account,
+  contractAddress: ZERODUST_CONTRACT_ADDRESS,
+  chainId: fromChainId,
+});
+const revoke = await walletClient.signAuthorization({
+  account,
+  contractAddress: '0x0000000000000000000000000000000000000000',
+  chainId: fromChainId,
+  nonce: delegation.nonce + 1,
 });
 ```
 
