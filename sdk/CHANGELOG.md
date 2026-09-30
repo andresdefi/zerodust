@@ -5,6 +5,57 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-30
+
+### Security
+
+The agent no longer trusts the ZeroDust API with what it signs. Before, it
+signed whatever EIP-712 domain, types and message `POST /authorization`
+returned and delegated the account to whatever `contractAddress` it named, so a
+compromised or impersonated API could have taken the whole balance.
+
+- **Delegation target is hardcoded.** The EIP-7702 delegation is signed only
+  for the ZeroDust contract `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`; an
+  API response naming anything else is refused. The signed delegation and
+  revoke are checked (target, chain, nonce) before they leave the SDK.
+- **Typed data is built locally.** The SweepIntent is built from a hardcoded
+  domain (`ZeroDust`, `3`, the source chain, `verifyingContract` = the signer)
+  and the contract's exact type. The API's typed data is compared, never signed.
+- **The signed intent must match the request.** `user` is the signer; the
+  destination and destination chain are the ones asked for; same-chain is a
+  plain transfer (mode 0, no call target, empty route); cross-chain is a bridge
+  call (mode 1) to a contract in a per-chain allowlist of Gas.zip, Relay and
+  Across deposit contracts. Gas.zip route calldata is rebuilt from Gas.zip's own
+  chain map and must hash to the signed `routeHash`, which binds the recipient.
+  If the API returns `intent.callData`, its hash must match, Across deposits
+  are decoded (recipient, depositor, destination chain) and a Relay deposit
+  must credit the signer.
+- **Fee, gas price and deadline bounds.** The fee reserve must be at most
+  1.5M gas units at the signed gas price cap plus 5% of the balance read from
+  the caller's RPC (not the quote), below the balance, with `extraFeeWei` inside
+  it; the gas price cap at most 3x the locally read gas price; overhead and
+  protocol fee units within the contract maxima; the deadline in the future and
+  at most 60s (+10s clock skew) away.
+- Any failed check throws `UNSAFE_QUOTE` (a new error code) before anything is
+  signed, dry runs included.
+
+### Added
+
+- `requireVerifiedRoute` agent option: refuse cross-chain routes whose recipient
+  cannot be verified locally (Relay always, Across until the API returns its
+  calldata). Off by default.
+- `verifySweepQuote()`, `assertAuthorizationMatches()`,
+  `assertSignedAuthorization()` and the bridge allowlist helpers
+  (`bridgeForCallTarget`, `allowedCallTargets`, `buildGasZipDepositCalldata`,
+  `createGasZipChainShortResolver`) for integrations that sign themselves.
+- `ZERODUST_CONTRACT_ADDRESS`.
+
+### Fixed
+
+- `DOMAIN_NAME` / `DOMAIN_VERSION` were `'ZeroDustSweep'` / `'1'`, a domain the
+  deployed contract never verifies against. They are now `'ZeroDust'` / `'3'`,
+  so `buildSweepIntentTypedData()` produces signatures the contract accepts.
+
 ## [0.3.0] - 2026-09-29
 
 ### Added

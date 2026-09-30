@@ -40,9 +40,13 @@ import {
   type Address,
   type Hex,
   type LocalAccount,
+  type PublicClient,
   type WalletClient,
+  createPublicClient,
   createWalletClient,
+  getAddress,
   http,
+  isAddress,
 } from 'viem';
 import {
   arbitrum,
@@ -83,6 +87,14 @@ import type {
   EIP7702Authorization,
 } from './types.js';
 import { ZeroDustError } from './errors.js';
+import { ZERO_ADDRESS, ZERODUST_CONTRACT_ADDRESS } from './utils/signature.js';
+import { createGasZipChainShortResolver } from './utils/bridge-targets.js';
+import {
+  type SweepTypedData,
+  assertAuthorizationMatches,
+  assertSignedAuthorization,
+  verifySweepQuote,
+} from './utils/intent-guard.js';
 
 // ============ Types ============
 
@@ -101,6 +113,16 @@ export interface ZeroDustAgentConfig extends ZeroDustConfig {
    * If not provided, uses public RPC endpoints
    */
   rpcUrls?: Record<number, string>;
+
+  /**
+   * Refuse cross-chain routes whose bridge recipient cannot be verified
+   * locally (default false). Same-chain sweeps and Gas.zip routes are always
+   * verified end to end. Relay binds the recipient off-chain, and the API does
+   * not yet return Across calldata, so for those two the SDK can only check
+   * that the call target is a known bridge contract. Set this to accept only
+   * fully verified routes.
+   */
+  requireVerifiedRoute?: boolean;
 }
 
 /**
@@ -248,6 +270,12 @@ export class ZeroDustAgent {
   /** Custom RPC URLs */
   private readonly rpcUrls: Record<number, string>;
 
+  /** Refuse routes whose recipient cannot be verified */
+  private readonly requireVerifiedRoute: boolean;
+
+  /** Gas.zip chain IDs, fetched from Gas.zip to rebuild its route calldata */
+  private readonly resolveGasZipChainShort = createGasZipChainShortResolver();
+
   /**
    * Create a new ZeroDustAgent
    *
@@ -257,6 +285,7 @@ export class ZeroDustAgent {
     this.account = config.account;
     this.address = config.account.address;
     this.rpcUrls = config.rpcUrls ?? {};
+    this.requireVerifiedRoute = config.requireVerifiedRoute ?? false;
 
     // Create underlying client (filter out undefined values for exactOptionalPropertyTypes)
     const clientConfig: Record<string, unknown> = {};
@@ -306,10 +335,15 @@ export class ZeroDustAgent {
    *
    * This method handles the entire flow:
    * 1. Get a quote
-   * 2. Sign the EIP-7702 authorization
-   * 3. Sign the EIP-712 SweepIntent
+   * 2. Verify it locally (destination, route, fees, deadline) and build the
+   *    EIP-712 SweepIntent from hardcoded domain and types
+   * 3. Sign the SweepIntent, the EIP-7702 delegation to the ZeroDust contract
+   *    and the revoke authorization
    * 4. Submit the sweep
    * 5. (Optionally) Wait for completion
+   *
+   * A quote that fails a local check is refused with `UNSAFE_QUOTE` before
+   * anything is signed.
    *
    * @param request - Sweep parameters
    * @param options - Sweep options
@@ -348,9 +382,13 @@ export class ZeroDustAgent {
       onStatusChange,
       dryRun = false,
     } = options;
-    const destination = request.destination ?? this.address;
-
     try {
+      const requestedDestination = request.destination ?? this.address;
+      if (!isAddress(requestedDestination, { strict: false })) {
+        throw new ZeroDustError('INVALID_ADDRESS', `Invalid destination address: ${requestedDestination}`);
+      }
+      const destination = getAddress(requestedDestination);
+
       // 1. Get quote
       const quote = await this.client.getQuote({
         fromChainId: request.fromChainId,
@@ -359,17 +397,45 @@ export class ZeroDustAgent {
         destination,
       });
 
-      // 2. Create authorization (get typed data)
-      const { typedData, contractAddress } = await this.client.createAuthorization(quote.quoteId);
+      // 2. Verify the quote against the request and against chain state read
+      //    from our own RPC, and build the EIP-712 typed data locally. The API
+      //    is untrusted input: nothing it sends is signed as-is.
+      const publicClient = this.getPublicClient(request.fromChainId);
+      const [balanceWei, gasPriceWei] = await Promise.all([
+        publicClient.getBalance({ address: this.address }),
+        publicClient.getGasPrice(),
+      ]);
+      const verified = await verifySweepQuote(quote, {
+        signer: this.address,
+        fromChainId: request.fromChainId,
+        toChainId: request.toChainId,
+        destination,
+        balanceWei,
+        gasPriceWei,
+        nowSeconds: Math.floor(Date.now() / 1000),
+        requireVerifiedRoute: this.requireVerifiedRoute,
+        resolveGasZipChainShort: this.resolveGasZipChainShort,
+      });
 
-      // 3. Sign EIP-712 typed data
-      const signature = await this.signTypedData(typedData);
+      // 3. The API's authorization must describe the same intent and name the
+      //    ZeroDust contract; it is compared, never signed.
+      const authorization = await this.client.createAuthorization(quote.quoteId);
+      assertAuthorizationMatches(authorization, verified.typedData);
 
-      // 4. Sign EIP-7702 delegation authorization (nonce auto-fetched from chain)
+      // 4. Sign the locally built EIP-712 typed data
+      const signature = await this.signTypedData(verified.typedData);
+
+      // 5. Sign the EIP-7702 delegation to the hardcoded ZeroDust contract
+      //    (nonce auto-fetched from chain)
       const eip7702Authorization = await this.signEIP7702Authorization({
-        contractAddress,
+        contractAddress: ZERODUST_CONTRACT_ADDRESS,
         chainId: request.fromChainId,
       });
+      assertSignedAuthorization(
+        eip7702Authorization,
+        { contractAddress: ZERODUST_CONTRACT_ADDRESS, chainId: request.fromChainId },
+        'Delegation'
+      );
 
       // The backend reads the nonce from its own RPC for the source chain. If
       // ours disagrees, one of them is looking at the wrong chain or a stale
@@ -382,12 +448,17 @@ export class ZeroDustAgent {
         );
       }
 
-      // 5. Sign revoke authorization (nonce = delegation nonce + 1)
+      // 6. Sign revoke authorization (nonce = delegation nonce + 1)
       const revokeAuthorization = await this.signEIP7702Authorization({
-        contractAddress: '0x0000000000000000000000000000000000000000' as Address,
+        contractAddress: ZERO_ADDRESS,
         chainId: request.fromChainId,
         nonce: eip7702Authorization.nonce + 1,
       });
+      assertSignedAuthorization(
+        revokeAuthorization,
+        { contractAddress: ZERO_ADDRESS, chainId: request.fromChainId, nonce: eip7702Authorization.nonce + 1 },
+        'Revoke'
+      );
 
       // A dry run stops here. Everything above is real — real quote, real
       // typed data, real signatures from the real key — but nothing has been
@@ -405,7 +476,7 @@ export class ZeroDustAgent {
         };
       }
 
-      // 6. Submit sweep
+      // 7. Submit sweep
       const sweep = await this.client.submitSweep({
         quoteId: quote.quoteId,
         signature,
@@ -413,7 +484,7 @@ export class ZeroDustAgent {
         revokeAuthorization,
       });
 
-      // 7. Wait for completion if requested
+      // 8. Wait for completion if requested
       if (waitForCompletion) {
         const waitOpts: { timeoutMs: number; onStatusChange?: (status: SweepStatusResponse) => void } = {
           timeoutMs,
@@ -578,25 +649,15 @@ export class ZeroDustAgent {
    * Sign EIP-712 typed data
    * @internal
    */
-  private async signTypedData(typedData: {
-    domain: {
-      name: string;
-      version: string;
-      chainId: number;
-      verifyingContract: Address;
-    };
-    types: Record<string, Array<{ name: string; type: string }>>;
-    primaryType: string;
-    message: Record<string, unknown>;
-  }): Promise<Hex> {
+  private async signTypedData(typedData: SweepTypedData): Promise<Hex> {
     const walletClient = this.getWalletClient(typedData.domain.chainId);
 
     const signature = await walletClient.signTypedData({
       account: this.account,
       domain: typedData.domain,
-      types: typedData.types as Record<string, Array<{ name: string; type: string }>>,
-      primaryType: typedData.primaryType as 'SweepIntent',
-      message: typedData.message,
+      types: typedData.types,
+      primaryType: typedData.primaryType,
+      message: { ...typedData.message },
     });
 
     return signature;
@@ -646,6 +707,15 @@ export class ZeroDustAgent {
       account: this.account,
       transport: http(rpcUrl),
     });
+  }
+
+  /**
+   * Get a read-only client for a chain (same RPC as signing)
+   * @internal
+   */
+  private getPublicClient(chainId: number): PublicClient {
+    const rpcUrl = this.rpcUrls[chainId] ?? this.getDefaultRpcUrl(chainId);
+    return createPublicClient({ transport: http(rpcUrl) });
   }
 
   /**
