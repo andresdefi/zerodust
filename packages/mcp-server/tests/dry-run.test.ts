@@ -22,10 +22,16 @@ const AGENT_ADDRESS = TEST_ADDRESS;
 
 /** Records every call the tools make into the SDK. */
 const calls: Array<{ method: "sweep" | "sweepAll"; request: unknown; options: unknown }> = [];
+/** The config each agent was constructed with. */
+const agentConfigs: unknown[] = [];
 
 vi.mock("@zerodust/sdk", () => {
   class FakeAgent {
     address = AGENT_ADDRESS;
+
+    constructor(config: unknown) {
+      agentConfigs.push(config);
+    }
 
     async sweep(request: unknown, options: unknown) {
       calls.push({ method: "sweep", request, options });
@@ -65,12 +71,13 @@ vi.mock("@zerodust/sdk", () => {
   return { ZeroDustAgent: FakeAgent };
 });
 
-async function connectedClient() {
+async function connectedClient(extraEnv: Record<string, string> = {}) {
   const { readExecuteConfig, registerExecuteTools } = await import("../src/execute.js");
 
   const config = readExecuteConfig({
     ZERODUST_SIGNER_MODULE: fixtures.signerModule,
     ZERODUST_ALLOW_EXECUTE: "true",
+    ...extraEnv,
   });
 
   const server = new McpServer({ name: "zerodust-test", version: "0.0.0" });
@@ -211,5 +218,19 @@ describe("zerodust_sweep_all dryRun wiring", () => {
     expect(message).toContain("Dry run only");
     expect(message).toContain("would sweep");
     expect(message).not.toMatch(/chain 42161: swept/);
+  });
+});
+
+describe("ZERODUST_RPC_URLS wiring", () => {
+  it("hands the configured RPCs to the agent", async () => {
+    agentConfigs.length = 0;
+    const client = await connectedClient({ ZERODUST_RPC_URLS: "8453=https://base.example/rpc" });
+
+    await client.callTool({
+      name: "zerodust_sweep",
+      arguments: { fromChainId: 8453, toChainId: 8453, dryRun: true },
+    });
+
+    expect(agentConfigs.at(-1)).toMatchObject({ rpcUrls: { 8453: "https://base.example/rpc" } });
   });
 });

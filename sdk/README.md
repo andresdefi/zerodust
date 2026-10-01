@@ -163,7 +163,8 @@ destinations.forEach(d => console.log(d.name, d.nativeSymbol, d.bridges));
 
 #### `getChain(chainId: number): Promise<Chain>`
 
-Get a specific chain by ID.
+Get a specific chain by ID. Throws a `ZeroDustError` with code `NOT_FOUND` if
+the API does not serve that chain.
 
 ```typescript
 const base = await zerodust.getChain(8453);
@@ -403,8 +404,17 @@ try {
 | `TIMEOUT` | Request timed out | Yes |
 | `RPC_ERROR` | RPC node error | Yes |
 | `SERVICE_UNAVAILABLE` | Service temporarily unavailable | Yes |
+| `RATE_LIMITED` | Too many requests (HTTP 429) | Yes |
+| `NOT_FOUND` | The API has no such resource, e.g. an unknown chain or sweep ID (HTTP 404) | No |
+| `INVALID_REQUEST` | The API rejected the request parameters (other HTTP 4xx) | No |
+| `UNAUTHORIZED` | Missing or invalid API key (HTTP 401/403) | No |
 | `INTERNAL_ERROR` | Internal server error | Yes |
 | `UNSAFE_QUOTE` | The quote failed a local safety check; nothing was signed | No |
+
+The client retries a `429` on its own, waiting for the `Retry-After` header
+(capped at 30 seconds) or backing off exponentially, and retries `502`, `503`
+and `504` on GET requests. `waitForSweep()` keeps polling through retryable
+errors until its timeout.
 
 ### Specific Error Classes
 
@@ -579,11 +589,26 @@ await agent.batchSweep({
     { fromChainId: 10 },
     { fromChainId: 137 },
   ],
-  toChainId: 8453,
+  consolidateToChainId: 8453, // each entry can override with its own toChainId
 });
 
 // Sweep all chains with balance
 await agent.sweepAll({ toChainId: 8453 });
+```
+
+### RPC endpoints
+
+The agent reads balances, nonces and gas prices from each source chain. It
+ships a public RPC for every chain the API serves (exported as
+`DEFAULT_RPC_URLS`). Public RPCs can be slow or rate limited, so pass your
+own for the chains you sweep most:
+
+```typescript
+const agent = new ZeroDustAgent({
+  account,
+  environment: 'mainnet',
+  rpcUrls: { 8453: 'https://base.example/rpc' }, // other chains keep the default
+});
 ```
 
 ### Try it without moving funds
