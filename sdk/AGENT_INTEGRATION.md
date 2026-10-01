@@ -209,13 +209,15 @@ const response = await fetch('https://api.zerodust.xyz/agent/batch-sweep', {
       { fromChainId: 10 },
       { fromChainId: 137 },
     ],
-    destination: '0x...',
+    userAddress: '0x...', // the wallet being swept
+    destination: '0x...', // defaults to userAddress
     consolidateToChainId: 8453, // All to Base
   })
 });
 
 const { results, summary } = await response.json();
-// Each result contains quote + typedData for signing
+// Each result has the quote and the /authorization typed data; verify both
+// locally (verifySweepQuote) before signing, then submit to POST /sweep
 ```
 
 ## Signing Flow

@@ -172,28 +172,39 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
       {"fromChainId": 10},
       {"fromChainId": 137}
     ],
+    "userAddress": "0x...",
     "destination": "0x...",
     "consolidateToChainId": 8453
   }'
 ```
 
-## Supported Chains (25 Mainnet)
+## Supported Chains (45 mainnet)
 
 | Chain | ID | Token | Chain | ID | Token |
-|-------|----|-------|-------|----|-------|
-| Ethereum | 1 | ETH | Arbitrum | 42161 | ETH |
-| Optimism | 10 | ETH | Celo | 42220 | CELO |
-| BNB Chain | 56 | BNB | Ink | 57073 | ETH |
-| Gnosis | 100 | xDAI | BOB | 60808 | ETH |
-| Unichain | 130 | ETH | Berachain | 80094 | BERA |
-| Polygon | 137 | POL | Scroll | 534352 | ETH |
-| Sonic | 146 | S | Zora | 7777777 | ETH |
-| X Layer | 196 | OKB | Sei | 1329 | SEI |
-| Fraxtal | 252 | FRAX | Story | 1514 | IP |
-| World Chain | 480 | ETH | Soneium | 1868 | ETH |
-| Mantle | 5000 | MNT | Superseed | 5330 | ETH |
-| Base | 8453 | ETH | Mode | 34443 | ETH |
-| Plasma | 9745 | XPL | | | |
+|-------|---:|-------|-------|---:|-------|
+| Ethereum | 1 | ETH | Somnia | 5031 | SOMI |
+| Optimism | 10 | ETH | Arc | 5042 | USDC |
+| BNB Chain | 56 | BNB | Superseed | 5330 | ETH |
+| Gnosis | 100 | xDAI | Base | 8453 | ETH |
+| Unichain | 130 | ETH | Plasma | 9745 | XPL |
+| Polygon | 137 | POL | Apechain | 33139 | APE |
+| Sonic | 146 | S | Mode | 34443 | ETH |
+| Manta Pacific | 169 | ETH | Mythos | 42018 | ETH |
+| X Layer | 196 | OKB | Arbitrum | 42161 | ETH |
+| Fraxtal | 252 | FRAX | Celo | 42220 | CELO |
+| Shape | 360 | ETH | Hemi | 43111 | ETH |
+| World Chain | 480 | ETH | Zircuit | 48900 | ETH |
+| Stable | 988 | gUSDT | Ink | 57073 | ETH |
+| Lisk | 1135 | ETH | Linea | 59144 | ETH |
+| Sei | 1329 | SEI | BOB | 60808 | ETH |
+| Story | 1514 | IP | Berachain | 80094 | BERA |
+| Pharos | 1672 | PROS | Plume | 98866 | PLUME |
+| Soneium | 1868 | ETH | Taiko | 167000 | ETH |
+| Ronin | 2020 | RON | Scroll | 534352 | ETH |
+| Morph | 2818 | ETH | Gensyn | 685689 | ETH |
+| MegaETH | 4326 | ETH | Katana | 747474 | ETH |
+| Robinhood Chain | 4663 | ETH | Zora | 7777777 | ETH |
+| Mantle | 5000 | MNT |  | |  |
 
 Cross-chain sweeps go through Gas.zip, Relay or Across (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
 
