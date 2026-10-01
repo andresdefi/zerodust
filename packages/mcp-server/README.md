@@ -33,18 +33,12 @@ Add to your `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Claude Code
 
-Add to your `.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "zerodust": {
-      "command": "npx",
-      "args": ["@zerodust/mcp-server"]
-    }
-  }
-}
+```bash
+claude mcp add zerodust -- npx -y @zerodust/mcp-server
 ```
+
+Add `-s user` to make it available in every project, and `-e NAME=value` for
+each environment variable below.
 
 ### Environment Variables
 
@@ -54,6 +48,7 @@ Add to your `.claude/settings.json`:
 | `ZERODUST_API_KEY` | API key for higher rate limits | - |
 | `ZERODUST_ALLOW_EXECUTE` | Set to `true` to enable sweeping | `false` |
 | `ZERODUST_ALLOWED_DESTINATIONS` | Comma-separated destination allowlist | own address only |
+| `ZERODUST_RPC_URLS` | Your own RPCs for sweeping, as `chainId=url` pairs: `8453=https://...,42161=https://...` | a public RPC per chain |
 
 Signing keys have their own section below — there are four ways to supply one,
 and exactly one may be set at a time.
@@ -80,7 +75,8 @@ Read-only by default:
 | `zerodust_list_sweeps` | List past sweeps for an address |
 | `zerodust_register_api_key` | Issue this agent its own API key, no human signup |
 
-Added when execution is enabled (see below):
+Sweep tools. They are always listed, so an agent can see that sweeping exists,
+but they refuse and move nothing until execution is enabled (see below):
 
 | Tool | Description |
 |------|-------------|
@@ -213,8 +209,8 @@ the hosted server by URL:
 https://api.zerodust.xyz/mcp
 ```
 
-It exposes the same tool names as this package. Sweeping is not available there,
-because sweeping needs a key and the hosted server does not have yours.
+It exposes the same read-only tools as this package. Sweeping is not available
+there, because sweeping needs a key and the hosted server does not have yours.
 
 ## Development
 

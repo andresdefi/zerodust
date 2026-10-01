@@ -438,6 +438,11 @@ export type ZeroDustErrorCode =
   | 'NONCE_MISMATCH'
   | 'MISSING_CALL_DATA'
   | 'QUOTE_NOT_FOUND'
+  // HTTP errors the API sends without a code
+  | 'NOT_FOUND'
+  | 'RATE_LIMITED'
+  | 'INVALID_REQUEST'
+  | 'UNAUTHORIZED'
   // Local safety checks (nothing was signed)
   | 'UNSAFE_QUOTE';
 

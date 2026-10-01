@@ -40,6 +40,9 @@
 // Main client
 export { ZeroDust } from './client.js';
 
+// A public RPC per ZeroDust chain (the agent's defaults)
+export { DEFAULT_RPC_URLS } from './utils/default-rpcs.js';
+
 // Agent module (for AI agents and automated systems)
 export {
   ZeroDustAgent,
@@ -100,6 +103,7 @@ export {
   SignatureError,
   BridgeError,
   createErrorFromResponse,
+  codeForStatus,
   isZeroDustError,
   wrapError,
 } from './errors.js';

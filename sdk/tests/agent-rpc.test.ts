@@ -10,25 +10,24 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as viemChains from 'viem/chains';
 import { ZeroDustAgent } from '../src/agent.js';
+import { DEFAULT_RPC_URLS } from '../src/utils/default-rpcs.js';
 import { account, makeQuote, makeAuthorization, json, rpcResponse, isSweepPost } from './helpers/sweep-api.js';
 
-// Every chain `GET /chains` serves (2026-09-26).
+// Every chain `GET /chains` serves (2026-10-01).
 const API_CHAIN_IDS = [
-  1, 10, 56, 100, 130, 137, 146, 196, 252, 480, 1329, 1514, 1868, 5000, 5330, 8453, 9745,
-  34443, 42161, 42220, 57073, 60808, 80094, 534352, 7777777,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868, 2020, 2818,
+  4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161, 42220, 43111, 48900, 57073,
+  59144, 60808, 80094, 98866, 167000, 534352, 685689, 747474, 7777777,
 ];
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-function viemRpcFor(chainId: number): string {
-  const chain = Object.values(viemChains).find(
-    (c) => typeof c === 'object' && c !== null && 'id' in c && c.id === chainId && !c.testnet
-  ) as { rpcUrls: { default: { http: readonly string[] } } } | undefined;
-  if (!chain) throw new Error(`viem has no chain ${chainId}`);
-  return chain.rpcUrls.default.http[0]!;
+function defaultRpcFor(chainId: number): string {
+  const url = DEFAULT_RPC_URLS[chainId];
+  if (!url) throw new Error(`no default RPC for chain ${chainId}`);
+  return url;
 }
 
 /**
@@ -81,7 +80,7 @@ describe('ZeroDustAgent RPC selection', () => {
     expect(result.error).toBeUndefined();
     expect(result.success).toBe(true);
     expect(rpcUrls.length).toBeGreaterThan(0);
-    expect(new Set(rpcUrls)).toEqual(new Set([normalize(viemRpcFor(chainId))]));
+    expect(new Set(rpcUrls)).toEqual(new Set([normalize(defaultRpcFor(chainId))]));
     expect(result.signatures?.delegation.nonce).toBe(42);
     expect(result.signatures?.revoke.nonce).toBe(43);
   });
