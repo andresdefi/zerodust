@@ -48,36 +48,8 @@ import {
   http,
   isAddress,
 } from 'viem';
-import {
-  arbitrum,
-  arbitrumSepolia,
-  base,
-  baseSepolia,
-  berachain,
-  bob,
-  bsc,
-  celo,
-  fraxtal,
-  gnosis,
-  ink,
-  mainnet,
-  mantle,
-  mode,
-  optimism,
-  plasma,
-  polygon,
-  scroll,
-  sei,
-  sepolia,
-  soneium,
-  sonic,
-  story,
-  superseed,
-  unichain,
-  worldchain,
-  xLayer,
-  zora,
-} from 'viem/chains';
+import { arbitrumSepolia, baseSepolia, sepolia } from 'viem/chains';
+import { DEFAULT_RPC_URLS } from './utils/default-rpcs.js';
 import { ZeroDust } from './client.js';
 import type {
   ZeroDustConfig,
@@ -727,7 +699,7 @@ export class ZeroDustAgent {
    * @internal
    */
   private getDefaultRpcUrl(chainId: number): string {
-    const rpcUrl = DEFAULT_CHAINS[chainId]?.rpcUrls.default.http[0];
+    const rpcUrl = DEFAULT_RPC_URLS[chainId] ?? TESTNET_RPC_URLS[chainId];
     if (!rpcUrl) {
       throw new ZeroDustError(
         'CHAIN_NOT_SUPPORTED',
@@ -739,19 +711,10 @@ export class ZeroDustAgent {
   }
 }
 
-/**
- * Chains with a known public RPC, keyed by chain ID. Covers every chain the
- * API serves, plus the testnets used in development.
- */
-const DEFAULT_CHAINS: Record<number, { rpcUrls: { default: { http: readonly string[] } } }> =
-  Object.fromEntries(
-    [
-      mainnet, optimism, bsc, gnosis, unichain, polygon, sonic, xLayer, fraxtal,
-      worldchain, sei, story, soneium, mantle, superseed, base, plasma, mode,
-      arbitrum, celo, ink, bob, berachain, scroll, zora,
-      sepolia, baseSepolia, arbitrumSepolia,
-    ].map((chain) => [chain.id, chain])
-  );
+/** Testnets used in development: viem's own public RPCs */
+const TESTNET_RPC_URLS: Record<number, string> = Object.fromEntries(
+  [sepolia, baseSepolia, arbitrumSepolia].map((chain) => [chain.id, chain.rpcUrls.default.http[0]!])
+);
 
 // ============ Factory Function ============
 

@@ -34,6 +34,7 @@ import {
   NetworkError,
   TimeoutError,
   createErrorFromResponse,
+  codeForStatus,
   wrapError,
 } from './errors.js';
 import {
@@ -113,13 +114,19 @@ class HttpClient {
     }
   }
 
+  /** Backoff for attempt n (0-based): 1 s, 2 s, 4 s ... at most 10 s */
+  private backoffMs(retriesLeft: number): number {
+    return Math.min(1000 * 2 ** (this.retries - retriesLeft), 10000);
+  }
+
   private async fetchWithRetry(
     url: string,
     options: RequestInit,
     retriesLeft: number
   ): Promise<Response> {
+    let response: Response;
     try {
-      return await this.fetchWithTimeout(url, options);
+      response = await this.fetchWithTimeout(url, options);
     } catch (error) {
       // Don't retry on AbortError (our own timeout) — fail fast instead of compounding latency
       const isAbort = error instanceof Error && error.name === 'AbortError';
@@ -131,6 +138,16 @@ class HttpClient {
       }
       throw error;
     }
+    // A rate-limited request was not processed, so it is safe to send again,
+    // POST included; a GET is also retried on a gateway error.
+    const retryable = response.status === 429 || (options.method === 'GET' && [502, 503, 504].includes(response.status));
+    if (retryable && retriesLeft > 0) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 30000) : this.backoffMs(retriesLeft);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.fetchWithRetry(url, options, retriesLeft - 1);
+    }
+    return response;
   }
 
   async get<T>(path: string, params?: Record<string, string | number | boolean>): Promise<T> {
@@ -189,7 +206,7 @@ class HttpClient {
       }
       const text = await response.text();
       throw new ZeroDustError(
-        'INTERNAL_ERROR',
+        codeForStatus(response.status),
         `HTTP ${response.status}: ${text}`,
         { statusCode: response.status },
         response.status
@@ -328,7 +345,7 @@ export class ZeroDust {
    *
    * @param chainId - Chain ID to look up
    * @returns Chain information
-   * @throws {ChainNotSupportedError} If chain is not found
+   * @throws {ZeroDustError} With code `NOT_FOUND` if the API does not serve the chain
    *
    * @example
    * const base = await zerodust.getChain(8453);
@@ -601,7 +618,16 @@ export class ZeroDust {
     let lastStatus: string | undefined;
 
     while (true) {
-      const status = await this.getSweepStatus(sweepId);
+      let status: SweepStatusResponse;
+      try {
+        status = await this.getSweepStatus(sweepId);
+      } catch (error) {
+        // A rate limit or a network blip while polling is not a failed sweep:
+        // keep polling until the timeout
+        if (!(error instanceof ZeroDustError) || !error.isRetryable() || Date.now() - startTime > timeoutMs) throw error;
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        continue;
+      }
 
       // Notify on status change
       if (status.status !== lastStatus) {

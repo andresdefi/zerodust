@@ -224,6 +224,10 @@ const ERROR_MESSAGES: Record<ZeroDustErrorCode, string> = {
 
   // Local safety checks
   UNSAFE_QUOTE: 'The quote failed a safety check, so nothing was signed.',
+  NOT_FOUND: 'Not found.',
+  RATE_LIMITED: 'Too many requests. Wait a moment and try again.',
+  INVALID_REQUEST: 'The request was not valid.',
+  UNAUTHORIZED: 'The API key is missing, invalid or revoked.',
 };
 
 /**
@@ -235,17 +239,32 @@ const RETRYABLE_ERRORS = new Set<ZeroDustErrorCode>([
   'RPC_ERROR',
   'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
+  'RATE_LIMITED',
 ]);
+
+/**
+ * The code for an API error that came without one, from its HTTP status.
+ * A 404 or 400 is not worth retrying; only 429 and 5xx are.
+ */
+export function codeForStatus(statusCode: number): ZeroDustErrorCode {
+  if (statusCode === 404) return 'NOT_FOUND';
+  if (statusCode === 429) return 'RATE_LIMITED';
+  if (statusCode === 401 || statusCode === 403) return 'UNAUTHORIZED';
+  if (statusCode === 503) return 'SERVICE_UNAVAILABLE';
+  if (statusCode >= 400 && statusCode < 500) return 'INVALID_REQUEST';
+  return 'INTERNAL_ERROR';
+}
 
 /**
  * Create a ZeroDustError from an API error response
  */
 export function createErrorFromResponse(
   statusCode: number,
-  errorResponse: { error: string; code?: string }
+  errorResponse: { error: string; code?: string; message?: string }
 ): ZeroDustError {
-  const code = (errorResponse.code ?? 'INTERNAL_ERROR') as ZeroDustErrorCode;
-  const message = errorResponse.error;
+  const code = (errorResponse.code ?? codeForStatus(statusCode)) as ZeroDustErrorCode;
+  // Rate-limit bodies carry the text in `message` ("Too Many Requests" in `error`)
+  const message = errorResponse.message ?? errorResponse.error;
 
   return new ZeroDustError(code, message, { rawError: errorResponse }, statusCode);
 }

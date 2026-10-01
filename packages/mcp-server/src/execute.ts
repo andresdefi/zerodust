@@ -12,6 +12,8 @@
  * Optional:
  *   ZERODUST_ALLOWED_DESTINATIONS - comma-separated address allowlist.
  *     When unset, the only permitted destination is the agent's own address.
+ *   ZERODUST_RPC_URLS - comma-separated chainId=url pairs that replace the SDK's
+ *     default public RPC for those chains, e.g. "8453=https://base.example".
  *
  * The allowlist is the main defence against prompt injection: an agent that is
  * talked into sweeping somewhere it shouldn't still cannot send funds to an
@@ -49,6 +51,40 @@ export interface ExecuteConfig {
   signer: SignerSource;
   /** Lowercased allowlist. Empty means "agent's own address only". */
   allowedDestinations: string[];
+  /** Per-chain RPC overrides from ZERODUST_RPC_URLS. Empty means the SDK defaults. */
+  rpcUrls: Record<number, string>;
+}
+
+/**
+ * Parses ZERODUST_RPC_URLS ("8453=https://...,42161=https://...").
+ *
+ * Throws on a malformed entry rather than skipping it: a typo would otherwise
+ * fall back to the default RPC without the operator noticing.
+ */
+export function parseRpcUrls(value: string | undefined): Record<number, string> {
+  const rpcUrls: Record<number, string> = {};
+  for (const entry of (value ?? "").split(",").map((part) => part.trim()).filter(Boolean)) {
+    const eq = entry.indexOf("=");
+    const chainId = Number(entry.slice(0, eq).trim());
+    const url = entry.slice(eq + 1).trim();
+    if (eq < 1 || !Number.isSafeInteger(chainId) || chainId <= 0) {
+      throw new Error(`ZERODUST_RPC_URLS entry "${entry}" must be chainId=url`);
+    }
+    let protocol: string;
+    try {
+      protocol = new URL(url).protocol;
+    } catch {
+      throw new Error(`ZERODUST_RPC_URLS has an invalid URL for chain ${chainId}`);
+    }
+    if (protocol !== "https:" && protocol !== "http:") {
+      throw new Error(`ZERODUST_RPC_URLS URL for chain ${chainId} must be http(s)`);
+    }
+    if (chainId in rpcUrls) {
+      throw new Error(`ZERODUST_RPC_URLS lists chain ${chainId} twice`);
+    }
+    rpcUrls[chainId] = url;
+  }
+  return rpcUrls;
 }
 
 /**
@@ -97,6 +133,7 @@ export function readExecuteConfig(env: NodeJS.ProcessEnv = process.env): Execute
   return {
     signer,
     allowedDestinations: allowedDestinations.map((entry) => entry.toLowerCase()),
+    rpcUrls: parseRpcUrls(env.ZERODUST_RPC_URLS),
   };
 }
 
@@ -154,8 +191,9 @@ const DISABLED_MESSAGE = [
   "      A hex key inline. Simplest, and the least private of the four.",
   "",
   "Optionally set ZERODUST_ALLOWED_DESTINATIONS to permit sweeping to addresses",
-  "other than the agent's own. The read-only tools (balances, quotes, status)",
-  "work without any of this.",
+  "other than the agent's own, and ZERODUST_RPC_URLS (8453=https://...,...) to",
+  "use your own RPC for some chains. The read-only tools (balances, quotes,",
+  "status) work without any of this.",
 ].join("\n");
 
 /** Shared shape of the dryRun parameter, so both sweep tools describe it identically. */
@@ -191,7 +229,7 @@ export function registerExecuteTools(server: McpServer, config: ExecuteConfig | 
           import("@zerodust/sdk"),
           enabled.signer.load(),
         ]);
-        return new ZeroDustAgent({ account, environment: "mainnet" });
+        return new ZeroDustAgent({ account, environment: "mainnet", rpcUrls: enabled.rpcUrls });
       })();
       // A failed load must not be cached, or a transient signer outage would
       // wedge the server until restart.

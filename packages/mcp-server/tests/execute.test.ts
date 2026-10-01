@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
-import { checkDestination, readExecuteConfig } from "../src/execute.js";
+import { checkDestination, parseRpcUrls, readExecuteConfig } from "../src/execute.js";
 import { createSignerFixtures, TEST_KEY, type SignerFixtures } from "./helpers/signer-fixtures.js";
 
 // Generated rather than committed - see helpers/signer-fixtures.ts.
@@ -144,5 +144,43 @@ describe("checkDestination", () => {
     // Guards against any substring or prefix comparison creeping in.
     const nearMiss = `${OTHER.slice(0, -1)}0`;
     expect(checkDestination(nearMiss, OWN, [OTHER.toLowerCase()])).not.toBeNull();
+  });
+});
+
+describe("parseRpcUrls", () => {
+  it("is empty when unset", () => {
+    expect(parseRpcUrls(undefined)).toEqual({});
+    expect(parseRpcUrls("")).toEqual({});
+  });
+
+  it("parses chainId=url pairs, tolerating spaces", () => {
+    expect(parseRpcUrls(" 8453=https://base.example/rpc , 42161=https://arb.example ")).toEqual({
+      8453: "https://base.example/rpc",
+      42161: "https://arb.example",
+    });
+  });
+
+  it("keeps an = inside the URL", () => {
+    expect(parseRpcUrls("1=https://eth.example/?key=abc")).toEqual({ 1: "https://eth.example/?key=abc" });
+  });
+
+  it.each([
+    ["https://no-chain.example", /chainId=url/],
+    ["base=https://base.example", /chainId=url/],
+    ["0=https://zero.example", /chainId=url/],
+    ["8453=not a url", /invalid URL/],
+    ["8453=ftp://base.example", /must be http/],
+    ["8453=https://a.example,8453=https://b.example", /twice/],
+  ])("rejects %s", (value, message) => {
+    expect(() => parseRpcUrls(value)).toThrow(message);
+  });
+
+  it("is applied by readExecuteConfig", () => {
+    const config = readExecuteConfig({
+      ZERODUST_PRIVATE_KEY: TEST_KEY,
+      ZERODUST_ALLOW_EXECUTE: "true",
+      ZERODUST_RPC_URLS: "10=https://op.example",
+    });
+    expect(config?.rpcUrls).toEqual({ 10: "https://op.example" });
   });
 });

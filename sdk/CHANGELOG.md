@@ -5,6 +5,31 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-01
+
+### Fixed
+
+- **`ZeroDustAgent` works on every chain the API serves.** It shipped default
+  RPCs for only 25 of the 45 chains, so sweeping any of the other 20 failed
+  unless the caller passed `rpcUrls`. Every API chain now has a default
+  (exported as `DEFAULT_RPC_URLS`); `rpcUrls` still overrides per chain.
+- **HTTP errors get accurate codes.** A 404 used to surface as a retryable
+  `INTERNAL_ERROR` and a 429 was not retried. New codes `NOT_FOUND`,
+  `RATE_LIMITED` (retryable), `INVALID_REQUEST` and `UNAUTHORIZED` are mapped
+  from the status when the API sends no code (`codeForStatus`).
+
+### Added
+
+- The client retries a 429 on any request, waiting for `Retry-After` (capped at
+  30 seconds) or backing off, and retries 502/503/504 on GET requests.
+- `waitForSweep()` keeps polling through retryable errors until its timeout.
+
+### Changed
+
+- `getChain()` for an unknown chain throws `NOT_FOUND` (it was documented as
+  `ChainNotSupportedError` but threw `INTERNAL_ERROR`). Code that matched on
+  `INTERNAL_ERROR` for a 404 or 429 should match the new codes.
+
 ## [0.4.0] - 2026-09-30
 
 ### Security
