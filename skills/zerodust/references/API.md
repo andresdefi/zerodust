@@ -194,11 +194,11 @@ Register and get an API key. Rate limits: 300/min, 1000/day.
 
 ### POST /agent/sweep
 
-Combined quote + authorization data in one call. Returns quote, typed data, and EIP-7702 params.
+`/quote` and `POST /authorization` in one call. Body: `fromChainId`, `toChainId`, `userAddress`, optional `destination` (defaults to `userAddress`). Returns the quote, the authorization typed data, `eip7702` (contract, chain, nonce) and `expiresAt`. The server signs nothing; verify locally, sign, then `POST /sweep`.
 
 ### POST /agent/batch-sweep
 
-Process multiple chains in one request. Returns results array with individual success/failure.
+The same for several chains. Body: `sweeps` (`[{ fromChainId, toChainId? }]`), `userAddress` (required, the wallet being swept), optional `destination` and `consolidateToChainId`. Returns a `results` array with success or error per chain. Quotes last about 55 seconds, so sign and submit promptly.
 
 ### GET /agent/me
 
@@ -231,6 +231,7 @@ Protocol: JSON-RPC 2.0 (MCP spec version 2024-11-05)
 ### Available Tools
 
 - **zerodust_get_chains** `{}` - List all supported chains
+- **zerodust_get_destinations** `{fromChainId}` - Chains a cross-chain sweep can deliver to
 - **zerodust_get_balances** `{address}` - Balances across all chains
 - **zerodust_get_quote** `{fromChainId, toChainId, userAddress, destination}` - Quote with fee breakdown
 - **zerodust_get_sweep_status** `{sweepId}` - Check sweep status
