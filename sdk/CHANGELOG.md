@@ -5,6 +5,14 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-10-02
+
+### Added
+
+- Doma (97477): a ZeroDust chain since 2026-10-02. Relay's depository is an
+  allowed call target there (Gas.zip does not serve Doma), and the agent has a
+  default RPC for it.
+
 ## [0.5.0] - 2026-10-01
 
 ### Fixed

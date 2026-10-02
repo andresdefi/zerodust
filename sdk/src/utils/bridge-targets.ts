@@ -49,7 +49,10 @@ const GASZIP_FORWARDER_OVERRIDES: Readonly<Record<number, Address>> = {
  * Source chains Gas.zip does not credit even though it lists them (MegaETH),
  * so no Gas.zip target is allowed there.
  */
-const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([4326]);
+const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
+  4326, // MegaETH: listed, never credited
+  97477, // Doma: Gas.zip does not serve it
+]);
 
 // ============ Relay ============
 
@@ -63,7 +66,7 @@ const RELAY_ERC20_ROUTER_ALT: Address = '0x9ef6d3c2f60d7b9008d74cab1fc0f899c957c
 const RELAY_STANDARD_CHAINS = [
   1, 10, 56, 100, 130, 137, 146, 169, 196, 360, 480, 988, 1135, 1868, 2020, 2818, 4326, 4663,
   5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161, 42220, 48900, 57073, 60808,
-  80094, 98866, 534352, 685689, 747474, 7777777,
+  80094, 97477, 98866, 534352, 685689, 747474, 7777777,
 ] as const;
 const RELAY_ALT_CHAINS = [5000, 59144] as const;
 
@@ -78,12 +81,12 @@ const ACROSS_CHAINS = [
 
 // ============ Lookup ============
 
-/** Every chain the ZeroDust contract is deployed on (mainnet, 2026-09-30) */
+/** Every chain the ZeroDust contract is deployed on (mainnet; Doma 2026-10-02) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
   1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868,
   2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161,
-  42220, 43111, 48900, 57073, 59144, 60808, 80094, 98866, 167000, 534352, 685689, 747474,
-  7777777,
+  42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 167000, 534352, 685689,
+  747474, 7777777,
 ];
 
 function buildTargets(): Map<number, Map<string, BridgeName>> {
