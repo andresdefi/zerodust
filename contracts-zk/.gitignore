@@ -1,0 +1,10 @@
+node_modules
+artifacts-zk
+cache-zk
+artifacts
+cache
+typechain-types
+.env
+bin
+deployments-zk
+anvil-zksync.log
