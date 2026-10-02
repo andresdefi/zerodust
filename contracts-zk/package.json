@@ -1,0 +1,23 @@
+{
+  "name": "zerodust-contracts-zk",
+  "private": true,
+  "description": "ZeroDust paymaster for ZK-stack chains (zkSync Era, Abstract, Lens, Sophon)",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test --network hardhat"
+  },
+  "devDependencies": {
+    "@matterlabs/hardhat-zksync": "^1.6.2",
+    "@matterlabs/zksync-contracts": "^29.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "chai": "^4.5.0",
+    "ethers": "^6.17.0",
+    "hardhat": "^2.29.1",
+    "mocha": "^12.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^7.0.2",
+    "zksync-ethers": "^6.21.2"
+  }
+}

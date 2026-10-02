@@ -135,6 +135,21 @@ jobs:
         env:
           FOUNDRY_PROFILE: ci
 
+  contracts-zk:
+    name: ZK paymaster (anvil-zksync)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts-zk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Compile and test on a local ZKsync node (exact zero, every refusal named)
+        run: npx hardhat test --network hardhat
+
   docs-drift:
     name: Chain docs match the live API
     runs-on: ubuntu-latest
