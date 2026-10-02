@@ -136,7 +136,7 @@ The Problem:
 
 **Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
 
-The contract is deployed on 45 mainnets, all live in the API. Sweeps can be sent
+The contract is deployed on 46 mainnets, all live in the API. Sweeps can be sent
 to any EVM chain a bridge (Gas.zip, Relay, Across) delivers native gas to, not
 only these: `GET /destinations?fromChainId=` lists them.
 
@@ -158,13 +158,13 @@ only these: `GET /destinations?fromChainId=` lists them.
 | Lisk | 1135 | ETH | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
 | Story | 1514 | IP | Berachain | 80094 | BERA |
-| Pharos | 1672 | PROS | Plume | 98866 | PLUME |
-| Soneium | 1868 | ETH | Taiko | 167000 | ETH |
-| Ronin | 2020 | RON | Scroll | 534352 | ETH |
-| Morph | 2818 | ETH | Gensyn | 685689 | ETH |
-| MegaETH | 4326 | ETH | Katana | 747474 | ETH |
-| Robinhood Chain | 4663 | ETH | Zora | 7777777 | ETH |
-| Mantle | 5000 | MNT |  | |  |
+| Pharos | 1672 | PROS | Doma | 97477 | ETH |
+| Soneium | 1868 | ETH | Plume | 98866 | PLUME |
+| Ronin | 2020 | RON | Taiko | 167000 | ETH |
+| Morph | 2818 | ETH | Scroll | 534352 | ETH |
+| MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
+| Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
+| Mantle | 5000 | MNT | Zora | 7777777 | ETH |
 
 This table is generated from the live API, which is the only authoritative
 answer to what an integration can actually use:
@@ -278,7 +278,7 @@ ZeroDust is designed with security as the top priority:
 
 ## Status
 
-**Smart Contract:** Deployed on 45 mainnets + 46 testnets. **All 45 mainnets are
+**Smart Contract:** Deployed on 46 mainnets + 46 testnets. **All 46 mainnets are
 enabled in the API**; the API serves no testnets.
 
 ### Contract Versions
