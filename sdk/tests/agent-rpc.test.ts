@@ -14,11 +14,11 @@ import { ZeroDustAgent } from '../src/agent.js';
 import { DEFAULT_RPC_URLS } from '../src/utils/default-rpcs.js';
 import { account, makeQuote, makeAuthorization, json, rpcResponse, isSweepPost } from './helpers/sweep-api.js';
 
-// Every chain `GET /chains` serves (2026-10-01).
+// Every chain `GET /chains` serves (2026-10-02).
 const API_CHAIN_IDS = [
   1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868, 2020, 2818,
   4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161, 42220, 43111, 48900, 57073,
-  59144, 60808, 80094, 98866, 167000, 534352, 685689, 747474, 7777777,
+  59144, 60808, 80094, 97477, 98866, 167000, 534352, 685689, 747474, 7777777,
 ];
 
 const mockFetch = vi.fn();

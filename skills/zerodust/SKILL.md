@@ -1,6 +1,6 @@
 ---
 name: zerodust
-description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports 45 mainnet chains including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, and sweeps to any chain a bridge delivers native gas to. Balances under $1 pay a 5% fee with no minimum."
+description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports 46 mainnet chains including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, and sweeps to any chain a bridge delivers native gas to. Balances under $1 pay a 5% fee with no minimum."
 license: MIT
 compatibility: "Requires network access to ZeroDust API. For programmatic sweeps, requires viem and a private key. For user-facing sweeps, requires a wallet with EIP-7702 support."
 metadata:
@@ -178,7 +178,7 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
   }'
 ```
 
-## Supported Chains (45 mainnet)
+## Supported Chains (46 mainnet)
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
@@ -198,13 +198,13 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
 | Lisk | 1135 | ETH | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
 | Story | 1514 | IP | Berachain | 80094 | BERA |
-| Pharos | 1672 | PROS | Plume | 98866 | PLUME |
-| Soneium | 1868 | ETH | Taiko | 167000 | ETH |
-| Ronin | 2020 | RON | Scroll | 534352 | ETH |
-| Morph | 2818 | ETH | Gensyn | 685689 | ETH |
-| MegaETH | 4326 | ETH | Katana | 747474 | ETH |
-| Robinhood Chain | 4663 | ETH | Zora | 7777777 | ETH |
-| Mantle | 5000 | MNT |  | |  |
+| Pharos | 1672 | PROS | Doma | 97477 | ETH |
+| Soneium | 1868 | ETH | Plume | 98866 | PLUME |
+| Ronin | 2020 | RON | Taiko | 167000 | ETH |
+| Morph | 2818 | ETH | Scroll | 534352 | ETH |
+| MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
+| Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
+| Mantle | 5000 | MNT | Zora | 7777777 | ETH |
 
 Cross-chain sweeps go through Gas.zip, Relay or Across (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
 
@@ -235,7 +235,7 @@ For SDK usage patterns including the Agent module, see [references/SDK.md](refer
 
 ## Contract
 
-Mainnet address (same on all 45 chains via CREATE2):
+Mainnet address (same on all 46 chains via CREATE2):
 ```
 0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2
 ```
