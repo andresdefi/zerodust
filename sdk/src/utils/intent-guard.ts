@@ -44,7 +44,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, HYPERLANE_ROUTES, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -228,6 +228,31 @@ const ACROSS_ABI = parseAbi([
 
 const RELAY_DEPOSITORY_ABI = parseAbi(['function depositNative(address depositor, bytes32 id)']);
 
+const ENDURANCE_ABI = parseAbi(['function requestFromUser(uint256 nonce_, uint256 amount_) payable']);
+
+/**
+ * An Endurance bridge request (token delivery) pays only the sender, so the
+ * requested destination must be the signer and the chain BNB Chain.
+ * @returns the bridged amount, checked against the routed value once fees are known
+ */
+function verifyEnduranceCalldata(callData: Hex | undefined, ctx: QuoteCheckContext): bigint {
+  if (ctx.fromChainId !== ENDURANCE_ROUTE.chainId || ctx.toChainId !== ENDURANCE_ROUTE.toChainId) {
+    return unsafe(`no Endurance route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
+  }
+  if (!sameAddress(ctx.destination, ctx.signer)) {
+    unsafe('the Endurance bridge only delivers to the sending wallet; the destination must be the signer');
+  }
+  if (!callData) return unsafe('Endurance route has no calldata to check');
+  let amount: bigint;
+  try {
+    [, amount] = decodeFunctionData({ abi: ENDURANCE_ABI, data: callData }).args;
+  } catch {
+    return unsafe('Endurance route calldata is not a requestFromUser call');
+  }
+  if (amount === 0n) unsafe('Endurance request bridges nothing');
+  return amount;
+}
+
 const HYPERLANE_ABI = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);
 
 /**
@@ -398,6 +423,9 @@ export async function verifySweepQuote(
     } else if (bridge === 'hyperlane') {
       bridgedAmount = verifyHyperlaneCalldata(callData, { ...ctx, signer, destination: requested });
       recipientVerified = true;
+    } else if (bridge === 'endurance') {
+      bridgedAmount = verifyEnduranceCalldata(callData, { ...ctx, signer, destination: requested });
+      recipientVerified = true;
     } else if (bridge === 'across') {
       recipientVerified = callData ? verifyAcrossCalldata(callData, { ...ctx, signer, destination: requested }) : false;
     } else if (callData) {
@@ -434,9 +462,9 @@ export async function verifySweepQuote(
   if (maxTotalFeeWei >= ctx.balanceWei) {
     unsafe(`fee reserve ${maxTotalFeeWei} wei would take the whole balance of ${ctx.balanceWei} wei`);
   }
-  // The contract routes balance - reserve; a Hyperlane transfer bridges that minus its gas payment
+  // The contract routes balance - reserve; a token-delivery bridge takes that minus its own fee
   if (bridgedAmount !== null && bridgedAmount >= ctx.balanceWei - maxTotalFeeWei) {
-    unsafe(`Hyperlane transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
+    unsafe(`${bridge} transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
   }
   const feeLimit = maxAcceptableFeeWei({
     chainId: ctx.fromChainId,

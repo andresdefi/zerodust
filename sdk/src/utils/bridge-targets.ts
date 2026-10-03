@@ -24,7 +24,7 @@
 
 import { type Address, type Hex, getAddress } from 'viem';
 
-export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane';
+export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance';
 
 // ============ Gas.zip ============
 
@@ -53,6 +53,7 @@ const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   4326, // MegaETH: listed, never credited
   97477, // Doma: Gas.zip does not serve it
   124816, // Mitosis: Gas.zip does not take it as a source
+  648, // Endurance: only Fusionist's bridge takes ACE out
 ]);
 
 // ============ Relay ============
@@ -109,17 +110,36 @@ export const HYPERLANE_ROUTES: Readonly<Record<number, {
   },
 };
 
+/**
+ * Fusionist's Endurance bridge (token delivery): ACE leaves as the ACE token on
+ * BNB Chain, and only to the sending wallet (the bridge call has no recipient).
+ * Pinned; mirrors the backend's bridges/endurance.ts.
+ */
+export const ENDURANCE_ROUTE = {
+  chainId: 648,
+  bridge: '0xf3310e3f0D46FF5EE7daB69C73452D0ff3979Bed' as Address,
+  toChainId: 56,
+  token: { symbol: 'ACE', address: '0xc27A719105A987b4c34116223CAE8bd8F4B5def4' as Address, decimals: 18 } satisfies DeliveredToken,
+} as const;
+
 /** The token a sweep from `fromChainId` to `toChainId` delivers instead of gas, or null for a gas route */
 export function deliveredToken(fromChainId: number, toChainId: number): DeliveredToken | null {
   const route = HYPERLANE_ROUTES[fromChainId];
-  return route && route.toChainId === toChainId ? route.token : null;
+  if (route && route.toChainId === toChainId) return route.token;
+  if (fromChainId === ENDURANCE_ROUTE.chainId && toChainId === ENDURANCE_ROUTE.toChainId) return ENDURANCE_ROUTE.token;
+  return null;
+}
+
+/** Routes whose bridge can only pay the sweeping wallet itself (no recipient in the call) */
+export function deliversOnlyToSender(fromChainId: number, toChainId: number): boolean {
+  return fromChainId === ENDURANCE_ROUTE.chainId && toChainId === ENDURANCE_ROUTE.toChainId;
 }
 
 // ============ Lookup ============
 
-/** Every chain the ZeroDust contract is deployed on (mainnet; Mitosis 2026-10-03) */
+/** Every chain the ZeroDust contract is deployed on (mainnet; Mitosis and Endurance 2026-10-03) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1329, 1514, 1672, 1868,
   2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161,
   42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 534352,
   685689, 747474, 7777777,
@@ -154,6 +174,7 @@ function buildTargets(): Map<number, Map<string, BridgeName>> {
   for (const [chainId, route] of Object.entries(HYPERLANE_ROUTES)) {
     add(Number(chainId), route.router, 'hyperlane');
   }
+  add(ENDURANCE_ROUTE.chainId, ENDURANCE_ROUTE.bridge, 'endurance');
   return table;
 }
 

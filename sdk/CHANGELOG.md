@@ -5,6 +5,18 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-10-03
+
+### Added
+
+- **Endurance (648), token delivery through Fusionist's bridge.** ACE leaves as
+  the ACE token on BNB Chain, and only to the sending wallet: the bridge call
+  (`requestFromUser`) has no recipient. Its bridge is an allowed call target on
+  Endurance; the quote check requires the destination to be the signer, BNB
+  Chain, and an amount that fits in the routed value. `ENDURANCE_ROUTE` and
+  `deliversOnlyToSender(fromChainId, toChainId)` let a UI say so; `deliveredToken`
+  covers ACE. Default RPC for Endurance; Gas.zip is never a target there.
+
 ## [0.5.2] - 2026-10-03
 
 ### Added
