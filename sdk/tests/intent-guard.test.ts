@@ -20,6 +20,7 @@ import {
   allowedCallTargets,
   bridgeForCallTarget,
   deliveredToken,
+  deliversOnlyToSender,
   buildGasZipDepositCalldata,
   createGasZipChainShortResolver,
 } from '../src/utils/bridge-targets.js';
@@ -302,7 +303,7 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     it('refuses another recipient, another domain, or an amount the routed value cannot carry', async () => {
       expect(await rejection(verifySweepQuote(hyperlaneQuote({ recipient: ATTACKER }), mitoCtx()))).toMatch(/Hyperlane transfer pays/);
       expect(await rejection(verifySweepQuote(hyperlaneQuote({ domain: 1 }), mitoCtx()))).toMatch(/domain 1/);
-      expect(await rejection(verifySweepQuote(hyperlaneQuote({ amount: BASE_BALANCE }), mitoCtx()))).toMatch(/does not fit/);
+      expect(await rejection(verifySweepQuote(hyperlaneQuote({ amount: BASE_BALANCE }), mitoCtx()))).toMatch(/hyperlane transfer of .* does not fit/);
       expect(await rejection(verifySweepQuote(hyperlaneQuote({ amount: 0n }), mitoCtx()))).toMatch(/bridges nothing/);
     });
 
@@ -315,6 +316,38 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
       expect(allowedCallTargets(124816).map((t) => t.bridge)).toEqual(['hyperlane']);
       expect(deliveredToken(124816, 56)).toMatchObject({ symbol: 'MITO' });
       expect(deliveredToken(8453, 56)).toBeNull();
+    });
+  });
+
+  describe('Endurance token delivery (ACE on BNB Chain, own wallet only)', () => {
+    const BRIDGE = '0xf3310e3f0D46FF5EE7daB69C73452D0ff3979Bed' as Address;
+    const abi = parseAbi(['function requestFromUser(uint256 nonce_, uint256 amount_) payable']);
+    const aceCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 648, toChainId: 56, ...o });
+
+    function enduranceQuote(p: { amount?: bigint; destination?: Address } = {}) {
+      const base = makeQuote({ route: 'relay', destination: p.destination });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const callData = encodeFunctionData({ abi, functionName: 'requestFromUser', args: [1n, p.amount ?? routed - 10n ** 15n] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '56';
+        q.intent.callTarget = BRIDGE;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the pinned bridge paying the signer on BNB Chain', async () => {
+      const { route } = await verifySweepQuote(enduranceQuote(), aceCtx());
+      expect(route).toEqual({ bridge: 'endurance', recipientVerified: true });
+      expect(deliveredToken(648, 56)).toMatchObject({ symbol: 'ACE' });
+      expect(deliversOnlyToSender(648, 56)).toBe(true);
+      expect(allowedCallTargets(648).map((t) => t.bridge)).toEqual(['endurance']);
+    });
+
+    it('refuses another recipient (the bridge pays only the sender) and an amount that does not fit', async () => {
+      const toOther = enduranceQuote({ destination: ATTACKER });
+      expect(await rejection(verifySweepQuote(toOther, aceCtx({ destination: ATTACKER })))).toMatch(/only delivers to the sending wallet/);
+      expect(await rejection(verifySweepQuote(enduranceQuote({ amount: BASE_BALANCE }), aceCtx()))).toMatch(/endurance transfer of .* does not fit/);
     });
   });
 
