@@ -195,6 +195,11 @@ export interface QuoteResponse {
   fees: FeeBreakdown;
   /** Whether auto-revoke is enabled */
   autoRevoke: boolean;
+  /**
+   * Token delivery only: the destination receives this ERC-20 (the source chain's
+   * token), not native gas; estimatedReceive and minReceive are in its units
+   */
+  receiveToken?: { symbol: string; address: string; decimals: number };
   /** Intent fields for signing */
   intent: SweepIntentFields;
   /** Quote deadline (unix timestamp) */

@@ -24,7 +24,7 @@
 
 import { type Address, type Hex, getAddress } from 'viem';
 
-export type BridgeName = 'gaszip' | 'relay' | 'across';
+export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane';
 
 // ============ Gas.zip ============
 
@@ -52,6 +52,7 @@ const GASZIP_FORWARDER_OVERRIDES: Readonly<Record<number, Address>> = {
 const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   4326, // MegaETH: listed, never credited
   97477, // Doma: Gas.zip does not serve it
+  124816, // Mitosis: Gas.zip does not take it as a source
 ]);
 
 // ============ Relay ============
@@ -79,14 +80,49 @@ const ACROSS_CHAINS = [
   1, 10, 56, 130, 137, 480, 1868, 4326, 4663, 8453, 9745, 42161, 57073, 59144,
 ] as const;
 
+// ============ Hyperlane (token delivery) ============
+
+/** A token the destination receives instead of native gas */
+export interface DeliveredToken {
+  symbol: string;
+  address: Address;
+  decimals: number;
+}
+
+/**
+ * Hyperlane warp routes ZeroDust sweeps through (token delivery): the source
+ * chain's native coin is locked and minted as an ERC-20 on the destination, so
+ * the user receives that token, not gas. Pinned; mirrors the backend's
+ * bridges/hyperlane.ts. MITO: Hyperlane registry deployments/warp_routes/MITO.
+ */
+export const HYPERLANE_ROUTES: Readonly<Record<number, {
+  router: Address;
+  toChainId: number;
+  destinationDomain: number;
+  token: DeliveredToken;
+}>> = {
+  124816: {
+    router: '0xF6CC9B10c607afB777380bF71F272E4D7037C3A9',
+    toChainId: 56,
+    destinationDomain: 56,
+    token: { symbol: 'MITO', address: '0x8e1e6BF7E13C400269987B65Ab2b5724b016CaEF', decimals: 18 },
+  },
+};
+
+/** The token a sweep from `fromChainId` to `toChainId` delivers instead of gas, or null for a gas route */
+export function deliveredToken(fromChainId: number, toChainId: number): DeliveredToken | null {
+  const route = HYPERLANE_ROUTES[fromChainId];
+  return route && route.toChainId === toChainId ? route.token : null;
+}
+
 // ============ Lookup ============
 
-/** Every chain the ZeroDust contract is deployed on (mainnet; Doma 2026-10-02) */
+/** Every chain the ZeroDust contract is deployed on (mainnet; Mitosis 2026-10-03) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
   1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868,
   2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161,
-  42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 167000, 534352, 685689,
-  747474, 7777777,
+  42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 534352,
+  685689, 747474, 7777777,
 ];
 
 function buildTargets(): Map<number, Map<string, BridgeName>> {
@@ -114,6 +150,9 @@ function buildTargets(): Map<number, Map<string, BridgeName>> {
   }
   for (const chainId of ACROSS_CHAINS) {
     add(chainId, ACROSS_SPOKE_POOL_PERIPHERY, 'across');
+  }
+  for (const [chainId, route] of Object.entries(HYPERLANE_ROUTES)) {
+    add(Number(chainId), route.router, 'hyperlane');
   }
   return table;
 }

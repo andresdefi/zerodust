@@ -44,7 +44,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, HYPERLANE_ROUTES, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -228,6 +228,35 @@ const ACROSS_ABI = parseAbi([
 
 const RELAY_DEPOSITORY_ABI = parseAbi(['function depositNative(address depositor, bytes32 id)']);
 
+const HYPERLANE_ABI = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);
+
+/**
+ * A Hyperlane warp-route transfer (token delivery) must go to the pinned
+ * destination domain and pay the requested address there.
+ * @returns the bridged amount, checked against the routed value once fees are known
+ */
+function verifyHyperlaneCalldata(callData: Hex | undefined, ctx: QuoteCheckContext): bigint {
+  const route = HYPERLANE_ROUTES[ctx.fromChainId];
+  if (!route || route.toChainId !== ctx.toChainId) {
+    return unsafe(`no Hyperlane route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
+  }
+  if (!callData) return unsafe('Hyperlane route has no calldata to check');
+  let args: readonly [number, Hex, bigint];
+  try {
+    const decoded = decodeFunctionData({ abi: HYPERLANE_ABI, data: callData });
+    args = decoded.args;
+  } catch {
+    return unsafe('Hyperlane route calldata is not a transferRemote call');
+  }
+  const [domain, recipient, amount] = args;
+  if (domain !== route.destinationDomain) unsafe(`Hyperlane transfer goes to domain ${domain}, not ${route.destinationDomain}`);
+  if (recipient.toLowerCase() !== addressToBytes32(ctx.destination)) {
+    unsafe(`Hyperlane transfer pays ${recipient}, not ${ctx.destination}`);
+  }
+  if (amount === 0n) unsafe('Hyperlane transfer bridges nothing');
+  return amount;
+}
+
 /**
  * Checks an Across deposit's recipient, depositor and destination chain.
  * @returns true when the recipient is the destination, false when the deposit
@@ -326,6 +355,8 @@ export async function verifySweepQuote(
 
   let bridge: BridgeName | null = null;
   let recipientVerified = false;
+  /** Hyperlane: the amount the transfer bridges; it must fit in the routed value */
+  let bridgedAmount: bigint | null = null;
 
   if (ctx.fromChainId === ctx.toChainId) {
     if (mode !== MODE_TRANSFER) unsafe(`same-chain sweep must be a transfer (mode 0), got mode ${mode}`);
@@ -364,6 +395,9 @@ export async function verifySweepQuote(
         unsafe(`Gas.zip route does not deposit to ${requested} on chain ${ctx.toChainId}`);
       }
       recipientVerified = true;
+    } else if (bridge === 'hyperlane') {
+      bridgedAmount = verifyHyperlaneCalldata(callData, { ...ctx, signer, destination: requested });
+      recipientVerified = true;
     } else if (bridge === 'across') {
       recipientVerified = callData ? verifyAcrossCalldata(callData, { ...ctx, signer, destination: requested }) : false;
     } else if (callData) {
@@ -399,6 +433,10 @@ export async function verifySweepQuote(
   if (extraFeeWei > maxTotalFeeWei) unsafe('extraFeeWei exceeds maxTotalFeeWei');
   if (maxTotalFeeWei >= ctx.balanceWei) {
     unsafe(`fee reserve ${maxTotalFeeWei} wei would take the whole balance of ${ctx.balanceWei} wei`);
+  }
+  // The contract routes balance - reserve; a Hyperlane transfer bridges that minus its gas payment
+  if (bridgedAmount !== null && bridgedAmount >= ctx.balanceWei - maxTotalFeeWei) {
+    unsafe(`Hyperlane transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
   }
   const feeLimit = maxAcceptableFeeWei({
     chainId: ctx.fromChainId,

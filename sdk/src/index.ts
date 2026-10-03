@@ -163,5 +163,8 @@ export {
   buildGasZipDepositCalldata,
   createGasZipChainShortResolver,
   ZERODUST_MAINNET_CHAIN_IDS,
+  HYPERLANE_ROUTES,
+  deliveredToken,
   type BridgeName,
+  type DeliveredToken,
 } from './utils/bridge-targets.js';
