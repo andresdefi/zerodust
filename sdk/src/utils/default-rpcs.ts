@@ -57,4 +57,5 @@ export const DEFAULT_RPC_URLS: Readonly<Record<number, string>> = {
   7777777: 'https://rpc.zora.energy/',
   97477: 'https://rpc.doma.xyz',
   124816: 'https://rpc.mitosis.org',
+  648: 'https://rpc-endurance.fusionist.io',
 };
