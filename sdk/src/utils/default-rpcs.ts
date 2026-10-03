@@ -56,4 +56,5 @@ export const DEFAULT_RPC_URLS: Readonly<Record<number, string>> = {
   747474: 'https://rpc.katana.network',
   7777777: 'https://rpc.zora.energy/',
   97477: 'https://rpc.doma.xyz',
+  124816: 'https://rpc.mitosis.org',
 };
