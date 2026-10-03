@@ -5,6 +5,19 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-10-03
+
+### Added
+
+- **Token delivery (Hyperlane warp routes).** Mitosis (124816) is a ZeroDust
+  chain; its native MITO leaves only through Hyperlane's MITO warp route, which
+  mints MITO as an ERC-20 on BNB Chain. The router is an allowed call target on
+  Mitosis, and the quote check decodes `transferRemote` and requires the BNB
+  Chain domain, the requested recipient and an amount that fits in the routed
+  value. `deliveredToken(fromChainId, toChainId)` and `HYPERLANE_ROUTES` tell a
+  UI the user receives that token, not gas; quotes carry `receiveToken`.
+- Default RPC for Mitosis. Gas.zip is never an allowed target there.
+
 ## [0.5.1] - 2026-10-02
 
 ### Added

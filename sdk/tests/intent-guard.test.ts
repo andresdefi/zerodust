@@ -17,7 +17,9 @@ import {
   type QuoteCheckContext,
 } from '../src/utils/intent-guard.js';
 import {
+  allowedCallTargets,
   bridgeForCallTarget,
+  deliveredToken,
   buildGasZipDepositCalldata,
   createGasZipChainShortResolver,
 } from '../src/utils/bridge-targets.js';
@@ -266,6 +268,54 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
       q.intent.callData = buildGasZipDepositCalldata(GASZIP_SHORTS[42161]!, ATTACKER);
     });
     expect(await rejection(verifySweepQuote(quote, crossCtx()))).toMatch(/routeHash is not keccak256/);
+  });
+
+  describe('Hyperlane token delivery (Mitosis -> MITO on BNB Chain)', () => {
+    const ROUTER = '0xF6CC9B10c607afB777380bF71F272E4D7037C3A9' as Address;
+    const abi = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);
+    const pad = (a: Address) => `0x${a.slice(2).padStart(64, '0')}` as Hex;
+    const mitoCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 124816, toChainId: 56, ...o });
+
+    function hyperlaneQuote(p: { recipient?: Address; domain?: number; amount?: bigint; target?: Address } = {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const callData = encodeFunctionData({
+        abi,
+        functionName: 'transferRemote',
+        args: [p.domain ?? 56, pad(p.recipient ?? account.address), p.amount ?? routed - 16n * 10n ** 15n],
+      });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '56';
+        q.intent.callTarget = p.target ?? ROUTER;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the pinned router paying the requested address on BNB Chain', async () => {
+      const { route } = await verifySweepQuote(hyperlaneQuote(), mitoCtx());
+      expect(route).toEqual({ bridge: 'hyperlane', recipientVerified: true });
+      expect(bridgeForCallTarget(124816, ROUTER)).toBe('hyperlane');
+      expect(bridgeForCallTarget(8453, ROUTER)).toBeNull();
+    });
+
+    it('refuses another recipient, another domain, or an amount the routed value cannot carry', async () => {
+      expect(await rejection(verifySweepQuote(hyperlaneQuote({ recipient: ATTACKER }), mitoCtx()))).toMatch(/Hyperlane transfer pays/);
+      expect(await rejection(verifySweepQuote(hyperlaneQuote({ domain: 1 }), mitoCtx()))).toMatch(/domain 1/);
+      expect(await rejection(verifySweepQuote(hyperlaneQuote({ amount: BASE_BALANCE }), mitoCtx()))).toMatch(/does not fit/);
+      expect(await rejection(verifySweepQuote(hyperlaneQuote({ amount: 0n }), mitoCtx()))).toMatch(/bridges nothing/);
+    });
+
+    it('refuses the route to any destination but its own', async () => {
+      const quote = tamper(hyperlaneQuote(), (q) => { q.intent.destinationChainId = '8453'; });
+      expect(await rejection(verifySweepQuote(quote, mitoCtx({ toChainId: 8453 })))).toMatch(/no Hyperlane route/);
+    });
+
+    it('never lets Gas.zip take Mitosis as a source', () => {
+      expect(allowedCallTargets(124816).map((t) => t.bridge)).toEqual(['hyperlane']);
+      expect(deliveredToken(124816, 56)).toMatchObject({ symbol: 'MITO' });
+      expect(deliveredToken(8453, 56)).toBeNull();
+    });
   });
 
   describe('Across calldata, when the API supplies it', () => {
