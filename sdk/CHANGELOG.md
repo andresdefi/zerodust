@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-10-05
+
+### Changed
+
+- **`revokeAuthorization` is required** in `submitSweep` (and by the API since
+  2026-10-05). It must delegate to address(0) on the sweep's chain with nonce =
+  delegation nonce + 1; the client refuses anything else before sending. Without
+  it a wallet stayed delegated to the ZeroDust contract after its sweep. The
+  revoke's gas was always in the quoted fee. `ZeroDustAgent` already signed it,
+  so agent users are unaffected.
+
 ## [0.5.3] - 2026-10-03
 
 ### Added

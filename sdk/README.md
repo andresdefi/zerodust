@@ -267,7 +267,7 @@ const sweep = await zerodust.submitSweep({
     r: '0x...',
     s: '0x...',
   },
-  // Optional: For auto-revoke after sweep
+  // Required: removes the delegation right after the sweep (its gas is in the fee)
   revokeAuthorization: {
     chainId: 8453,
     contractAddress: '0x0000000000000000000000000000000000000000',

@@ -500,7 +500,8 @@ export class ZeroDust {
    *     r: '0x...',
    *     s: '0x...',
    *   },
-   *   // Optional: for auto-revoke
+   *   // Required: delegates to address(0), same chain, nonce + 1, so the
+   *   // delegation is removed right after the sweep (its gas is in the fee)
    *   revokeAuthorization: {...},
    * });
    */
@@ -509,9 +510,21 @@ export class ZeroDust {
     const validatedSignature = validateSignature(request.signature);
     const validatedAuth = validateEIP7702Authorization(request.eip7702Authorization);
 
-    let validatedRevokeAuth = undefined;
-    if (request.revokeAuthorization) {
-      validatedRevokeAuth = validateEIP7702Authorization(request.revokeAuthorization);
+    // Required since 0.5.4 (and by the API): without it the wallet would stay delegated
+    if (!request.revokeAuthorization) {
+      throw new ZeroDustError(
+        'INVALID_REQUEST',
+        'revokeAuthorization is required: an EIP-7702 authorization delegating to address(0) on the same chain with nonce + 1. ZeroDustAgent signs it for you.'
+      );
+    }
+    const validatedRevokeAuth = validateEIP7702Authorization(request.revokeAuthorization);
+    if (validatedRevokeAuth.contractAddress.toLowerCase() !== '0x0000000000000000000000000000000000000000'
+      || validatedRevokeAuth.chainId !== validatedAuth.chainId
+      || validatedRevokeAuth.nonce !== validatedAuth.nonce + 1) {
+      throw new ZeroDustError(
+        'INVALID_REQUEST',
+        'revokeAuthorization must delegate to address(0) on the same chain as the sweep, with nonce = delegation nonce + 1'
+      );
     }
 
     return this.http.post<SweepResponse>('/sweep', {
