@@ -278,8 +278,11 @@ export interface SweepRequest {
   signature: Hex;
   /** EIP-7702 delegation authorization */
   eip7702Authorization: EIP7702Authorization;
-  /** Optional: EIP-7702 revoke authorization (for auto-revoke) */
-  revokeAuthorization?: EIP7702Authorization;
+  /**
+   * EIP-7702 revoke authorization: address(0), same chain, nonce + 1. Required
+   * (since 0.5.4, and by the API) so the wallet ends as a plain account
+   */
+  revokeAuthorization: EIP7702Authorization;
 }
 
 /**
