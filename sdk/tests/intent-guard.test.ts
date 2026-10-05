@@ -421,6 +421,19 @@ describe('verifySweepQuote: fees, gas price and deadline (HIGH-1)', () => {
     expect(await rejection(verifySweepQuote(quote, ctx()))).toMatch(/exceeds the \d+ wei limit/);
   });
 
+  it('accepts a rollup reserve above the gas budget when the local L1 fee allowance covers it', async () => {
+    // Scroll/Zora 2026-10-05: L2 gas nearly free, the L1 data fee most of the reserve
+    const limit = maxAcceptableFeeWei({ chainId: 8453, balanceWei: BASE_BALANCE, reimbGasPriceCapWei: 7_200_000n });
+    const l1FeeWei = 50_000_000_000_000n;
+    expect(maxAcceptableFeeWei({ chainId: 8453, balanceWei: BASE_BALANCE, reimbGasPriceCapWei: 7_200_000n, l1FeeWei })).toBe(limit + l1FeeWei);
+    const quote = tamper(makeQuote(), (q) => {
+      q.fees.maxTotalFeeWei = (limit + l1FeeWei).toString();
+    });
+    await verifySweepQuote(quote, ctx({ l1FeeWei }));
+    await rejection(verifySweepQuote(quote, ctx()));
+    await rejection(verifySweepQuote(quote, ctx({ l1FeeWei: l1FeeWei - 1n })));
+  });
+
   it('sizes the limit from the locally read balance, not the quote', async () => {
     // The quote claims a huge balance to widen the percentage allowance
     const quote = tamper(makeQuote(), (q) => {

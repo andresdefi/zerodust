@@ -152,7 +152,7 @@ export function makeAuthorization(
 /** Answers the JSON-RPC calls a sweep makes */
 export function rpcResult(
   method: string,
-  chain: { nonce: number; balance?: bigint; gasPrice?: bigint; chainId?: number }
+  chain: { nonce: number; balance?: bigint; gasPrice?: bigint; chainId?: number; l1Fee?: bigint }
 ): string {
   switch (method) {
     case 'eth_getTransactionCount':
@@ -161,6 +161,9 @@ export function rpcResult(
       return `0x${(chain.balance ?? BASE_BALANCE).toString(16)}`;
     case 'eth_gasPrice':
       return `0x${(chain.gasPrice ?? BASE_GAS_PRICE).toString(16)}`;
+    case 'eth_call':
+      // The rollup L1 fee oracle (getL1Fee); 0 unless a test sets it
+      return `0x${(chain.l1Fee ?? 0n).toString(16).padStart(64, '0')}`;
     case 'eth_chainId':
       return `0x${(chain.chainId ?? 8453).toString(16)}`;
     default:
