@@ -94,6 +94,7 @@ const CHAIN_EXTRA_GAS_UNITS: Readonly<Record<number, bigint>> = {
  * The largest fee reserve the SDK will sign:
  *   (FEE_GAS_BUDGET_UNITS + chain surcharge units) * reimbGasPriceCapWei
  *   + balance * MAX_SERVICE_FEE_BPS / 10_000
+ *   + l1FeeWei (rollups: the L1 data fee allowance from the chain's oracle, see l1-fee.ts)
  *
  * The reserve is paid to the ZeroDust sponsor (the contract only reimburses an
  * allowlisted sponsor), so this bound protects against a grossly wrong or
@@ -104,9 +105,10 @@ export function maxAcceptableFeeWei(p: {
   chainId: number;
   balanceWei: bigint;
   reimbGasPriceCapWei: bigint;
+  l1FeeWei?: bigint | undefined;
 }): bigint {
   const units = FEE_GAS_BUDGET_UNITS + (CHAIN_EXTRA_GAS_UNITS[p.chainId] ?? 0n);
-  return units * p.reimbGasPriceCapWei + (p.balanceWei * MAX_SERVICE_FEE_BPS) / 10_000n;
+  return units * p.reimbGasPriceCapWei + (p.balanceWei * MAX_SERVICE_FEE_BPS) / 10_000n + (p.l1FeeWei ?? 0n);
 }
 
 // ============ Types ============
@@ -156,6 +158,8 @@ export interface QuoteCheckContext {
   gasPriceWei: bigint;
   /** Current unix time in seconds */
   nowSeconds: number;
+  /** Rollups: L1 data fee allowance read locally from the chain's oracle (l1FeeAllowanceWei) */
+  l1FeeWei?: bigint;
   /**
    * Refuse cross-chain routes whose recipient cannot be verified locally
    * (Relay always; Across unless the API supplies the route calldata).
@@ -470,6 +474,7 @@ export async function verifySweepQuote(
     chainId: ctx.fromChainId,
     balanceWei: ctx.balanceWei,
     reimbGasPriceCapWei,
+    l1FeeWei: ctx.l1FeeWei,
   });
   if (maxTotalFeeWei > feeLimit) {
     unsafe(`fee reserve ${maxTotalFeeWei} wei exceeds the ${feeLimit} wei limit`, {

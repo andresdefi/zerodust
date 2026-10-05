@@ -155,6 +155,7 @@ export {
   type SweepTypedData,
   type SweepIntentMessage,
 } from './utils/intent-guard.js';
+export { l1FeeAllowanceWei, L1_FEE_ORACLES, L1_FEE_PROBE_BYTES, L1_FEE_ALLOWANCE_MULTIPLIER } from './utils/l1-fee.js';
 
 export {
   // Bridge contracts a cross-chain sweep may call

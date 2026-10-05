@@ -61,6 +61,7 @@ import type {
 import { ZeroDustError } from './errors.js';
 import { ZERO_ADDRESS, ZERODUST_CONTRACT_ADDRESS } from './utils/signature.js';
 import { createGasZipChainShortResolver } from './utils/bridge-targets.js';
+import { l1FeeAllowanceWei } from './utils/l1-fee.js';
 import {
   type SweepTypedData,
   assertAuthorizationMatches,
@@ -373,9 +374,10 @@ export class ZeroDustAgent {
       //    from our own RPC, and build the EIP-712 typed data locally. The API
       //    is untrusted input: nothing it sends is signed as-is.
       const publicClient = this.getPublicClient(request.fromChainId);
-      const [balanceWei, gasPriceWei] = await Promise.all([
+      const [balanceWei, gasPriceWei, l1FeeWei] = await Promise.all([
         publicClient.getBalance({ address: this.address }),
         publicClient.getGasPrice(),
+        l1FeeAllowanceWei(request.fromChainId, async (call) => (await publicClient.call(call)).data),
       ]);
       const verified = await verifySweepQuote(quote, {
         signer: this.address,
@@ -385,6 +387,7 @@ export class ZeroDustAgent {
         balanceWei,
         gasPriceWei,
         nowSeconds: Math.floor(Date.now() / 1000),
+        l1FeeWei,
         requireVerifiedRoute: this.requireVerifiedRoute,
         resolveGasZipChainShort: this.resolveGasZipChainShort,
       });
