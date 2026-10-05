@@ -275,6 +275,14 @@ describe('ZeroDust Client', () => {
         r: '0x' + 'ab'.repeat(32),
         s: '0x' + 'cd'.repeat(32),
       },
+      revokeAuthorization: {
+        chainId: 8453,
+        contractAddress: '0x0000000000000000000000000000000000000000',
+        nonce: 1,
+        yParity: 0 as const,
+        r: '0x' + 'ab'.repeat(32),
+        s: '0x' + 'cd'.repeat(32),
+      },
     };
 
     it('should submit sweep', async () => {
@@ -299,6 +307,13 @@ describe('ZeroDust Client', () => {
           signature: 'invalid-sig',
         })
       ).rejects.toThrow();
+    });
+    it('requires a revoke authorization, for address(0) on the same chain at nonce + 1', async () => {
+      const { revokeAuthorization, ...withoutRevoke } = sweepRequest;
+      await expect(client.submitSweep(withoutRevoke as never)).rejects.toThrow(/revokeAuthorization is required/);
+      await expect(client.submitSweep({ ...sweepRequest, revokeAuthorization: { ...revokeAuthorization, nonce: 2 } })).rejects.toThrow(/nonce \+ 1/);
+      await expect(client.submitSweep({ ...sweepRequest, revokeAuthorization: { ...revokeAuthorization, contractAddress: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' } })).rejects.toThrow(/address\(0\)/);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
