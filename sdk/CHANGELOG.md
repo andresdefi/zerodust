@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2026-10-05
+
+### Fixed
+
+- **Rollup sweeps refused as "fee reserve exceeds the limit"** where L2 gas is
+  nearly free and the L1 data fee is most of the cost (Scroll, Zora; any
+  OP-stack chain when L1 is busy). The fee ceiling now adds an L1 data fee
+  allowance that `ZeroDustAgent` reads from the chain's own oracle
+  (`l1FeeAllowanceWei`: 2 KB of incompressible bytes, doubled), so the bound
+  still never comes from the API. `verifySweepQuote` takes it as `l1FeeWei`.
+
 ## [0.5.4] - 2026-10-05
 
 ### Changed
