@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { Test } from "forge-std/Test.sol";
 import { ZeroDustPermissionRouter } from "../src/ZeroDustPermissionRouter.sol";
+import { ZeroDustSweep } from "../src/ZeroDustSweepMainnet.sol";
 
 /**
  * Offline tests (no RPC): MetaMask's DelegationManager is replaced at its fixed address by a mock
@@ -303,6 +304,11 @@ contract ZeroDustPermissionRouterTest is Test {
         vm.prank(address(0));
         vm.expectRevert(ZeroDustPermissionRouter.NotSponsor.selector);
         router.sweep(s, "", "", "");
+    }
+
+    function test_sweepSettledMatchesZeroDustSweep() public pure {
+        // The backend decodes both contracts' receipts with one ABI
+        assertEq(ZeroDustPermissionRouter.SweepSettled.selector, ZeroDustSweep.SweepSettled.selector);
     }
 
     // ===== Constructor =====
