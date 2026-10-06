@@ -10,8 +10,10 @@ pragma solidity 0.8.28;
  * How a sweep works:
  *  - The user grants a one-time MetaMask permission ("native-token-allowance") whose delegate is
  *    this contract (MetaMask's payee and redeemer rules also name this contract).
- *  - The user signs a SweepIntent (EIP-712, same type as ZeroDustSweep) with the destination,
- *    route and fee limits.
+ *  - The user signs one SweepBatch (EIP-712) holding a SweepIntent per chain (same type as
+ *    ZeroDustSweep's) with the destination, route and fee limits. The domain has no chain id: the
+ *    router has the same address on every chain, so one signature covers every chain swept at
+ *    once, and each chain's router accepts only the entry for its own chain.
  *  - A ZeroDust sponsor calls sweep(): this contract redeems the permission through MetaMask's
  *    DelegationManager, which moves the user's whole balance here in one plain transfer, then
  *    settles exactly like ZeroDustSweep: fee reserve up to maxTotalFeeWei, the rest to the
@@ -56,10 +58,11 @@ contract ZeroDustPermissionRouter {
     error InvalidPermission();
     error UnexpectedTransfer();
     error AmountMismatch();
+    error BatchMismatch();
 
     // ========= Constants =========
     string public constant NAME = "ZeroDust";
-    string public constant VERSION = "permission-1";
+    string public constant VERSION = "permission-2";
 
     uint8 public constant MODE_TRANSFER = 0;
     uint8 public constant MODE_CALL = 1;
@@ -68,6 +71,8 @@ contract ZeroDustPermissionRouter {
     uint256 public constant MAX_DEADLINE_WINDOW_SECS = 60;
     uint256 public constant MAX_OVERESTIMATE_NUM = 150;
     uint256 public constant MAX_OVERESTIMATE_DEN = 100;
+    /// @notice Most chains one signed batch may hold
+    uint256 public constant MAX_BATCH = 64;
 
     /// @notice MetaMask Delegation Framework v1.3.0, deterministic: the same address on every chain
     address public constant DELEGATION_MANAGER = 0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3;
@@ -75,11 +80,20 @@ contract ZeroDustPermissionRouter {
     /// @dev ERC-7579 mode: single call, default exec type
     bytes32 private constant _MODE_SINGLE_DEFAULT = bytes32(0);
 
+    /// @dev No chainId: one signature covers the batch on every chain; each entry names its chain
     bytes32 private constant _EIP712_DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        keccak256("EIP712Domain(string name,string version,address verifyingContract)");
 
-    bytes32 public constant SWEEP_TYPEHASH = keccak256(
-        "SweepIntent(uint8 mode,address user,address destination,uint256 destinationChainId,address callTarget,bytes32 routeHash,uint256 minReceive,uint256 maxTotalFeeWei,uint256 overheadGasUnits,uint256 protocolFeeGasUnits,uint256 extraFeeWei,uint256 reimbGasPriceCapWei,uint256 deadline,uint256 nonce)"
+    string private constant _SWEEP_INTENT_TYPE =
+        "SweepIntent(uint8 mode,address user,address destination,uint256 destinationChainId,address callTarget,bytes32 routeHash,uint256 minReceive,uint256 maxTotalFeeWei,uint256 overheadGasUnits,uint256 protocolFeeGasUnits,uint256 extraFeeWei,uint256 reimbGasPriceCapWei,uint256 deadline,uint256 nonce)";
+
+    bytes32 public constant SWEEP_TYPEHASH = keccak256(bytes(_SWEEP_INTENT_TYPE));
+
+    bytes32 public constant CHAIN_SWEEP_TYPEHASH =
+        keccak256(abi.encodePacked("ChainSweep(uint256 chainId,SweepIntent intent)", _SWEEP_INTENT_TYPE));
+
+    bytes32 public constant SWEEP_BATCH_TYPEHASH = keccak256(
+        abi.encodePacked("SweepBatch(ChainSweep[] sweeps)ChainSweep(uint256 chainId,SweepIntent intent)", _SWEEP_INTENT_TYPE)
     );
 
     // ========= Immutable configuration =========
@@ -189,8 +203,10 @@ contract ZeroDustPermissionRouter {
 
     /**
      * @notice Sweep s.user's whole native balance to exactly 0 through their MetaMask permission.
-     * @param s SweepIntent signed by s.user (EIP-712, domain = this contract on this chain)
-     * @param userSig 65-byte ECDSA signature by s.user's key
+     * @param s This chain's SweepIntent, one entry of the SweepBatch s.user signed
+     * @param userSig 65-byte ECDSA signature by s.user's key over the SweepBatch
+     * @param batch The batch's ChainSweep struct hashes, in signed order; batch[index] must be
+     *        this chain's entry for `s`
      * @param callData Bridge call (MODE_CALL, must hash to s.routeHash), empty for MODE_TRANSFER
      * @param permissionContext The ERC-7715 permission context: abi.encode(Delegation[]) with one
      *        delegation from s.user to this contract
@@ -199,7 +215,9 @@ contract ZeroDustPermissionRouter {
         SweepIntent calldata s,
         bytes calldata userSig,
         bytes calldata callData,
-        bytes calldata permissionContext
+        bytes calldata permissionContext,
+        bytes32[] calldata batch,
+        uint256 index
     )
         external
     {
@@ -231,7 +249,7 @@ contract ZeroDustPermissionRouter {
             revert InvalidMode();
         }
 
-        _verifySig(s, userSig);
+        _verifySig(s, userSig, batch, index);
         _checkPermission(permissionContext, s.user);
 
         // Consume the nonce before any external call
@@ -295,9 +313,14 @@ contract ZeroDustPermissionRouter {
         _entered = 0;
     }
 
-    /// @notice EIP-712 digest a user signs for an intent (for clients and tests)
-    function hashIntent(SweepIntent calldata s) external view returns (bytes32) {
-        return _hashTypedData(_structHash(s));
+    /// @notice The struct hash of `s` as this chain's entry in a SweepBatch (for clients and tests)
+    function chainSweepHash(SweepIntent calldata s) external view returns (bytes32) {
+        return _chainSweepHash(s);
+    }
+
+    /// @notice The EIP-712 digest a user signs for a batch of ChainSweep struct hashes
+    function hashBatch(bytes32[] calldata batch) external view returns (bytes32) {
+        return _hashTypedData(_batchStructHash(batch));
     }
 
     // ========= Permission =========
@@ -377,16 +400,31 @@ contract ZeroDustPermissionRouter {
         );
     }
 
-    function _verifySig(SweepIntent calldata s, bytes calldata sig) internal view {
-        address signer = _recoverSigner(_hashTypedData(_structHash(s)), sig);
+    /// @dev hashStruct(ChainSweep{chainId: this chain, intent: s})
+    function _chainSweepHash(SweepIntent calldata s) internal view returns (bytes32) {
+        return keccak256(abi.encode(CHAIN_SWEEP_TYPEHASH, block.chainid, _structHash(s)));
+    }
+
+    /// @dev hashStruct(SweepBatch): an array of structs encodes as the hash of its members' hashes
+    function _batchStructHash(bytes32[] calldata batch) internal pure returns (bytes32) {
+        return keccak256(abi.encode(SWEEP_BATCH_TYPEHASH, keccak256(abi.encodePacked(batch))));
+    }
+
+    /// @dev The batch must hold this chain's entry for `s` at `index`, and be signed by s.user
+    function _verifySig(SweepIntent calldata s, bytes calldata sig, bytes32[] calldata batch, uint256 index)
+        internal
+        view
+    {
+        // index < length also refuses an empty batch
+        if (batch.length > MAX_BATCH || index >= batch.length) revert BatchMismatch();
+        if (batch[index] != _chainSweepHash(s)) revert BatchMismatch();
+        address signer = _recoverSigner(_hashTypedData(_batchStructHash(batch)), sig);
         if (signer != s.user) revert InvalidSignature();
     }
 
     function _hashTypedData(bytes32 structHash) internal view returns (bytes32) {
         bytes32 domainSeparator = keccak256(
-            abi.encode(
-                _EIP712_DOMAIN_TYPEHASH, keccak256(bytes(NAME)), keccak256(bytes(VERSION)), block.chainid, address(this)
-            )
+            abi.encode(_EIP712_DOMAIN_TYPEHASH, keccak256(bytes(NAME)), keccak256(bytes(VERSION)), address(this))
         );
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }

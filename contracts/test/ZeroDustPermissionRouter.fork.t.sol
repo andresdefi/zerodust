@@ -140,8 +140,49 @@ contract ZeroDustPermissionRouterForkTest is Test {
     }
 
     function _sign(uint256 pk, ZeroDustPermissionRouter.SweepIntent memory s) internal view returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(pk, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(pk, _digest(address(router), _one(s)));
         return abi.encodePacked(r, sg, v);
+    }
+
+    // ===== Batch signing (EIP-712 SweepBatch, computed here independently of the router) =====
+
+    string constant INTENT_TYPE =
+        "SweepIntent(uint8 mode,address user,address destination,uint256 destinationChainId,address callTarget,bytes32 routeHash,uint256 minReceive,uint256 maxTotalFeeWei,uint256 overheadGasUnits,uint256 protocolFeeGasUnits,uint256 extraFeeWei,uint256 reimbGasPriceCapWei,uint256 deadline,uint256 nonce)";
+
+    function _structHashOf(ZeroDustPermissionRouter.SweepIntent memory s) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256(bytes(INTENT_TYPE)),
+                s.mode, s.user, s.destination, s.destinationChainId, s.callTarget, s.routeHash, s.minReceive,
+                s.maxTotalFeeWei, s.overheadGasUnits, s.protocolFeeGasUnits, s.extraFeeWei, s.reimbGasPriceCapWei,
+                s.deadline, s.nonce
+            )
+        );
+    }
+
+    /// @dev hashStruct(ChainSweep) for `s` on `chainId`
+    function _leaf(uint256 chainId, ZeroDustPermissionRouter.SweepIntent memory s) internal pure returns (bytes32) {
+        return keccak256(abi.encode(keccak256(abi.encodePacked("ChainSweep(uint256 chainId,SweepIntent intent)", INTENT_TYPE)), chainId, _structHashOf(s)));
+    }
+
+    /// @dev A batch of one: this chain's entry for `s`
+    function _one(ZeroDustPermissionRouter.SweepIntent memory s) internal view returns (bytes32[] memory b) {
+        b = new bytes32[](1);
+        b[0] = _leaf(block.chainid, s);
+    }
+
+    /// @dev The digest MetaMask signs: no chainId in the domain, verifyingContract = the router
+    function _digest(address routerAddr, bytes32[] memory batch) internal pure returns (bytes32) {
+        bytes32 domain = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,address verifyingContract)"),
+                keccak256("ZeroDust"),
+                keccak256("permission-2"),
+                routerAddr
+            )
+        );
+        bytes32 batchHash = keccak256(abi.encode(keccak256(abi.encodePacked("SweepBatch(ChainSweep[] sweeps)ChainSweep(uint256 chainId,SweepIntent intent)", INTENT_TYPE)), keccak256(abi.encodePacked(batch))));
+        return keccak256(abi.encodePacked("\x19\x01", domain, batchHash));
     }
 
     // ===== Happy paths =====
@@ -151,7 +192,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent(user, 0);
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
 
         assertEq(user.balance, 0, "user must end at exactly 0");
         assertEq(destination.balance, 1 ether - s.maxTotalFeeWei, "destination gets balance - fee reserve");
@@ -171,7 +212,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory permission = _routerPermission(USER_PK);
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
-        router.sweep(s, sig, callData, permission);
+        router.sweep(s, sig, callData, permission, _one(s), 0);
 
         assertEq(user.balance, 0);
         assertEq(address(bridge).balance, 1 ether - s.maxTotalFeeWei);
@@ -185,7 +226,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent(user, 0);
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         assertEq(user.balance, 0);
         assertEq(address(router).balance, 7);
     }
@@ -197,7 +238,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent(user, 0);
         bytes memory sig = _sign(USER_PK, s);
         vm.expectRevert(ZeroDustPermissionRouter.NotSponsor.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_intentMustBeSignedByTheUser() public onlyFork {
@@ -206,7 +247,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(OTHER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_permissionMustBeTheIntentUsers() public onlyFork {
@@ -216,7 +257,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidPermission.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         assertEq(other.balance, 1 ether);
     }
 
@@ -227,7 +268,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidPermission.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_payeeOtherThanTheRouterIsRefusedByMetaMask() public onlyFork {
@@ -237,7 +278,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(); // AllowedTargetsEnforcer
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         assertEq(user.balance, 1 ether);
     }
 
@@ -249,7 +290,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert();
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         assertEq(user.balance, 1 ether);
     }
 
@@ -258,11 +299,11 @@ contract ZeroDustPermissionRouterForkTest is Test {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent(user, 0);
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         vm.deal(user, 1 ether);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.NonceMismatch.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_deadlines() public onlyFork {
@@ -272,12 +313,12 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.DeadlineTooFar.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
         s.deadline = block.timestamp - 1;
         sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.DeadlineExpired.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_routeHashBindsTheBridgeCall() public onlyFork {
@@ -292,7 +333,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory swapped = abi.encodeCall(MockBridge.deposit, (sponsor, 8453));
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.RouteHashMismatch.selector);
-        router.sweep(s, sig, swapped, permission);
+        router.sweep(s, sig, swapped, permission, _one(s), 0);
     }
 
     function test_feeAboveTheGuardrailIsRefused() public onlyFork {
@@ -302,7 +343,7 @@ contract ZeroDustPermissionRouterForkTest is Test {
         bytes memory sig = _sign(USER_PK, s);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.OverestimateTooHigh.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_routerRefusesStrayTransfers() public onlyFork {

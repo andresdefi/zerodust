@@ -14,7 +14,7 @@ import { ZeroDustPermissionRouter } from "../src/ZeroDustPermissionRouter.sol";
  *   Deploy:  PRIVATE_KEY=... SPONSOR_ADDRESS=0x... forge script script/DeployPermissionRouter.s.sol:DeployPermissionRouter --rpc-url <rpc> --broadcast
  */
 library PermissionRouterDeployment {
-    bytes32 internal constant SALT = keccak256("ZeroDust permission router v1");
+    bytes32 internal constant SALT = keccak256("ZeroDust permission router v2");
 
     uint256 internal constant MIN_OVERHEAD_GAS_UNITS = 50_000;
     uint256 internal constant MAX_OVERHEAD_GAS_UNITS = 300_000;
