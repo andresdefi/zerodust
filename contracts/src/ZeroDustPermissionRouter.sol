@@ -135,17 +135,22 @@ contract ZeroDustPermissionRouter {
     }
 
     // ========= Events =========
+    /// @dev Identical to ZeroDustSweep's, so one decoder reads both (here emitted by this contract)
     event SweepSettled(
-        uint8 indexed mode,
+        uint8 mode,
         address indexed user,
         address indexed destination,
         uint256 destinationChainId,
-        address callTarget,
-        uint256 routedAmount,
-        uint256 feeReserve,
+        address indexed callTarget,
+        uint256 amountRoutedWei,
+        uint256 feeReserveWei,
         uint256 reimbWei,
         uint256 unusedWei,
         uint256 reimbGasPriceWei,
+        uint256 reimbGasPriceCapWei,
+        uint256 overheadGasUnits,
+        uint256 protocolFeeGasUnits,
+        uint256 extraFeeWei,
         uint256 nonce
     );
 
@@ -281,6 +286,10 @@ contract ZeroDustPermissionRouter {
             reimbWei,
             feeReserve - reimbWei,
             reimbGasPriceWei,
+            s.reimbGasPriceCapWei,
+            s.overheadGasUnits,
+            s.protocolFeeGasUnits,
+            s.extraFeeWei,
             s.nonce
         );
         _entered = 0;
