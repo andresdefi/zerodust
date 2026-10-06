@@ -62,22 +62,63 @@ contract ZeroDustPermissionRouterTest is Test {
     }
 
     function _sweep(ZeroDustPermissionRouter.SweepIntent memory s, bytes memory callData) internal {
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes memory sig = abi.encodePacked(r, sg, v);
         bytes memory permission = _permission(s.user, address(router));
         vm.prank(sponsor);
-        router.sweep(s, sig, callData, permission);
+        router.sweep(s, sig, callData, permission, _one(s), 0);
     }
 
     function _expectSweepRevert(ZeroDustPermissionRouter.SweepIntent memory s, bytes memory callData, bytes4 err)
         internal
     {
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes memory sig = abi.encodePacked(r, sg, v);
         bytes memory permission = _permission(s.user, address(router));
         vm.prank(sponsor);
         vm.expectRevert(err);
-        router.sweep(s, sig, callData, permission);
+        router.sweep(s, sig, callData, permission, _one(s), 0);
+    }
+
+    // ===== Batch signing (EIP-712 SweepBatch, computed here independently of the router) =====
+
+    string constant INTENT_TYPE =
+        "SweepIntent(uint8 mode,address user,address destination,uint256 destinationChainId,address callTarget,bytes32 routeHash,uint256 minReceive,uint256 maxTotalFeeWei,uint256 overheadGasUnits,uint256 protocolFeeGasUnits,uint256 extraFeeWei,uint256 reimbGasPriceCapWei,uint256 deadline,uint256 nonce)";
+
+    function _structHashOf(ZeroDustPermissionRouter.SweepIntent memory s) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256(bytes(INTENT_TYPE)),
+                s.mode, s.user, s.destination, s.destinationChainId, s.callTarget, s.routeHash, s.minReceive,
+                s.maxTotalFeeWei, s.overheadGasUnits, s.protocolFeeGasUnits, s.extraFeeWei, s.reimbGasPriceCapWei,
+                s.deadline, s.nonce
+            )
+        );
+    }
+
+    /// @dev hashStruct(ChainSweep) for `s` on `chainId`
+    function _leaf(uint256 chainId, ZeroDustPermissionRouter.SweepIntent memory s) internal pure returns (bytes32) {
+        return keccak256(abi.encode(keccak256(abi.encodePacked("ChainSweep(uint256 chainId,SweepIntent intent)", INTENT_TYPE)), chainId, _structHashOf(s)));
+    }
+
+    /// @dev A batch of one: this chain's entry for `s`
+    function _one(ZeroDustPermissionRouter.SweepIntent memory s) internal view returns (bytes32[] memory b) {
+        b = new bytes32[](1);
+        b[0] = _leaf(block.chainid, s);
+    }
+
+    /// @dev The digest MetaMask signs: no chainId in the domain, verifyingContract = the router
+    function _digest(address routerAddr, bytes32[] memory batch) internal pure returns (bytes32) {
+        bytes32 domain = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,address verifyingContract)"),
+                keccak256("ZeroDust"),
+                keccak256("permission-2"),
+                routerAddr
+            )
+        );
+        bytes32 batchHash = keccak256(abi.encode(keccak256(abi.encodePacked("SweepBatch(ChainSweep[] sweeps)ChainSweep(uint256 chainId,SweepIntent intent)", INTENT_TYPE)), keccak256(abi.encodePacked(batch))));
+        return keccak256(abi.encodePacked("\x19\x01", domain, batchHash));
     }
 
     // ===== Exact zero and the router's own balance =====
@@ -146,12 +187,12 @@ contract ZeroDustPermissionRouterTest is Test {
         s.mode = 1;
         s.callTarget = address(bridge);
         s.routeHash = keccak256("x");
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes memory sig = abi.encodePacked(r, sg, v);
         bytes memory permission = _permission(user, address(router));
         vm.prank(sponsor);
         vm.expectRevert(abi.encodeWithSelector(ZeroDustPermissionRouter.CallFailed.selector, bytes("")));
-        router.sweep(s, sig, "x", permission);
+        router.sweep(s, sig, "x", permission, _one(s), 0);
     }
 
     // ===== Intent bounds =====
@@ -204,7 +245,7 @@ contract ZeroDustPermissionRouterTest is Test {
     function test_malformedSignatures() public {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent();
         bytes memory permission = _permission(user, address(router));
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes[3] memory bad = [
             abi.encodePacked(r, sg), // wrong length
             abi.encodePacked(r, sg, uint8(29)), // bad v
@@ -213,13 +254,13 @@ contract ZeroDustPermissionRouterTest is Test {
         for (uint256 i; i < bad.length; i++) {
             vm.prank(sponsor);
             vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
-            router.sweep(s, bad[i], "", permission);
+            router.sweep(s, bad[i], "", permission, _one(s), 0);
         }
     }
 
     function test_permissionWithSeveralDelegationsIsRefused() public {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent();
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes memory sig = abi.encodePacked(r, sg, v);
         ZeroDustPermissionRouter.Delegation[] memory ds = new ZeroDustPermissionRouter.Delegation[](2);
         ds[0] = ZeroDustPermissionRouter.Delegation(
@@ -229,7 +270,7 @@ contract ZeroDustPermissionRouterTest is Test {
         bytes memory permission = abi.encode(ds);
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidPermission.selector);
-        router.sweep(s, sig, "", permission);
+        router.sweep(s, sig, "", permission, _one(s), 0);
     }
 
     function test_reentryFromTheDestinationIsBlocked() public {
@@ -271,22 +312,22 @@ contract ZeroDustPermissionRouterTest is Test {
 
     function test_signatureWithTrailingBytesIsRefused() public {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent();
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         bytes memory permission = _permission(user, address(router));
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
-        router.sweep(s, abi.encodePacked(r, sg, v, uint8(0)), "", permission);
+        router.sweep(s, abi.encodePacked(r, sg, v, uint8(0)), "", permission, _one(s), 0);
     }
 
     function test_malleableSignatureIsRefused() public {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent();
-        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, router.hashIntent(s));
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), _one(s)));
         uint256 n = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
         bytes memory flipped = abi.encodePacked(r, bytes32(n - uint256(sg)), v == 27 ? uint8(28) : uint8(27));
         bytes memory permission = _permission(user, address(router));
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
-        router.sweep(s, flipped, "", permission);
+        router.sweep(s, flipped, "", permission, _one(s), 0);
     }
 
     function test_unrecoverableSignatureForTheZeroAddressIsRefused() public {
@@ -295,7 +336,7 @@ contract ZeroDustPermissionRouterTest is Test {
         bytes memory permission = _permission(address(0), address(router));
         vm.prank(sponsor);
         vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
-        router.sweep(s, abi.encodePacked(bytes32(0), bytes32(uint256(1)), uint8(27)), "", permission);
+        router.sweep(s, abi.encodePacked(bytes32(0), bytes32(uint256(1)), uint8(27)), "", permission, _one(s), 0);
     }
 
     function test_zeroAddressIsNotASponsor() public {
@@ -303,12 +344,122 @@ contract ZeroDustPermissionRouterTest is Test {
         ZeroDustPermissionRouter.SweepIntent memory s = _intent();
         vm.prank(address(0));
         vm.expectRevert(ZeroDustPermissionRouter.NotSponsor.selector);
-        router.sweep(s, "", "", "");
+        router.sweep(s, "", "", "", new bytes32[](0), 0);
     }
 
     function test_sweepSettledMatchesZeroDustSweep() public pure {
         // The backend decodes both contracts' receipts with one ABI
         assertEq(ZeroDustPermissionRouter.SweepSettled.selector, ZeroDustSweep.SweepSettled.selector);
+    }
+
+    // ===== One signature for several chains (SweepBatch) =====
+
+    /// @dev A batch where this chain's entry for `s` sits between two other chains' entries
+    function _three(ZeroDustPermissionRouter.SweepIntent memory s) internal view returns (bytes32[] memory b) {
+        // A separate struct: `other = s` would alias the same memory
+        ZeroDustPermissionRouter.SweepIntent memory other = _intent();
+        other.nonce = 7;
+        b = new bytes32[](3);
+        b[0] = _leaf(42161, other);
+        b[1] = _leaf(block.chainid, s);
+        b[2] = _leaf(10, other);
+    }
+
+    function _signBatch(bytes32[] memory batch) internal view returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(USER_PK, _digest(address(router), batch));
+        return abi.encodePacked(r, sg, v);
+    }
+
+    function test_oneSignatureCoversThisChainsEntryInABatch() public {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes32[] memory batch = _three(s);
+        bytes memory sig = _signBatch(batch);
+        bytes memory permission = _permission(user, address(router));
+        vm.prank(sponsor);
+        router.sweep(s, sig, "", permission, batch, 1);
+        assertEq(user.balance, 0);
+        assertEq(router.nonces(user), 1);
+    }
+
+    function test_routerViewsMatchTheSignedEncoding() public view {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes32[] memory batch = _three(s);
+        assertEq(router.chainSweepHash(s), _leaf(block.chainid, s));
+        assertEq(router.hashBatch(batch), _digest(address(router), batch));
+    }
+
+    function test_anotherChainsEntryOrTheWrongIndexIsRefused() public {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes32[] memory batch = _three(s);
+        bytes memory sig = _signBatch(batch);
+        bytes memory permission = _permission(user, address(router));
+        // Index 0 is Arbitrum's entry: on this chain it does not match the intent
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.BatchMismatch.selector);
+        router.sweep(s, sig, "", permission, batch, 0);
+        // The same intent signed only for another chain
+        bytes32[] memory elsewhere = new bytes32[](1);
+        elsewhere[0] = _leaf(block.chainid + 1, s);
+        bytes memory sigElsewhere = _signBatch(elsewhere);
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.BatchMismatch.selector);
+        router.sweep(s, sigElsewhere, "", permission, elsewhere, 0);
+    }
+
+    function test_aTamperedEntryBreaksTheSignature() public {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes32[] memory batch = _three(s);
+        bytes memory sig = _signBatch(batch);
+        bytes memory permission = _permission(user, address(router));
+        batch[2] = keccak256("another destination on Optimism");
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.InvalidSignature.selector);
+        router.sweep(s, sig, "", permission, batch, 1);
+    }
+
+    function test_aBatchSweepsThisChainOnce() public {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes32[] memory batch = _three(s);
+        bytes memory sig = _signBatch(batch);
+        bytes memory permission = _permission(user, address(router));
+        vm.prank(sponsor);
+        router.sweep(s, sig, "", permission, batch, 1);
+        vm.deal(user, 1 ether);
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.NonceMismatch.selector);
+        router.sweep(s, sig, "", permission, batch, 1);
+    }
+
+    function test_batchShapeLimits() public {
+        ZeroDustPermissionRouter.SweepIntent memory s = _intent();
+        bytes memory permission = _permission(user, address(router));
+        bytes32[] memory empty = new bytes32[](0);
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.BatchMismatch.selector);
+        router.sweep(s, _signBatch(empty), "", permission, empty, 0);
+
+        bytes32[] memory one = _one(s);
+        bytes memory sigOne = _signBatch(one);
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.BatchMismatch.selector);
+        router.sweep(s, sigOne, "", permission, one, 1);
+
+        // 65 entries, this chain's at the end: one past MAX_BATCH
+        bytes32[] memory big = new bytes32[](65);
+        for (uint256 i; i < 64; i++) big[i] = keccak256(abi.encode(i));
+        big[64] = _leaf(block.chainid, s);
+        bytes memory sigBig = _signBatch(big);
+        vm.prank(sponsor);
+        vm.expectRevert(ZeroDustPermissionRouter.BatchMismatch.selector);
+        router.sweep(s, sigBig, "", permission, big, 64);
+        // 64 is fine
+        bytes32[] memory max = new bytes32[](64);
+        for (uint256 i; i < 63; i++) max[i] = keccak256(abi.encode(i));
+        max[63] = _leaf(block.chainid, s);
+        bytes memory sigMax = _signBatch(max);
+        vm.prank(sponsor);
+        router.sweep(s, sigMax, "", permission, max, 63);
+        assertEq(user.balance, 0);
     }
 
     // ===== Constructor =====
@@ -383,7 +534,7 @@ contract Reenterer {
 
     receive() external payable {
         ZeroDustPermissionRouter.SweepIntent memory s;
-        try router.sweep(s, "", "", "") {
+        try router.sweep(s, "", "", "", new bytes32[](0), 0) {
             reverted = false;
         } catch {
             reverted = true;
@@ -401,7 +552,7 @@ contract SponsorReenterer {
 
     receive() external payable {
         ZeroDustPermissionRouter.SweepIntent memory s;
-        try router.sweep(s, "", "", "") { }
+        try router.sweep(s, "", "", "", new bytes32[](0), 0) { }
         catch (bytes memory err) {
             lastError = bytes4(err);
         }
