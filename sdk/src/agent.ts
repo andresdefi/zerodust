@@ -60,7 +60,8 @@ import type {
 } from './types.js';
 import { ZeroDustError } from './errors.js';
 import { ZERO_ADDRESS, ZERODUST_CONTRACT_ADDRESS } from './utils/signature.js';
-import { createGasZipChainShortResolver } from './utils/bridge-targets.js';
+import { bridgeForCallTarget, createGasZipChainShortResolver } from './utils/bridge-targets.js';
+import { requestRelayDeposit } from './utils/relay-deposit.js';
 import { l1FeeAllowanceWei } from './utils/l1-fee.js';
 import {
   type SweepTypedData,
@@ -96,6 +97,12 @@ export interface ZeroDustAgentConfig extends ZeroDustConfig {
    * fully verified routes.
    */
   requireVerifiedRoute?: boolean;
+
+  /**
+   * Relay's API (default https://api.relay.link). For a Relay route the agent asks Relay for the
+   * deposit itself, so Relay pays the destination the agent set, not one the ZeroDust API chose.
+   */
+  relayApiUrl?: string;
 }
 
 /**
@@ -246,6 +253,9 @@ export class ZeroDustAgent {
   /** Refuse routes whose recipient cannot be verified */
   private readonly requireVerifiedRoute: boolean;
 
+  /** Relay's API, for Relay deposits the agent fetches itself */
+  private readonly relayApiUrl: string | undefined;
+
   /** Gas.zip chain IDs, fetched from Gas.zip to rebuild its route calldata */
   private readonly resolveGasZipChainShort = createGasZipChainShortResolver();
 
@@ -259,6 +269,7 @@ export class ZeroDustAgent {
     this.address = config.account.address;
     this.rpcUrls = config.rpcUrls ?? {};
     this.requireVerifiedRoute = config.requireVerifiedRoute ?? false;
+    this.relayApiUrl = config.relayApiUrl;
 
     // Create underlying client (filter out undefined values for exactOptionalPropertyTypes)
     const clientConfig: Record<string, unknown> = {};
@@ -363,12 +374,42 @@ export class ZeroDustAgent {
       const destination = getAddress(requestedDestination);
 
       // 1. Get quote
-      const quote = await this.client.getQuote({
+      let quote = await this.client.getQuote({
         fromChainId: request.fromChainId,
         toChainId: request.toChainId,
         userAddress: this.address,
         destination,
       });
+
+      // 1b. A Relay route (known by the contract it calls, not the API's label): Relay keeps the
+      //     recipient off-chain, so ask Relay for the deposit ourselves and bind it into the quote.
+      let ownRelayCallData: Hex | undefined;
+      const callTarget = quote.intent?.callTarget;
+      if (typeof callTarget === 'string' && bridgeForCallTarget(request.fromChainId, callTarget) === 'relay') {
+        if (!quote.relayRouteToken || !quote.bridge?.inputAmount) {
+          throw new ZeroDustError('UNSAFE_QUOTE', 'Refusing to sign: the Relay route cannot be fetched from Relay (no route token in the quote)');
+        }
+        const deposit = await requestRelayDeposit({
+          user: this.address,
+          recipient: destination,
+          fromChainId: request.fromChainId,
+          toChainId: request.toChainId,
+          amount: BigInt(quote.bridge.inputAmount),
+          minOut: BigInt(quote.estimatedReceive),
+          ...(this.relayApiUrl ? { apiUrl: this.relayApiUrl } : {}),
+        });
+        const bound = await this.client.bindRelayRoute(quote.quoteId, {
+          callTarget: deposit.to,
+          callData: deposit.data,
+          requestId: deposit.requestId,
+          routeToken: quote.relayRouteToken,
+        });
+        if (bound.intent?.callData?.toLowerCase() !== deposit.data || bound.intent.callTarget?.toLowerCase() !== deposit.to.toLowerCase()) {
+          throw new ZeroDustError('UNSAFE_QUOTE', 'Refusing to sign: the API did not bind the deposit Relay gave us');
+        }
+        quote = { ...quote, intent: { ...quote.intent, ...bound.intent } };
+        ownRelayCallData = deposit.data;
+      }
 
       // 2. Verify the quote against the request and against chain state read
       //    from our own RPC, and build the EIP-712 typed data locally. The API
@@ -390,7 +431,17 @@ export class ZeroDustAgent {
         l1FeeWei,
         requireVerifiedRoute: this.requireVerifiedRoute,
         resolveGasZipChainShort: this.resolveGasZipChainShort,
+        // Relay routes must be the deposit fetched above; without one, any Relay route is refused
+        ownRelayCallData: ownRelayCallData ?? ('0x' as Hex),
       });
+
+      // 2b. Across pays WETH, not ETH, to a contract: the destination must be a wallet there
+      if (verified.route.bridge === 'across') {
+        const code = await this.getPublicClient(request.toChainId).getCode({ address: destination });
+        if (code !== undefined && code !== '0x' && !code.toLowerCase().startsWith('0xef0100')) {
+          throw new ZeroDustError('UNSAFE_QUOTE', 'Refusing to sign: the destination is a contract, and Across would pay it WETH, not native ETH');
+        }
+      }
 
       // 3. The API's authorization must describe the same intent and name the
       //    ZeroDust contract; it is compared, never signed.

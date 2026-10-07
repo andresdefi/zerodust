@@ -165,6 +165,11 @@ export interface QuoteCheckContext {
    * (Relay always; Across unless the API supplies the route calldata).
    */
   requireVerifiedRoute?: boolean;
+  /**
+   * A Relay deposit the caller fetched from Relay itself (requestRelayDeposit): a Relay route must be
+   * exactly this calldata, and its recipient then counts as verified. ZeroDustAgent always sets it.
+   */
+  ownRelayCallData?: Hex;
   /** Chain ID to Gas.zip short ID, from Gas.zip itself. Needed for Gas.zip routes. */
   resolveGasZipChainShort?: (chainId: number) => Promise<number | undefined>;
 }
@@ -287,27 +292,20 @@ function verifyHyperlaneCalldata(callData: Hex | undefined, ctx: QuoteCheckConte
 }
 
 /**
- * Checks an Across deposit's recipient, depositor and destination chain.
- * @returns true when the recipient is the destination, false when the deposit
- *   carries a destination-side message (a swap), whose final recipient cannot
- *   be read from the calldata
+ * Checks an Across deposit: ZeroDust uses Across only for ETH to ETH as a plain depositNative
+ * (no source swap, no destination message), because Across settles a failed or partial swap in
+ * USDC/USDT/WETH instead of native gas. The recipient must be the destination.
+ * @returns true (the recipient is checked)
  */
 function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
   let deposit: { depositor: Address; recipient: Hex; destinationChainId: bigint; message: Hex };
   try {
     const decoded = decodeFunctionData({ abi: ACROSS_ABI, data: callData });
-    if (decoded.functionName === 'depositNative') {
-      const [, depositor, recipient, , , , , destinationChainId, , , , , message] = decoded.args;
-      deposit = { depositor, recipient, destinationChainId, message };
-    } else {
-      const d = decoded.args[0].depositData;
-      deposit = {
-        depositor: d.depositor,
-        recipient: d.recipient,
-        destinationChainId: d.destinationChainId,
-        message: d.message,
-      };
+    if (decoded.functionName !== 'depositNative') {
+      return unsafe('Across route swaps on the source; only plain ETH deposits deliver native gas');
     }
+    const [, depositor, recipient, , , , , destinationChainId, , , , , message] = decoded.args;
+    deposit = { depositor, recipient, destinationChainId, message };
   } catch {
     return unsafe('Across route calldata is not a known deposit call');
   }
@@ -318,11 +316,13 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
   if (deposit.destinationChainId !== BigInt(ctx.toChainId)) {
     unsafe(`Across deposit goes to chain ${deposit.destinationChainId}, not ${ctx.toChainId}`);
   }
-  if (deposit.recipient.toLowerCase() === addressToBytes32(ctx.destination)) return true;
-  if (deposit.message === '0x') {
+  if (deposit.message !== '0x') {
+    unsafe('Across route runs a destination message (a swap); only plain ETH deposits deliver native gas');
+  }
+  if (deposit.recipient.toLowerCase() !== addressToBytes32(ctx.destination)) {
     unsafe(`Across deposit pays ${deposit.recipient}, not ${ctx.destination}`);
   }
-  return false;
+  return true;
 }
 
 /** A Relay depository deposit must credit the signer (refunds go there) */
@@ -432,8 +432,14 @@ export async function verifySweepQuote(
       recipientVerified = true;
     } else if (bridge === 'across') {
       recipientVerified = callData ? verifyAcrossCalldata(callData, { ...ctx, signer, destination: requested }) : false;
-    } else if (callData) {
-      verifyRelayCalldata(callData, { ...ctx, signer });
+    } else if (bridge === 'relay') {
+      if (callData) verifyRelayCalldata(callData, { ...ctx, signer });
+      if (ctx.ownRelayCallData !== undefined) {
+        if (!callData || callData !== ctx.ownRelayCallData.toLowerCase()) {
+          unsafe('the Relay route is not the deposit fetched from Relay');
+        }
+        recipientVerified = true;
+      }
     }
 
     if (ctx.requireVerifiedRoute && !recipientVerified) {

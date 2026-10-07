@@ -21,6 +21,7 @@ import type {
   BalancesResponse,
   QuoteRequest,
   QuoteResponse,
+  SweepIntentFields,
   AuthorizationResponse,
   SweepRequest,
   SweepResponse,
@@ -478,6 +479,20 @@ export class ZeroDust {
     return this.http.post<AuthorizationResponse>('/authorization', {
       quoteId: validatedQuoteId,
     });
+  }
+
+  /**
+   * Bind a Relay deposit you requested from Relay yourself into a Relay-routed quote
+   * (POST /quote/:quoteId/relay-route). Relay keeps the recipient on its servers and the deposit
+   * calldata only names an id, so only a deposit you requested pays the address you set.
+   * `ZeroDustAgent` does this for every Relay route; check `intent.callData` is your deposit.
+   */
+  async bindRelayRoute(
+    quoteId: string,
+    route: { callTarget: string; callData: string; requestId: string; routeToken: string }
+  ): Promise<{ quoteId: string; intent: SweepIntentFields & { callData?: string } }> {
+    const validatedQuoteId = validateUuid(quoteId, 'quoteId');
+    return this.http.post(`/quote/${validatedQuoteId}/relay-route`, route);
   }
 
   // ============ Sweep Methods ============

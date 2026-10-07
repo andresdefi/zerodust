@@ -5,6 +5,33 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2026-10-07
+
+### Security
+
+- **Relay routes: the deposit now comes from Relay to the agent.** Relay keeps a
+  request's recipient on its own servers and the deposit calldata only carries an
+  id, so a Relay route served by the API could not be checked before signing.
+  For any route that calls a Relay contract (known by the contract, not the API's
+  label), `ZeroDustAgent` now asks Relay for the deposit itself (the destination
+  it set, refunds to the wallet, exactly `bridge.inputAmount`), checks Relay's
+  answer (one transaction on the source chain for that amount, that recipient,
+  native gas out, at least `estimatedReceive`), binds it with the new
+  `bindRelayRoute()` (`POST /quote/:quoteId/relay-route`, using the quote's
+  one-time `relayRouteToken`) and signs only that deposit. Relay routes now
+  count as verified for `requireVerifiedRoute`. New option `relayApiUrl`;
+  `requestRelayDeposit()` is exported. Needs network access to api.relay.link.
+- **Native gas only: Across must be a plain ETH deposit.** Across swap routes
+  (a source swap, or a destination message) are refused: Across settles a failed
+  or partial swap in USDC/USDT/WETH instead of native gas. For an Across route
+  the agent also reads the destination's code and refuses a contract recipient
+  (Across pays a contract WETH, not ETH). The API stopped offering these routes
+  on 2026-10-06.
+
+### Added
+
+- `QuoteResponse.bridge` and `QuoteResponse.relayRouteToken`.
+
 ## [0.5.5] - 2026-10-05
 
 ### Fixed
