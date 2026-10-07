@@ -122,10 +122,14 @@ jobs:
         with:
           submodules: recursive
 
+      # Pinned: the guard's gas tests measure gas inside the test; forge 1.8.5 reports 0 gas for a
+      # pranked call there (real transactions are unaffected, see the guard step below)
       - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
 
       - name: Build
-        run: forge build --sizes
+        run: forge --version && forge build --sizes
 
       # The ci profile raises fuzz to 10k runs and invariant to 1k, per
       # foundry.toml. The contract is immutable and deployed to 26 mainnets, so
@@ -134,6 +138,20 @@ jobs:
         run: forge test -vvv
         env:
           FOUNDRY_PROFILE: ci
+
+      # ZeroDustGuard end to end: 60 real transactions on anvil, each must end at exactly 0
+      # with every unit of gas used (the chain's own gas purchase and refund)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Guard, real transactions
+        run: |
+          mkdir -p /tmp/guard && cp script/guard-exact-zero.mjs /tmp/guard/ && cd /tmp/guard
+          npm init -y >/dev/null && npm install --silent viem@2
+          anvil --port 8546 --silent --hardfork cancun &
+          sleep 2
+          node guard-exact-zero.mjs "$GITHUB_WORKSPACE/contracts/out/ZeroDustGuard.yul/ZeroDustGuard.json" | tee out.txt
+          grep -q '^60/60 sweeps ended at exactly 0' out.txt && grep -q 'one wei over -> reverted' out.txt
 
   contracts-zk:
     name: ZK paymaster (anvil-zksync)
