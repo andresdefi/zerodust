@@ -5,6 +5,23 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] - 2026-10-07
+
+### Added
+
+- **Intuition -> TRUST on Base (token delivery).** Caldera's Metalayer spoke on
+  Intuition is a pinned call target; it uses Hyperlane's
+  `transferRemote(destination, recipient, amount)`, so the quote check decodes
+  it like the MITO route (Base domain, the requested recipient, an amount that
+  fits the routed value). `deliveredToken(1155, 8453)` returns TRUST, so a UI
+  can say the user receives the token, not gas.
+- Default RPCs for Kaia, 0G, Arbitrum Nova and Intuition.
+
+### Fixed
+
+- `ZERODUST_MAINNET_CHAIN_IDS` lists Kaia, 0G, Arbitrum Nova and Intuition; Gas.zip
+  is never an allowed call target on them (it takes nothing out).
+
 ## [0.5.8] - 2026-10-07
 
 ### Fixed

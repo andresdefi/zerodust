@@ -271,6 +271,36 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     expect(await rejection(verifySweepQuote(quote, crossCtx()))).toMatch(/routeHash is not keccak256/);
   });
 
+  describe("Metalayer token delivery (Intuition -> TRUST on Base, Hyperlane's transferRemote)", () => {
+    const SPOKE = '0x375135fe908dD62f3C7939FA4e65bf41Da721AB9' as Address;
+    const abi = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);
+    const pad = (a: Address) => `0x${a.slice(2).padStart(64, '0')}` as Hex;
+    const trustCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 1155, toChainId: 8453, ...o });
+    function metalayerQuote(p: { recipient?: Address; domain?: number } = {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const callData = encodeFunctionData({ abi, functionName: 'transferRemote', args: [p.domain ?? 8453, pad(p.recipient ?? account.address), routed - 69n * 10n ** 15n] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '8453';
+        q.intent.callTarget = SPOKE;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the pinned spoke paying the requested address on Base, and says the user receives TRUST', async () => {
+      const { route } = await verifySweepQuote(metalayerQuote(), trustCtx());
+      expect(route).toEqual({ bridge: 'hyperlane', recipientVerified: true });
+      expect(deliveredToken(1155, 8453)).toMatchObject({ symbol: 'TRUST', address: '0x6cd905dF2Ed214b22e0d48FF17CD4200C1C6d8A3' });
+      expect(allowedCallTargets(1155).map((t) => t.bridge)).toEqual(['hyperlane']);
+    });
+
+    it('refuses another recipient or another domain', async () => {
+      expect(await rejection(verifySweepQuote(metalayerQuote({ recipient: ATTACKER }), trustCtx()))).toMatch(/Hyperlane transfer pays/);
+      expect(await rejection(verifySweepQuote(metalayerQuote({ domain: 42161 }), trustCtx()))).toMatch(/domain 42161/);
+    });
+  });
+
   describe('Hyperlane token delivery (Mitosis -> MITO on BNB Chain)', () => {
     const ROUTER = '0xF6CC9B10c607afB777380bF71F272E4D7037C3A9' as Address;
     const abi = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);

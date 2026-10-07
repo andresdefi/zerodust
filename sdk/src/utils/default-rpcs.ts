@@ -58,4 +58,9 @@ export const DEFAULT_RPC_URLS: Readonly<Record<number, string>> = {
   97477: 'https://rpc.doma.xyz',
   124816: 'https://rpc.mitosis.org',
   648: 'https://rpc-endurance.fusionist.io',
+  // 2026-10-07: the site's endpoints (probe-rpcs.mjs passed)
+  8217: 'https://public-en.node.kaia.io',
+  16661: 'https://evmrpc.0g.ai',
+  42170: 'https://nova.arbitrum.io/rpc',
+  1155: 'https://rpc.intuition.systems',
 };
