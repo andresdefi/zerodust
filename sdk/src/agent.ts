@@ -386,15 +386,21 @@ export class ZeroDustAgent {
       let ownRelayCallData: Hex | undefined;
       const callTarget = quote.intent?.callTarget;
       if (typeof callTarget === 'string' && bridgeForCallTarget(request.fromChainId, callTarget) === 'relay') {
-        if (!quote.relayRouteToken || !quote.bridge?.inputAmount) {
+        if (!quote.relayRouteToken) {
           throw new ZeroDustError('UNSAFE_QUOTE', 'Refusing to sign: the Relay route cannot be fetched from Relay (no route token in the quote)');
+        }
+        // The amount is what the contract will route: the balance read here less the signed fee
+        // reserve. The API's bridge.inputAmount must agree; it is never taken on its word.
+        const routed = (await this.getPublicClient(request.fromChainId).getBalance({ address: this.address })) - BigInt(quote.fees.maxTotalFeeWei);
+        if (routed <= 0n || quote.bridge?.inputAmount !== routed.toString()) {
+          throw new ZeroDustError('UNSAFE_QUOTE', `Refusing to sign: the quote routes ${quote.bridge?.inputAmount ?? 'nothing'} into Relay, not the ${routed} wei the balance leaves after fees`);
         }
         const deposit = await requestRelayDeposit({
           user: this.address,
           recipient: destination,
           fromChainId: request.fromChainId,
           toChainId: request.toChainId,
-          amount: BigInt(quote.bridge.inputAmount),
+          amount: routed,
           minOut: BigInt(quote.estimatedReceive),
           ...(this.relayApiUrl ? { apiUrl: this.relayApiUrl } : {}),
         });
