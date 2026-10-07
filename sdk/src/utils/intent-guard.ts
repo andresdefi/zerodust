@@ -23,6 +23,8 @@
  */
 
 import {
+  decodeFunctionResult,
+  encodeFunctionData,
   type Address,
   type Hex,
   decodeFunctionData,
@@ -44,7 +46,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -172,6 +174,11 @@ export interface QuoteCheckContext {
   ownRelayCallData?: Hex;
   /** Chain ID to Gas.zip short ID, from Gas.zip itself. Needed for Gas.zip routes. */
   resolveGasZipChainShort?: (chainId: number) => Promise<number | undefined>;
+  /**
+   * eth_call on the source chain. Needed for Stargate routes: the LayerZero fee is read from the
+   * pool itself, so a quote cannot pass off more of the value as fee (refunded to ZeroDust).
+   */
+  ethCall?: (request: { to: Address; data: Hex }) => Promise<Hex | undefined>;
 }
 
 export interface VerifiedSweep {
@@ -291,6 +298,50 @@ function verifyHyperlaneCalldata(callData: Hex | undefined, ctx: QuoteCheckConte
   return amount;
 }
 
+const STARGATE_SEND_PARAM = '(uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd)';
+const STARGATE_ABI = parseAbi([
+  `function send(${STARGATE_SEND_PARAM} sendParam, (uint256 nativeFee, uint256 lzTokenFee) fee, address refundAddress) payable`,
+  `function quoteSend(${STARGATE_SEND_PARAM} sendParam, bool payInLzToken) view returns ((uint256 nativeFee, uint256 lzTokenFee) fee)`,
+]);
+/** The planner's margin on the LayerZero fee (refunded to ZeroDust beyond the real fee), plus rounding to 6 shared decimals */
+const STARGATE_FEE_MARGIN_PERCENT = 105n;
+const STARGATE_CONVERT_RATE = 10n ** 12n;
+
+/**
+ * A Stargate native-pool send: to the destination's pool id, paying the requested address, in
+ * taxi mode with nothing run on arrival, the fee refund to ZeroDust (never the wallet: it would
+ * break exact zero), and a minimum delivery set. The LayerZero fee is then read from the pool.
+ * @returns the bridged amount and the most the rest of the routed value may be (fee + margin)
+ */
+async function verifyStargateCalldata(callData: Hex | undefined, ctx: QuoteCheckContext): Promise<{ amount: bigint; maxFee: bigint }> {
+  const from = STARGATE_NATIVE_POOLS[ctx.fromChainId];
+  const to = STARGATE_NATIVE_POOLS[ctx.toChainId];
+  if (!from || !to || ctx.fromChainId === ctx.toChainId) return unsafe(`no Stargate route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
+  if (!callData) return unsafe('Stargate route has no calldata to check');
+  let param: { dstEid: number; to: Hex; amountLD: bigint; minAmountLD: bigint; extraOptions: Hex; composeMsg: Hex; oftCmd: Hex };
+  let fee: { nativeFee: bigint; lzTokenFee: bigint };
+  let refund: Address;
+  try {
+    const decoded = decodeFunctionData({ abi: STARGATE_ABI, data: callData });
+    if (decoded.functionName !== 'send') return unsafe('Stargate route is not a send call');
+    [param, fee, refund] = decoded.args as unknown as [typeof param, typeof fee, Address];
+  } catch {
+    return unsafe('Stargate route calldata is not a send call');
+  }
+  if (param.dstEid !== to.eid) unsafe(`Stargate send goes to endpoint ${param.dstEid}, not chain ${ctx.toChainId}'s ${to.eid}`);
+  if (param.to.toLowerCase() !== addressToBytes32(ctx.destination)) unsafe(`Stargate send pays ${param.to}, not ${ctx.destination}`);
+  if (refund.toLowerCase() !== STARGATE_REFUND_ADDRESS.toLowerCase()) unsafe(`Stargate fee refund goes to ${refund}, not ZeroDust`);
+  if (param.extraOptions !== '0x' || param.composeMsg !== '0x' || param.oftCmd !== '0x') unsafe('Stargate send runs something on arrival or is not a taxi send');
+  if (fee.lzTokenFee !== 0n) unsafe('Stargate send pays in ZRO');
+  if (param.amountLD === 0n) unsafe('Stargate send bridges nothing');
+  if (param.minAmountLD === 0n || param.minAmountLD > param.amountLD) unsafe('Stargate send has no minimum delivery');
+  if (!ctx.ethCall) return unsafe('cannot read the Stargate fee on the source chain');
+  const out = await ctx.ethCall({ to: from.pool, data: encodeFunctionData({ abi: STARGATE_ABI, functionName: 'quoteSend', args: [param, false] }) });
+  if (!out || out === '0x') return unsafe('the Stargate pool did not quote its fee');
+  const { nativeFee } = decodeFunctionResult({ abi: STARGATE_ABI, functionName: 'quoteSend', data: out });
+  return { amount: param.amountLD, maxFee: (nativeFee * STARGATE_FEE_MARGIN_PERCENT) / 100n + STARGATE_CONVERT_RATE };
+}
+
 /**
  * Checks an Across deposit: ZeroDust uses Across only for ETH to ETH as a plain depositNative
  * (no source swap, no destination message), because Across settles a failed or partial swap in
@@ -386,6 +437,8 @@ export async function verifySweepQuote(
   let recipientVerified = false;
   /** Hyperlane: the amount the transfer bridges; it must fit in the routed value */
   let bridgedAmount: bigint | null = null;
+  /** Stargate: the most of the routed value that may go to the LayerZero fee (read on-chain) */
+  let bridgeMaxFee: bigint | null = null;
 
   if (ctx.fromChainId === ctx.toChainId) {
     if (mode !== MODE_TRANSFER) unsafe(`same-chain sweep must be a transfer (mode 0), got mode ${mode}`);
@@ -426,6 +479,11 @@ export async function verifySweepQuote(
       recipientVerified = true;
     } else if (bridge === 'hyperlane') {
       bridgedAmount = verifyHyperlaneCalldata(callData, { ...ctx, signer, destination: requested });
+      recipientVerified = true;
+    } else if (bridge === 'stargate') {
+      const checked = await verifyStargateCalldata(callData, { ...ctx, signer, destination: requested });
+      bridgedAmount = checked.amount;
+      bridgeMaxFee = checked.maxFee;
       recipientVerified = true;
     } else if (bridge === 'endurance') {
       bridgedAmount = verifyEnduranceCalldata(callData, { ...ctx, signer, destination: requested });
@@ -475,6 +533,9 @@ export async function verifySweepQuote(
   // The contract routes balance - reserve; a token-delivery bridge takes that minus its own fee
   if (bridgedAmount !== null && bridgedAmount >= ctx.balanceWei - maxTotalFeeWei) {
     unsafe(`${bridge} transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
+  }
+  if (bridgedAmount !== null && bridgeMaxFee !== null && ctx.balanceWei - maxTotalFeeWei - bridgedAmount > bridgeMaxFee) {
+    unsafe(`${bridge} would keep ${ctx.balanceWei - maxTotalFeeWei - bridgedAmount} wei as its fee, above the ${bridgeMaxFee} wei it quotes`);
   }
   const feeLimit = maxAcceptableFeeWei({
     chainId: ctx.fromChainId,
