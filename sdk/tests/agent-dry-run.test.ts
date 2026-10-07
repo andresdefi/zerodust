@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { recoverTypedDataAddress } from 'viem';
+import { type Address, type Hex, keccak256, recoverTypedDataAddress } from 'viem';
 import { recoverAuthorizationAddress } from 'viem/utils';
 import { ZeroDustAgent } from '../src/agent.js';
 import type { AuthorizationResponse, QuoteResponse } from '../src/types.js';
@@ -23,6 +23,8 @@ import {
   QUOTE_ID,
   ZERODUST as CONTRACT,
   ATTACKER,
+  relayAnswer,
+  relayDepositData,
 } from './helpers/sweep-api.js';
 
 const mockFetch = vi.fn();
@@ -37,14 +39,29 @@ function installRoutes(
     quote?: QuoteResponse;
     authorization?: (quote: QuoteResponse) => AuthorizationResponse;
     onSweep?: () => Promise<Response>;
+    /** Relay's answer to the agent's own request (default: the deposit for the quote's amount) */
+    relay?: (body: { amount: string; recipient: Address }) => unknown;
+    /** What the API binds (default: exactly what the agent sent) */
+    bind?: (body: { callTarget: string; callData: string }) => { callTarget: string; callData: string };
   } = {}
 ) {
-  const quote = opts.quote ?? makeQuote({ route: 'relay' });
+  let quote = opts.quote ?? makeQuote({ route: 'relay' });
   const authorization = opts.authorization ?? ((q: QuoteResponse) => makeAuthorization(q, 8453));
   mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
 
+    if (url.startsWith('https://api.relay.link/quote')) {
+      const body = JSON.parse(String(init?.body)) as { amount: string; recipient: Address };
+      return json(opts.relay ? opts.relay(body) : relayAnswer(body));
+    }
     if (url.includes('api.zerodust.xyz')) {
+      if (url.includes('/relay-route')) {
+        const sent = JSON.parse(String(init?.body)) as { callTarget: string; callData: string };
+        const stored = opts.bind ? opts.bind(sent) : sent;
+        // The API now serves the bound route, as the backend stores it
+        quote = { ...quote, intent: { ...quote.intent, callTarget: stored.callTarget.toLowerCase() as Address, callData: stored.callData, routeHash: keccak256(stored.callData as Hex) } };
+        return json({ quoteId: quote.quoteId, intent: quote.intent });
+      }
       if (url.includes('/quote')) return json(quote);
       if (url.includes('/authorization')) return json(authorization(quote));
       if (isSweepPost(input, init)) {
@@ -143,8 +160,9 @@ describe('ZeroDustAgent dry run', () => {
     const sigs = result.signatures!;
 
     // The intent signature recovers to the account over the API's own typed
-    // data, i.e. the backend will accept it.
-    const api = makeAuthorization(quote, 8453).typedData;
+    // data for the bound route (the deposit Relay gave the agent), i.e. the backend will accept it.
+    const bound = { ...quote, intent: { ...quote.intent, routeHash: keccak256(relayDepositData()) } };
+    const api = makeAuthorization(bound, 8453).typedData;
     const recovered = await recoverTypedDataAddress({
       domain: api.domain,
       types: { SweepIntent: api.types.SweepIntent },
@@ -223,10 +241,38 @@ describe('ZeroDustAgent refuses an untrusted API before signing', () => {
     expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP, { dryRun: true }), /fee reserve/);
   });
 
-  it('a Relay route when requireVerifiedRoute is set', async () => {
+  it('a Relay deposit paying someone else, or not native gas, or less than shown', async () => {
+    installRoutes({ relay: (b) => relayAnswer({ ...b, recipient: ATTACKER }) });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /Relay would pay/);
+    installRoutes({ relay: (b) => ({ ...relayAnswer(b), details: { ...relayAnswer(b).details, currencyOut: { amount: '1', currency: { address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', chainId: 42161 } } } }) });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /native gas/);
+    installRoutes({ relay: (b) => relayAnswer({ ...b, amountOut: '1' }) });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /less than the amount shown/);
+  });
+
+  it('an API that binds another deposit than the one Relay gave the agent', async () => {
+    installRoutes({ bind: (sent) => ({ ...sent, callData: relayDepositData(ATTACKER) }) });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /did not bind the deposit/);
+  });
+
+  it('a Relay route without a route token, whatever the API labels it', async () => {
+    const quote = makeQuote({ route: 'relay' });
+    delete (quote as { relayRouteToken?: string }).relayRouteToken;
+    delete (quote as { bridge?: unknown }).bridge;
+    installRoutes({ quote });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /cannot be fetched from Relay/);
+    expect(mockFetch.mock.calls.some(([u]) => String(u).includes('api.relay.link'))).toBe(false);
+  });
+
+  it('accepts a Relay route it fetched from Relay itself, even with requireVerifiedRoute', async () => {
     installRoutes();
     const agent = new ZeroDustAgent({ account, requireVerifiedRoute: true });
-    expectRefused(await agent.sweep(SWEEP), /cannot be verified/);
+    const result = await agent.sweep(SWEEP, { dryRun: true });
+    expect(result.error).toBeUndefined();
+    const relayCall = mockFetch.mock.calls.find(([u]) => String(u) === 'https://api.relay.link/quote')!;
+    expect(JSON.parse(String((relayCall[1] as RequestInit).body))).toMatchObject({ user: account.address, recipient: account.address, refundTo: account.address, originChainId: 8453, destinationChainId: 42161, tradeType: 'EXACT_INPUT' });
+    const bindCall = mockFetch.mock.calls.find(([u]) => String(u).endsWith('/relay-route'))!;
+    expect(JSON.parse(String((bindCall[1] as RequestInit).body))).toMatchObject({ callData: relayDepositData(), routeToken: 'a'.repeat(64) });
   });
 
   it('accepts a verified Gas.zip route with requireVerifiedRoute', async () => {

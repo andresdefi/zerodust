@@ -7,7 +7,7 @@
  * re-based on the current time; everything else is as the API returned it.
  */
 
-import { type Address, type Hex, keccak256 } from 'viem';
+import { type Address, type Hex, encodeFunctionData, keccak256, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { buildSweepIntentTypedData } from '../../src/utils/signature.js';
 import { buildGasZipDepositCalldata } from '../../src/utils/bridge-targets.js';
@@ -38,6 +38,26 @@ export function nowSeconds(): number {
 }
 
 export type Route = 'transfer' | 'relay' | 'gaszip';
+
+/** The one-time token a Relay-routed quote carries (POST /quote/:quoteId/relay-route) */
+export const RELAY_ROUTE_TOKEN = 'a'.repeat(64);
+export const RELAY_REQUEST_ID = `0x${'17'.repeat(32)}` as Hex;
+
+/** A Relay depository deposit crediting `depositor`, as Relay's API answers it */
+export function relayDepositData(depositor: Address = account.address): Hex {
+  return encodeFunctionData({
+    abi: parseAbi(['function depositNative(address depositor, bytes32 id)']),
+    args: [depositor, `0x${'d2'.repeat(32)}`],
+  }).toLowerCase() as Hex;
+}
+
+/** Relay's POST /quote answer for this page's/agent's request (Base -> Arbitrum, native out) */
+export function relayAnswer(opts: { amount: string; recipient: Address; toChainId?: number; amountOut?: string; depositor?: Address }) {
+  return {
+    steps: [{ kind: 'transaction', requestId: RELAY_REQUEST_ID, items: [{ data: { to: RELAY_DEPOSITORY, data: relayDepositData(opts.depositor), value: opts.amount, chainId: 8453 } }] }],
+    details: { recipient: opts.recipient, currencyOut: { amount: opts.amountOut ?? '529832916922592715', currency: { address: ZERO, chainId: opts.toChainId ?? 42161 } } },
+  };
+}
 
 /** A quote as the API returns it, for the test account */
 export function makeQuote(opts: {
@@ -104,6 +124,12 @@ export function makeQuote(opts: {
       revokeGasUnits: '50000',
     },
     autoRevoke: true,
+    ...(route === 'relay'
+      ? {
+          bridge: { name: 'relay', displayName: 'Relay', inputAmount: (BASE_BALANCE - 188661272848240n).toString(), expectedOutput: '546220532909889397' },
+          relayRouteToken: RELAY_ROUTE_TOKEN,
+        }
+      : {}),
     intent: {
       mode: 1,
       destination,

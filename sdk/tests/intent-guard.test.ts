@@ -403,11 +403,9 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
       expect(await rejection(verifySweepQuote(quote, crossCtx()))).toMatch(/goes to chain 10/);
     });
 
-    it('treats a destination-side swap as unverified, not verified', async () => {
+    it('refuses a destination-side message (a swap): Across settles failed swaps in another token than native gas', async () => {
       const quote = acrossQuote({ recipient: ATTACKER, message: '0x1234' });
-      const { route } = await verifySweepQuote(quote, crossCtx());
-      expect(route.recipientVerified).toBe(false);
-      await rejection(verifySweepQuote(quote, crossCtx({ requireVerifiedRoute: true })));
+      expect(await rejection(verifySweepQuote(quote, crossCtx()))).toMatch(/destination message/);
     });
   });
 });
