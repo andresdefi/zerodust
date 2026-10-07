@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with nothing run on arrival, a minimum delivery, and the fee refund to ZeroDust
   (a refund to the wallet would break exact zero). It reads the LayerZero fee from
   the pool itself (new `ethCall` in the check context; ZeroDustAgent supplies it)
-  and refuses a route that keeps more of the value than that fee plus 10%.
+  and refuses a route that keeps more of the value than that fee plus 5%
+  (refunded to ZeroDust, never the wallet) and the rounding.
 
 ## [0.5.9] - 2026-10-07
 

@@ -303,8 +303,8 @@ const STARGATE_ABI = parseAbi([
   `function send(${STARGATE_SEND_PARAM} sendParam, (uint256 nativeFee, uint256 lzTokenFee) fee, address refundAddress) payable`,
   `function quoteSend(${STARGATE_SEND_PARAM} sendParam, bool payInLzToken) view returns ((uint256 nativeFee, uint256 lzTokenFee) fee)`,
 ]);
-/** The planner's margin on the LayerZero fee, plus rounding to Stargate's 6 shared decimals */
-const STARGATE_FEE_MARGIN_PERCENT = 110n;
+/** The planner's margin on the LayerZero fee (refunded to ZeroDust beyond the real fee), plus rounding to 6 shared decimals */
+const STARGATE_FEE_MARGIN_PERCENT = 105n;
 const STARGATE_CONVERT_RATE = 10n ** 12n;
 
 /**

@@ -317,7 +317,7 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     function stargateQuote(p: { recipient?: Address; dstEid?: number; refund?: Address; compose?: Hex; extraFee?: bigint; min?: bigint } = {}) {
       const base = makeQuote({ route: 'relay' });
       const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
-      const amountLD = ((routed - (FEE * 110n) / 100n - (p.extraFee ?? 0n)) / 10n ** 12n) * 10n ** 12n;
+      const amountLD = ((routed - (FEE * 105n) / 100n - (p.extraFee ?? 0n)) / 10n ** 12n) * 10n ** 12n;
       const callData = encodeFunctionData({
         abi, functionName: 'send',
         args: [
@@ -351,6 +351,8 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
 
     it("refuses a fee above the pool's own quote (the excess would be refunded to ZeroDust), and a check that cannot read it", async () => {
       expect(await rejection(verifySweepQuote(stargateQuote({ extraFee: 10n ** 15n }), sgCtx()))).toMatch(/above the .* wei it quotes/);
+      // Just past the 5% margin and the rounding: refused
+      expect(await rejection(verifySweepQuote(stargateQuote({ extraFee: (FEE * 5n) / 100n + 10n ** 12n }), sgCtx()))).toMatch(/above the .* wei it quotes/);
       expect(await rejection(verifySweepQuote(stargateQuote(), crossCtx()))).toMatch(/cannot read the Stargate fee/);
     });
   });
