@@ -125,7 +125,7 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
 
       - name: Build
-        run: forge build --sizes
+        run: forge --version && forge build --sizes
 
       # The ci profile raises fuzz to 10k runs and invariant to 1k, per
       # foundry.toml. The contract is immutable and deployed to 26 mainnets, so

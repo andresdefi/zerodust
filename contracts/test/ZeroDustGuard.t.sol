@@ -52,6 +52,21 @@ contract ZeroDustGuardTest is Test {
         guard = IZeroDustGuard(g);
     }
 
+    /// The deployed code carries the hand-counted burn tail byte for byte (a toolchain that moved or
+    /// rewrote it would break exact zero)
+    function test_deployedCodeCarriesTheBurnTail() public view {
+        bytes memory code = address(guard).code;
+        bytes memory tail = hex"5b5a610050105860069003575a5860410103565b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b00";
+        bool found;
+        for (uint256 i = 0; i + tail.length <= code.length && !found; i++) {
+            bool eq = true;
+            for (uint256 j = 0; j < tail.length && eq; j++) eq = code[i + j] == tail[j];
+            found = eq;
+        }
+        assertTrue(found, string.concat("burn tail missing; runtime: ", vm.toString(code)));
+        assertEq(code.length, 347, string.concat("runtime size changed: ", vm.toString(code)));
+    }
+
     /// Gas the bare CALL cost the caller (measured in assembly around the call alone, so memory the
     /// test allocates never enters it; the CALL's own overhead is the same every time)
     function spend(address target, uint256 value, uint256 fee, bytes memory data, uint256 g) internal returns (uint256 used, bool ok) {
