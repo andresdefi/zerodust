@@ -439,6 +439,8 @@ export class ZeroDustAgent {
         resolveGasZipChainShort: this.resolveGasZipChainShort,
         // Relay routes must be the deposit fetched above; without one, any Relay route is refused
         ownRelayCallData: ownRelayCallData ?? ('0x' as Hex),
+        // Stargate routes: the LayerZero fee is read from the pool on the source chain
+        ethCall: async (call) => (await publicClient.call(call)).data,
       });
 
       // 2b. Across pays WETH, not ETH, to a contract: the destination must be a wallet there

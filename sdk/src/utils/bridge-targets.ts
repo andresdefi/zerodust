@@ -24,7 +24,7 @@
 
 import { type Address, type Hex, getAddress } from 'viem';
 
-export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance';
+export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance' | 'stargate';
 
 // ============ Gas.zip ============
 
@@ -135,6 +135,29 @@ export const ENDURANCE_ROUTE = {
   token: { symbol: 'ACE', address: '0xc27A719105A987b4c34116223CAE8bd8F4B5def4' as Address, decimals: 18 } satisfies DeliveredToken,
 } as const;
 
+/**
+ * Stargate V2 native-ETH pools (StargatePoolNative): ETH in, native ETH out, called directly.
+ * Pinned with their LayerZero endpoint ids (read on-chain 2026-10-07); mirrors the backend's
+ * bridges/stargate.ts. Lightlink is a destination only. Swellchain shut down (2026-06): excluded.
+ */
+export const STARGATE_NATIVE_POOLS: Readonly<Record<number, { pool: Address; eid: number }>> = {
+  1: { pool: '0x77b2043768d28E9C9aB44E1aBfC95944bcE57931', eid: 30101 },
+  10: { pool: '0xe8CDF27AcD73a434D661C84887215F7598e7d0d3', eid: 30111 },
+  130: { pool: '0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7', eid: 30320 },
+  169: { pool: '0x9895D81bB462A195b4922ED7De0e3ACD007c32CB', eid: 30217 },
+  1868: { pool: '0x2F6F07CDcf3588944Bf4C42aC74ff24bF56e7590', eid: 30340 },
+  1890: { pool: '0x8731d54E9D02c286767d56ac03e8037C07e01e98', eid: 30309 },
+  8453: { pool: '0xdc181Bd607330aeeBEF6ea62e03e5e1Fb4B6F7C7', eid: 30184 },
+  42161: { pool: '0xA45B5130f36CDcA45667738e2a258AB09f4A5f7F', eid: 30110 },
+  43111: { pool: '0x2F6F07CDcf3588944Bf4C42aC74ff24bF56e7590', eid: 30329 },
+  59144: { pool: '0x81F6138153d473E8c5EcebD3DC8Cd4903506B075', eid: 30183 },
+  97477: { pool: '0x5d46805BBFAcA875a96Ebbd22Aaa3DE4A81180f5', eid: 30393 },
+  534352: { pool: '0xC2b638Cb5042c1B3c5d5C969361fB50569840583', eid: 30214 },
+};
+
+/** Where a Stargate send's LayerZero fee refund must go: ZeroDust, never the sweeping wallet */
+export const STARGATE_REFUND_ADDRESS: Address = '0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D';
+
 /** The token a sweep from `fromChainId` to `toChainId` delivers instead of gas, or null for a gas route */
 export function deliveredToken(fromChainId: number, toChainId: number): DeliveredToken | null {
   const route = HYPERLANE_ROUTES[fromChainId];
@@ -188,6 +211,7 @@ function buildTargets(): Map<number, Map<string, BridgeName>> {
     add(Number(chainId), route.router, 'hyperlane');
   }
   add(ENDURANCE_ROUTE.chainId, ENDURANCE_ROUTE.bridge, 'endurance');
+  for (const [chainId, p] of Object.entries(STARGATE_NATIVE_POOLS)) add(Number(chainId), p.pool, 'stargate');
   return table;
 }
 
