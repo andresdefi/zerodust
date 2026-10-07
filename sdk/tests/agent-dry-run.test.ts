@@ -235,8 +235,10 @@ describe('ZeroDustAgent refuses an untrusted API before signing', () => {
   });
 
   it('an excessive fee, even on a dry run', async () => {
+    // A Relay route with a matching amount, so the fee check (not the amount check) refuses it
     const quote = makeQuote({ route: 'relay' });
     quote.fees.maxTotalFeeWei = (BigInt(quote.userBalance) / 2n).toString();
+    quote.bridge = { ...quote.bridge!, inputAmount: (BigInt(quote.userBalance) - BigInt(quote.fees.maxTotalFeeWei)).toString() };
     installRoutes({ quote });
     expectRefused(await new ZeroDustAgent({ account }).sweep(SWEEP, { dryRun: true }), /fee reserve/);
   });
@@ -248,6 +250,14 @@ describe('ZeroDustAgent refuses an untrusted API before signing', () => {
     expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /native gas/);
     installRoutes({ relay: (b) => relayAnswer({ ...b, amountOut: '1' }) });
     expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /less than the amount shown/);
+  });
+
+  it('a Relay amount that is not the balance less the signed fee reserve', async () => {
+    const quote = makeQuote({ route: 'relay' });
+    quote.bridge = { ...quote.bridge!, inputAmount: (BigInt(quote.bridge!.inputAmount) / 2n).toString() };
+    installRoutes({ quote });
+    expectRefused(await new ZeroDustAgent({ account, environment: 'mainnet' }).sweep(SWEEP), /not the \d+ wei the balance leaves after fees/);
+    expect(mockFetch.mock.calls.some(([u]) => String(u).includes('api.relay.link'))).toBe(false);
   });
 
   it('an API that binds another deposit than the one Relay gave the agent', async () => {

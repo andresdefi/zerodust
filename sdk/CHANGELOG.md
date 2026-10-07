@@ -5,6 +5,15 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-10-07
+
+### Security
+
+- **The Relay amount is computed locally.** The agent asked Relay for the API's
+  `bridge.inputAmount`; it now computes what the contract will route (the balance
+  it reads itself less the signed `maxTotalFeeWei`) and refuses a quote whose
+  `inputAmount` differs, before asking Relay for anything.
+
 ## [0.5.6] - 2026-10-07
 
 ### Security
