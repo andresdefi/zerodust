@@ -138,7 +138,7 @@ export const ENDURANCE_ROUTE = {
 /**
  * Stargate V2 native-ETH pools (StargatePoolNative): ETH in, native ETH out, called directly.
  * Pinned with their LayerZero endpoint ids (read on-chain 2026-10-07); mirrors the backend's
- * bridges/stargate.ts. Lightlink is a destination only.
+ * bridges/stargate.ts. Lightlink is a destination only. Swellchain shut down (2026-06): excluded.
  */
 export const STARGATE_NATIVE_POOLS: Readonly<Record<number, { pool: Address; eid: number }>> = {
   1: { pool: '0x77b2043768d28E9C9aB44E1aBfC95944bcE57931', eid: 30101 },
