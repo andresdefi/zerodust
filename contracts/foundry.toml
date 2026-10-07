@@ -67,3 +67,7 @@ bsc_testnet = { key = "${BSCSCAN_API_KEY}" }
 gnosis = { key = "${GNOSISSCAN_API_KEY}" }
 gnosis_chiado = { key = "${GNOSISSCAN_API_KEY}" }
 unichain_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
+# The linter (solar) cannot parse Yul: the guard is compiled, tested and mutation-checked instead
+[lint]
+ignore = ["src/ZeroDustGuard.yul"]
