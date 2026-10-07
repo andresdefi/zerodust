@@ -45,6 +45,17 @@ describe('l1FeeAllowanceWei', () => {
     expect(await l1FeeAllowanceWei(5000, r.call)).toBe(3n * 4_000n * L1_FEE_ALLOWANCE_MULTIPLIER);
   });
 
+  it("prices Arbitrum Nova's L1 gas units with the NodeInterface (units x base fee), doubled", async () => {
+    const answer = `${word(12_000_000n)}${word(20_000_000n).slice(2)}${word(8_572_354_280n).slice(2)}` as Hex;
+    const calls: Array<{ to: Address; data: Hex }> = [];
+    const allowance = await l1FeeAllowanceWei(42170, async (c) => { calls.push(c); return answer; });
+    expect(allowance).toBe(12_000_000n * 20_000_000n * L1_FEE_ALLOWANCE_MULTIPLIER);
+    expect(calls[0]!.to).toBe('0x00000000000000000000000000000000000000C8');
+    const { args } = decodeFunctionData({ abi: parseAbi(['function gasEstimateL1Component(address,bool,bytes) payable returns (uint64,uint256,uint256)']), data: calls[0]!.data });
+    expect((args[2].length - 2) / 2).toBe(L1_FEE_PROBE_BYTES);
+    await expect(l1FeeAllowanceWei(42170, async () => '0x')).rejects.toThrow(/returned nothing/);
+  });
+
   it('throws rather than allow 0 when a rollup oracle does not answer', async () => {
     await expect(l1FeeAllowanceWei(534352, recorder({}).call)).rejects.toThrow(/returned nothing/);
   });
