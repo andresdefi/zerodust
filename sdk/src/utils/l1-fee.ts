@@ -11,19 +11,28 @@
  * sweep tx (~1.3 KB with 512 bytes of bridge calldata) and its revoke (~0.2 KB)
  * together, and doubles it for L1 price moves. It comes from the chain, not the
  * API, so a wrong quote still cannot raise its own ceiling.
+ *
+ * Arbitrum Nova charges its L1 cost as gas units of the tx (Nitro's poster fee), priced by the
+ * NodeInterface: ~6M units for a sweep tx on 2026-10-07 (Nova's L1 price estimate 8.6 gwei),
+ * so the backend charges it in extraFeeWei too. Arbitrum One's is negligible and stays unpriced.
  */
 
-import { keccak256, toHex, type Address, type Hex } from 'viem';
+import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from 'viem';
 
 const OP_GAS_PRICE_ORACLE: Address = '0x420000000000000000000000000000000000000F';
 const SCROLL_L1_GAS_ORACLE: Address = '0x5300000000000000000000000000000000000002';
+/** Arbitrum Nitro NodeInterface (a virtual contract, eth_call only) */
+const ARBITRUM_NODE_INTERFACE: Address = '0x00000000000000000000000000000000000000C8';
+const NODE_INTERFACE_ABI = parseAbi([
+  'function gasEstimateL1Component(address to, bool contractCreation, bytes data) payable returns (uint64 gasEstimateForL1, uint256 baseFee, uint256 l1BaseFeeEstimate)',
+]);
 
-type L1FeeOracle = 'op' | 'scroll' | 'mantle';
+type L1FeeOracle = 'op' | 'scroll' | 'mantle' | 'arbitrum';
 
 /**
  * ZeroDust chains whose txs pay an L1 data fee (the backend's list, probed
  * 2026-09-29). Mantle's oracle answers in ETH and the fee is paid in MNT, so it
- * is multiplied by tokenRatio(). Arbitrum-family chains fold L1 cost into gas.
+ * is multiplied by tokenRatio(). Arbitrum Nova charges it as gas units (NodeInterface).
  */
 export const L1_FEE_ORACLES: Readonly<Record<number, L1FeeOracle>> = {
   10: 'op', 130: 'op', 169: 'op', 252: 'op', 360: 'op', 480: 'op', 1135: 'op', 1868: 'op',
@@ -31,6 +40,7 @@ export const L1_FEE_ORACLES: Readonly<Record<number, L1FeeOracle>> = {
   48900: 'op', 57073: 'op', 60808: 'op', 97477: 'op', 685689: 'op', 747474: 'op', 7777777: 'op',
   534352: 'scroll',
   5000: 'mantle',
+  42170: 'arbitrum',
 };
 
 /** Bytes priced: more than a sweep tx and its revoke together, and incompressible */
@@ -65,6 +75,15 @@ function encodeGetL1Fee(bytes: Hex): Hex {
 export async function l1FeeAllowanceWei(chainId: number, call: RawCall): Promise<bigint> {
   const oracle = L1_FEE_ORACLES[chainId];
   if (!oracle) return 0n;
+  if (oracle === 'arbitrum') {
+    const answer = await call({
+      to: ARBITRUM_NODE_INTERFACE,
+      data: encodeFunctionData({ abi: NODE_INTERFACE_ABI, functionName: 'gasEstimateL1Component', args: [ARBITRUM_NODE_INTERFACE, false, probe()] }),
+    });
+    if (!answer || answer === '0x') throw new Error(`NodeInterface returned nothing on chain ${chainId}`);
+    const [gasForL1, baseFee] = decodeFunctionResult({ abi: NODE_INTERFACE_ABI, functionName: 'gasEstimateL1Component', data: answer });
+    return gasForL1 * baseFee * L1_FEE_ALLOWANCE_MULTIPLIER;
+  }
   const to = oracle === 'scroll' ? SCROLL_L1_GAS_ORACLE : OP_GAS_PRICE_ORACLE;
   const fee = await call({ to, data: encodeGetL1Fee(probe()) });
   if (!fee || fee === '0x') throw new Error(`L1 fee oracle returned nothing on chain ${chainId}`);

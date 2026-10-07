@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-10-07
+
+### Fixed
+
+- **Arbitrum Nova's L1 cost is allowed in the fee ceiling.** Nova charges the
+  L1 cost as gas units (~6M for a sweep tx), which the API now charges in
+  `extraFeeWei`; the ceiling prices it from Nova's NodeInterface, as it reads
+  the OP, Scroll and Mantle oracles. Without it every Nova sweep was refused
+  with `UNSAFE_QUOTE`.
+
 ## [0.5.7] - 2026-10-07
 
 ### Security
