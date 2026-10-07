@@ -5,6 +5,19 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.10] - 2026-10-08
+
+### Added
+
+- **Stargate native-ETH pools as a route.** Stargate V2's StargatePoolNative on
+  Ethereum, Optimism, Unichain, Manta, Soneium, Base, Arbitrum, Hemi, Linea, Doma and
+  Scroll (and Lightlink as a destination) are pinned call targets. The quote check
+  decodes `send`: the destination's endpoint id, the requested recipient, taxi mode
+  with nothing run on arrival, a minimum delivery, and the fee refund to ZeroDust
+  (a refund to the wallet would break exact zero). It reads the LayerZero fee from
+  the pool itself (new `ethCall` in the check context; ZeroDustAgent supplies it)
+  and refuses a route that keeps more of the value than that fee plus 10%.
+
 ## [0.5.9] - 2026-10-07
 
 ### Added

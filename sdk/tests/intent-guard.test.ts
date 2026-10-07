@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { type Address, type Hex, encodeFunctionData, hashTypedData, keccak256, parseAbi } from 'viem';
+import { type Address, type Hex, encodeFunctionData, encodeFunctionResult, hashTypedData, keccak256, parseAbi } from 'viem';
 import {
   verifySweepQuote,
   assertAuthorizationMatches,
@@ -298,6 +298,60 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     it('refuses another recipient or another domain', async () => {
       expect(await rejection(verifySweepQuote(metalayerQuote({ recipient: ATTACKER }), trustCtx()))).toMatch(/Hyperlane transfer pays/);
       expect(await rejection(verifySweepQuote(metalayerQuote({ domain: 42161 }), trustCtx()))).toMatch(/domain 42161/);
+    });
+  });
+
+  describe('Stargate native-ETH pools (Base -> Arbitrum)', () => {
+    const POOL = '0xdc181Bd607330aeeBEF6ea62e03e5e1Fb4B6F7C7' as Address;
+    const REFUND = '0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D' as Address;
+    const PARAM = '(uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd)';
+    const abi = parseAbi([
+      `function send(${PARAM} sendParam, (uint256 nativeFee, uint256 lzTokenFee) fee, address refundAddress) payable`,
+      `function quoteSend(${PARAM} sendParam, bool payInLzToken) view returns ((uint256 nativeFee, uint256 lzTokenFee) fee)`,
+    ]);
+    const FEE = 10n ** 13n;
+    const pad = (a: Address) => `0x${a.slice(2).toLowerCase().padStart(64, '0')}` as Hex;
+    const quoteSend = async () => encodeFunctionResult({ abi, functionName: 'quoteSend', result: { nativeFee: FEE, lzTokenFee: 0n } });
+    const sgCtx = (o: Partial<QuoteCheckContext> = {}) => crossCtx({ ethCall: quoteSend, ...o });
+
+    function stargateQuote(p: { recipient?: Address; dstEid?: number; refund?: Address; compose?: Hex; extraFee?: bigint; min?: bigint } = {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const amountLD = ((routed - (FEE * 110n) / 100n - (p.extraFee ?? 0n)) / 10n ** 12n) * 10n ** 12n;
+      const callData = encodeFunctionData({
+        abi, functionName: 'send',
+        args: [
+          { dstEid: p.dstEid ?? 30110, to: pad(p.recipient ?? account.address), amountLD, minAmountLD: p.min ?? amountLD - amountLD / 1000n, extraOptions: '0x', composeMsg: p.compose ?? '0x', oftCmd: '0x' },
+          { nativeFee: FEE, lzTokenFee: 0n },
+          p.refund ?? REFUND,
+        ],
+      });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '42161';
+        q.intent.callTarget = POOL;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the pinned pool paying the requested address on Arbitrum, the refund to ZeroDust, the fee as the pool quotes it', async () => {
+      const { route } = await verifySweepQuote(stargateQuote(), sgCtx());
+      expect(route).toEqual({ bridge: 'stargate', recipientVerified: true });
+      expect(bridgeForCallTarget(8453, POOL)).toBe('stargate');
+      expect(bridgeForCallTarget(1329, POOL)).toBeNull();
+    });
+
+    it('refuses another recipient or chain, a refund to anyone else (the wallet would keep dust), a message on arrival, no minimum', async () => {
+      expect(await rejection(verifySweepQuote(stargateQuote({ recipient: ATTACKER }), sgCtx()))).toMatch(/Stargate send pays/);
+      expect(await rejection(verifySweepQuote(stargateQuote({ dstEid: 30111 }), sgCtx()))).toMatch(/endpoint 30111/);
+      expect(await rejection(verifySweepQuote(stargateQuote({ refund: account.address }), sgCtx()))).toMatch(/refund goes to/);
+      expect(await rejection(verifySweepQuote(stargateQuote({ compose: '0x01' }), sgCtx()))).toMatch(/on arrival/);
+      expect(await rejection(verifySweepQuote(stargateQuote({ min: 0n }), sgCtx()))).toMatch(/no minimum delivery/);
+    });
+
+    it("refuses a fee above the pool's own quote (the excess would be refunded to ZeroDust), and a check that cannot read it", async () => {
+      expect(await rejection(verifySweepQuote(stargateQuote({ extraFee: 10n ** 15n }), sgCtx()))).toMatch(/above the .* wei it quotes/);
+      expect(await rejection(verifySweepQuote(stargateQuote(), crossCtx()))).toMatch(/cannot read the Stargate fee/);
     });
   });
 
