@@ -54,6 +54,11 @@ const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   97477, // Doma: Gas.zip does not serve it
   124816, // Mitosis: Gas.zip does not take it as a source
   648, // Endurance: only Fusionist's bridge takes ACE out
+  // Gas.zip delivers into these but takes nothing out (checked 2026-10-07)
+  8217, // Kaia
+  16661, // 0G
+  42170, // Arbitrum Nova: listed with outbound off
+  1155, // Intuition: only Caldera's Metalayer takes TRUST out
 ]);
 
 // ============ Relay ============
@@ -95,6 +100,8 @@ export interface DeliveredToken {
  * chain's native coin is locked and minted as an ERC-20 on the destination, so
  * the user receives that token, not gas. Pinned; mirrors the backend's
  * bridges/hyperlane.ts. MITO: Hyperlane registry deployments/warp_routes/MITO.
+ * TRUST: Caldera's Metalayer (its own Hyperlane deployment, the same
+ * transferRemote): Intuition's MetaNativeSpoke -> canonical TRUST on Base.
  */
 export const HYPERLANE_ROUTES: Readonly<Record<number, {
   router: Address;
@@ -107,6 +114,12 @@ export const HYPERLANE_ROUTES: Readonly<Record<number, {
     toChainId: 56,
     destinationDomain: 56,
     token: { symbol: 'MITO', address: '0x8e1e6BF7E13C400269987B65Ab2b5724b016CaEF', decimals: 18 },
+  },
+  1155: {
+    router: '0x375135fe908dD62f3C7939FA4e65bf41Da721AB9',
+    toChainId: 8453,
+    destinationDomain: 8453,
+    token: { symbol: 'TRUST', address: '0x6cd905dF2Ed214b22e0d48FF17CD4200C1C6d8A3', decimals: 18 },
   },
 };
 
@@ -137,11 +150,11 @@ export function deliversOnlyToSender(fromChainId: number, toChainId: number): bo
 
 // ============ Lookup ============
 
-/** Every chain the ZeroDust contract is deployed on (mainnet; Mitosis and Endurance 2026-10-03) */
+/** Every chain the ZeroDust contract is deployed on (mainnet; Kaia, 0G, Arbitrum Nova and Intuition 2026-10-07) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1329, 1514, 1672, 1868,
-  2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8453, 9745, 33139, 34443, 42018, 42161,
-  42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 534352,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1155, 1329, 1514, 1672, 1868,
+  2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8217, 8453, 9745, 16661, 33139, 34443, 42018, 42161,
+  42170, 42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 534352,
   685689, 747474, 7777777,
 ];
 
