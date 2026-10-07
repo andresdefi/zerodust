@@ -200,6 +200,13 @@ export interface QuoteResponse {
    * token), not native gas; estimatedReceive and minReceive are in its units
    */
   receiveToken?: { symbol: string; address: string; decimals: number };
+  /** Cross-chain only: the bridge chosen; inputAmount is exactly what the sweep routes into it (wei) */
+  bridge?: { name: string; displayName: string; inputAmount: string; expectedOutput: string };
+  /**
+   * Relay routes only: a one-time token for POST /quote/:quoteId/relay-route (bindRelayRoute), only
+   * in this response. Relay keeps the recipient off-chain, so the client fetches the deposit itself
+   */
+  relayRouteToken?: string;
   /** Intent fields for signing */
   intent: SweepIntentFields;
   /** Quote deadline (unix timestamp) */
