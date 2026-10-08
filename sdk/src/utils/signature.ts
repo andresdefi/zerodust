@@ -43,6 +43,26 @@ export const MODE_CALL = 1;
 export const ZERO_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
 /**
+ * Smart-account delegates a sweep hands the wallet back to instead of no delegation, so a
+ * sweep does not undo an upgrade the owner paid gas for. MetaMask's EIP7702StatelessDeleGator
+ * (MetaMask/delegation-framework, same address on every chain). The API accepts a closing
+ * authorization to one of these only when the wallet is delegated to it before the sweep.
+ */
+export const RESTORABLE_DELEGATES: readonly Address[] = ['0x63c0c19a282a1b52b07dd5a65b58948a07dae32b'];
+
+/**
+ * Where a sweep's closing authorization puts the wallet, given its code before the sweep:
+ * back to its delegate when that is a known smart account, otherwise no delegation. An
+ * unknown delegation (possibly a drainer's) is never put back.
+ */
+export function closingDelegateFor(codeBefore: string | undefined): Address {
+  const lower = (codeBefore ?? '').toLowerCase();
+  if (!lower.startsWith('0xef0100') || lower.length !== 48) return ZERO_ADDRESS;
+  const delegate = `0x${lower.slice(8)}`;
+  return RESTORABLE_DELEGATES.find((d) => d.toLowerCase() === delegate) ?? ZERO_ADDRESS;
+}
+
+/**
  * Zero route hash (keccak256 of empty bytes)
  */
 export const ZERO_ROUTE_HASH: Hex = keccak256(toHex(''));
