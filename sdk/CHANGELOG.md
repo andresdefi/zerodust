@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.12] - 2026-10-08
+
+### Fixed
+
+- **0.5.11 refused its own restore.** `submitSweep` still required the closing
+  authorization to delegate to address(0), so a sweep of a MetaMask smart account
+  failed with `INVALID_REQUEST` before reaching the API (plain wallets were not
+  affected). It now also accepts the delegates in `RESTORABLE_DELEGATES`. A test now
+  sweeps a MetaMask smart account through submission, not only a dry run.
+
 ## [0.5.11] - 2026-10-08
 
 ### Changed

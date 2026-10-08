@@ -315,6 +315,14 @@ describe('ZeroDust Client', () => {
       await expect(client.submitSweep({ ...sweepRequest, revokeAuthorization: { ...revokeAuthorization, contractAddress: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' } })).rejects.toThrow(/address\(0\)/);
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    it('accepts a revoke authorization back to MetaMask\'s smart-account delegate', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ sweepId: 's', status: 'pending' }));
+      const metamask = { ...sweepRequest.revokeAuthorization, contractAddress: '0x63c0c19a282a1b52b07dd5a65b58948a07dae32b' as const };
+      await expect(client.submitSweep({ ...sweepRequest, revokeAuthorization: metamask })).resolves.toMatchObject({ sweepId: 's' });
+      const sent = JSON.parse(String(mockFetch.mock.calls[0]![1]!.body)) as { revokeAuthorization: { contractAddress: string } };
+      expect(sent.revokeAuthorization.contractAddress.toLowerCase()).toBe('0x63c0c19a282a1b52b07dd5a65b58948a07dae32b');
+    });
   });
 
   describe('getSweepStatus', () => {
