@@ -46,6 +46,7 @@ import {
   validateSignature,
   validateEIP7702Authorization,
 } from './utils/validation.js';
+import { RESTORABLE_DELEGATES, ZERO_ADDRESS } from './utils/signature.js';
 
 // ============ Constants ============
 
@@ -533,12 +534,15 @@ export class ZeroDust {
       );
     }
     const validatedRevokeAuth = validateEIP7702Authorization(request.revokeAuthorization);
-    if (validatedRevokeAuth.contractAddress.toLowerCase() !== '0x0000000000000000000000000000000000000000'
+    // address(0), or back to a known smart-account delegate (MetaMask's); the API checks the
+    // wallet is delegated to that delegate now
+    const closing = validatedRevokeAuth.contractAddress.toLowerCase();
+    if ((closing !== ZERO_ADDRESS.toLowerCase() && !RESTORABLE_DELEGATES.some((d) => d.toLowerCase() === closing))
       || validatedRevokeAuth.chainId !== validatedAuth.chainId
       || validatedRevokeAuth.nonce !== validatedAuth.nonce + 1) {
       throw new ZeroDustError(
         'INVALID_REQUEST',
-        'revokeAuthorization must delegate to address(0) on the same chain as the sweep, with nonce = delegation nonce + 1'
+        'revokeAuthorization must delegate to address(0) (or back to MetaMask\'s smart-account delegate) on the same chain as the sweep, with nonce = delegation nonce + 1'
       );
     }
 
