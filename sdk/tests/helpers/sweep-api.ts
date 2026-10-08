@@ -178,7 +178,7 @@ export function makeAuthorization(
 /** Answers the JSON-RPC calls a sweep makes */
 export function rpcResult(
   method: string,
-  chain: { nonce: number; balance?: bigint; gasPrice?: bigint; chainId?: number; l1Fee?: bigint }
+  chain: { nonce: number; balance?: bigint; gasPrice?: bigint; chainId?: number; l1Fee?: bigint; code?: string }
 ): string {
   switch (method) {
     case 'eth_getTransactionCount':
@@ -192,6 +192,9 @@ export function rpcResult(
       return `0x${(chain.l1Fee ?? 0n).toString(16).padStart(64, '0')}`;
     case 'eth_chainId':
       return `0x${(chain.chainId ?? 8453).toString(16)}`;
+    case 'eth_getCode':
+      // The sweeping wallet: no code unless a test sets one (e.g. MetaMask's delegation)
+      return chain.code ?? '0x';
     default:
       throw new Error(`unexpected RPC method ${method}`);
   }

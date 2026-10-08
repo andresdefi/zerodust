@@ -59,7 +59,7 @@ import type {
   EIP7702Authorization,
 } from './types.js';
 import { ZeroDustError } from './errors.js';
-import { ZERO_ADDRESS, ZERODUST_CONTRACT_ADDRESS } from './utils/signature.js';
+import { ZERODUST_CONTRACT_ADDRESS, closingDelegateFor } from './utils/signature.js';
 import { bridgeForCallTarget, createGasZipChainShortResolver } from './utils/bridge-targets.js';
 import { requestRelayDeposit } from './utils/relay-deposit.js';
 import { l1FeeAllowanceWei } from './utils/l1-fee.js';
@@ -482,15 +482,20 @@ export class ZeroDustAgent {
         );
       }
 
-      // 6. Sign revoke authorization (nonce = delegation nonce + 1)
+      // 6. Sign the closing authorization (nonce = delegation nonce + 1): ZeroDust's delegation
+      //    ends after the sweep, back to no delegation, or back to MetaMask's smart-account
+      //    delegate when the wallet is one (a sweep must not undo that upgrade)
+      const closingDelegate = closingDelegateFor(
+        await this.getPublicClient(request.fromChainId).getCode({ address: this.address })
+      );
       const revokeAuthorization = await this.signEIP7702Authorization({
-        contractAddress: ZERO_ADDRESS,
+        contractAddress: closingDelegate,
         chainId: request.fromChainId,
         nonce: eip7702Authorization.nonce + 1,
       });
       assertSignedAuthorization(
         revokeAuthorization,
-        { contractAddress: ZERO_ADDRESS, chainId: request.fromChainId, nonce: eip7702Authorization.nonce + 1 },
+        { contractAddress: closingDelegate, chainId: request.fromChainId, nonce: eip7702Authorization.nonce + 1 },
         'Revoke'
       );
 
