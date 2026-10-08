@@ -5,6 +5,20 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.11] - 2026-10-08
+
+### Changed
+
+- **A sweep no longer undoes MetaMask's smart-account upgrade.** The closing
+  authorization (delegation nonce + 1) used to delegate every wallet to address(0).
+  A wallet already delegated to MetaMask's EIP7702StatelessDeleGator
+  (`0x63c0c19a282a1b52b07dd5a65b58948a07dae32b`) now goes back to it instead, so
+  its owner does not pay gas to upgrade again. Any other delegation, including an
+  unknown one that may be a drainer's, still ends at address(0). The agent reads the
+  wallet's code on the source chain before signing. New exports:
+  `RESTORABLE_DELEGATES`, `closingDelegateFor(code)`. The API accepts the restore
+  only when the wallet is delegated to that delegate at submission.
+
 ## [0.5.10] - 2026-10-08
 
 ### Added

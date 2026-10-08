@@ -27,6 +27,9 @@ import {
   relayDepositData,
 } from './helpers/sweep-api.js';
 
+const METAMASK_DELEGATE = '0x63c0c19a282a1b52b07dd5a65b58948a07dae32b';
+const METAMASK_DESIGNATOR = `0xef0100${METAMASK_DELEGATE.slice(2)}`;
+
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -41,6 +44,8 @@ function installRoutes(
     onSweep?: () => Promise<Response>;
     /** Relay's answer to the agent's own request (default: the deposit for the quote's amount) */
     relay?: (body: { amount: string; recipient: Address }) => unknown;
+    /** The wallet's code on the source chain (default: none) */
+    code?: string;
     /** What the API binds (default: exactly what the agent sent) */
     bind?: (body: { callTarget: string; callData: string }) => { callTarget: string; callData: string };
   } = {}
@@ -70,7 +75,7 @@ function installRoutes(
       return json({ status: 'completed', txHash: '0xabc' });
     }
     if (url.includes('gas.zip')) return gasZipChains();
-    if (init?.method === 'POST') return rpcResponse(String(init.body), { nonce: 7 });
+    if (init?.method === 'POST') return rpcResponse(String(init.body), { nonce: 7, code: opts.code });
 
     return json({ error: `unexpected request: ${url}` }, 500);
   });
@@ -179,6 +184,31 @@ describe('ZeroDustAgent dry run', () => {
     expect(delegationSigner).toBe(account.address);
     expect(sigs.delegation).toMatchObject({ chainId: 8453, contractAddress: CONTRACT, nonce: 7 });
     expect(sigs.revoke).toMatchObject({ chainId: 8453, nonce: 8 });
+  });
+
+  it('signs the closing authorization to address(0) for a plain wallet', async () => {
+    installRoutes();
+    const sigs = (await makeAgent().sweep(SWEEP, { dryRun: true })).signatures!;
+    expect(sigs.revoke.contractAddress.toLowerCase()).toBe('0x0000000000000000000000000000000000000000');
+  });
+
+  // A key sweep must not undo MetaMask's smart-account upgrade (the owner paid gas for it)
+  it('signs the closing authorization back to MetaMask\'s delegate when the wallet is a MetaMask smart account', async () => {
+    installRoutes({ code: METAMASK_DESIGNATOR });
+    const sigs = (await makeAgent().sweep(SWEEP, { dryRun: true })).signatures!;
+    expect(sigs.revoke).toMatchObject({ chainId: 8453, nonce: 8 });
+    expect(sigs.revoke.contractAddress.toLowerCase()).toBe(METAMASK_DELEGATE);
+    const signer = await recoverAuthorizationAddress({
+      authorization: { address: sigs.revoke.contractAddress, chainId: sigs.revoke.chainId, nonce: sigs.revoke.nonce },
+      signature: { r: sigs.revoke.r, s: sigs.revoke.s, yParity: sigs.revoke.yParity },
+    });
+    expect(signer).toBe(account.address);
+  });
+
+  it('never puts back an unknown delegation (it may be a drainer\'s)', async () => {
+    installRoutes({ code: `0xef0100${'de'.repeat(20)}` });
+    const sigs = (await makeAgent().sweep(SWEEP, { dryRun: true })).signatures!;
+    expect(sigs.revoke.contractAddress.toLowerCase()).toBe('0x0000000000000000000000000000000000000000');
   });
 
   it('still submits when dryRun is not set', async () => {
