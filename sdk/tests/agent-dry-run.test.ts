@@ -205,6 +205,16 @@ describe('ZeroDustAgent dry run', () => {
     expect(signer).toBe(account.address);
   });
 
+  // 0.5.11 signed the restore but its own submitSweep check refused it: test through submission
+  it('submits the restore for a MetaMask smart account (not only signs it)', async () => {
+    installRoutes({ code: METAMASK_DESIGNATOR });
+    const result = await makeAgent().sweep(SWEEP, { waitForCompletion: false });
+    expect(result.success).toBe(true);
+    const [, init] = sweepCalls()[0]!;
+    const body = JSON.parse(String((init as RequestInit).body)) as { revokeAuthorization: { contractAddress: string } };
+    expect(body.revokeAuthorization.contractAddress.toLowerCase()).toBe(METAMASK_DELEGATE);
+  });
+
   it('never puts back an unknown delegation (it may be a drainer\'s)', async () => {
     installRoutes({ code: `0xef0100${'de'.repeat(20)}` });
     const sigs = (await makeAgent().sweep(SWEEP, { dryRun: true })).signatures!;
