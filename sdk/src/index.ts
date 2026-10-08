@@ -131,6 +131,8 @@ export {
   MODE_CALL,
   ZERO_ADDRESS,
   ZERO_ROUTE_HASH,
+  RESTORABLE_DELEGATES,
+  closingDelegateFor,
   SWEEP_INTENT_TYPES,
   computeRouteHash,
   buildSweepIntentTypedData,

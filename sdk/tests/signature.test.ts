@@ -16,6 +16,7 @@ import {
   buildSweepIntentTypedData,
   buildSweepIntentFromQuote,
   validateSweepIntentParams,
+  closingDelegateFor,
   type SweepIntentParams,
 } from '../src/utils/signature.js';
 
@@ -282,5 +283,18 @@ describe('validateSweepIntentParams', () => {
         minReceive: -1n,
       })
     ).toThrow(/minReceive must be non-negative/);
+  });
+});
+
+describe('closingDelegateFor', () => {
+  const METAMASK = '0x63c0c19a282a1b52b07dd5a65b58948a07dae32b';
+  it('goes back to MetaMask\'s delegate for a MetaMask smart account', () => {
+    expect(closingDelegateFor(`0xef0100${METAMASK.slice(2)}`).toLowerCase()).toBe(METAMASK);
+    expect(closingDelegateFor(`0xEF0100${METAMASK.slice(2).toUpperCase()}`).toLowerCase()).toBe(METAMASK);
+  });
+  it('goes to no delegation for anything else', () => {
+    for (const code of [undefined, '0x', '0x6080', `0xef0100${'ab'.repeat(20)}`, `0xef0100${METAMASK.slice(2)}00`]) {
+      expect(closingDelegateFor(code)).toBe(ZERO_ADDRESS);
+    }
   });
 });
