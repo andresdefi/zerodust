@@ -197,7 +197,7 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
 | Stable | 988 | gUSDT | Ink | 57073 | ETH |
 | Lisk | 1135 | ETH | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
-| Story | 1514 | IP | Berachain | 80094 | BERA |
+| DATA Network | 1514 | DATA | Berachain | 80094 | BERA |
 | Pharos | 1672 | PROS | Doma | 97477 | ETH |
 | Soneium | 1868 | ETH | Plume | 98866 | PLUME |
 | Ronin | 2020 | RON | Taiko | 167000 | ETH |

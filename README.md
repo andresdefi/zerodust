@@ -162,7 +162,7 @@ Hyperlane) and Endurance (ACE, via Fusionist's bridge, to the sending wallet onl
 | Lisk | 1135 | ETH | Ink | 57073 | ETH |
 | Intuition | 1155 | TRUST | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
-| Story | 1514 | IP | Berachain | 80094 | BERA |
+| DATA Network | 1514 | DATA | Berachain | 80094 | BERA |
 | Pharos | 1672 | PROS | Doma | 97477 | ETH |
 | Soneium | 1868 | ETH | Plume | 98866 | PLUME |
 | Ronin | 2020 | RON | Mitosis | 124816 | MITO |
