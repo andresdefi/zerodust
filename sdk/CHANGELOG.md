@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.13] - 2026-10-10
+
+### Added
+
+- **A chain's own bridge as a route.** ZeroDust can sweep a sponsored chain to exactly
+  0 into its own bridge to Ethereum (the API's `bridge=native`; the user proves and
+  claims on Ethereum later). The intent guard knows these bridges (`NATIVE_EXITS`;
+  first: Lisk's L2StandardBridge, only toward Ethereum) and refuses the route unless
+  its `bridgeETHTo` names the requested recipient. Before this, the SDK refused such a
+  quote as an unknown call target. Tested with real funds on Lisk (exactly 0, 2026-10-10).
+
 ## [0.5.12] - 2026-10-08
 
 ### Fixed
