@@ -472,6 +472,28 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe("A chain's own bridge on the Arbitrum stack (Nova -> Ethereum, ArbSys.withdrawEth)", () => {
+    const ARB_SYS = '0x0000000000000000000000000000000000000064' as Address;
+    const abi = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
+    const novaCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 42170, toChainId: 1, ...o });
+    function novaQuote(to: Address = account.address) {
+      const base = makeQuote({ route: 'relay' });
+      const callData = encodeFunctionData({ abi, functionName: 'withdrawEth', args: [to] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '1';
+        q.intent.callTarget = ARB_SYS;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts withdrawEth to the requested recipient, refuses another', async () => {
+      expect((await verifySweepQuote(novaQuote(), novaCtx())).route).toEqual({ bridge: 'native', recipientVerified: true });
+      expect(await rejection(verifySweepQuote(novaQuote(ATTACKER), novaCtx()))).toMatch(/pays .* not /);
+      expect(bridgeForCallTarget(42161, ARB_SYS)).toBeNull();
+    });
+  });
+
   describe('Across calldata, when the API supplies it', () => {
     const abi = parseAbi([
       'function depositNative(address spokePool, address depositor, bytes32 recipient, address inputToken, uint256 inputAmount, bytes32 outputToken, uint256 outputAmount, uint256 destinationChainId, bytes32 exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityParameter, bytes message)',

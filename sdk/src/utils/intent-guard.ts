@@ -378,6 +378,7 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
 
 /** A Relay depository deposit must credit the signer (refunds go there) */
 const NATIVE_OP_BRIDGE_ABI = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
+const NATIVE_ARB_SYS_ABI = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
 
 function verifyRelayCalldata(callData: Hex, ctx: QuoteCheckContext): void {
   if (!callData.startsWith('0x49290c1c')) return; // router multicall: nothing decodable to check
@@ -501,9 +502,11 @@ export async function verifySweepQuote(
       if (!callData) unsafe('the own-bridge route has no calldata to check');
       let to: Address;
       try {
-        [to] = decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
+        [to] = exit.stack === 'arb'
+          ? decodeFunctionData({ abi: NATIVE_ARB_SYS_ABI, data: callData }).args
+          : decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
       } catch {
-        return unsafe('the own-bridge calldata is not bridgeETHTo');
+        return unsafe(`the own-bridge calldata is not ${exit.stack === 'arb' ? 'withdrawEth' : 'bridgeETHTo'}`);
       }
       if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
       recipientVerified = true;
