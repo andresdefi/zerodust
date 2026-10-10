@@ -437,6 +437,41 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe("A chain's own bridge (Lisk -> Ethereum, bridgeETHTo)", () => {
+    const BRIDGE = '0x4200000000000000000000000000000000000010' as Address;
+    const abi = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
+    const liskCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 1135, toChainId: 1, ...o });
+
+    function nativeQuote(p: { to?: Address; destination?: Address; chain?: string } = {}) {
+      const base = makeQuote({ route: 'relay', destination: p.destination });
+      const callData = encodeFunctionData({ abi, functionName: 'bridgeETHTo', args: [p.to ?? account.address, 200_000, '0x'] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = p.chain ?? '1';
+        q.intent.callTarget = BRIDGE;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the withdrawal to Ethereum that names the requested recipient', async () => {
+      const { route } = await verifySweepQuote(nativeQuote(), liskCtx());
+      expect(route).toEqual({ bridge: 'native', recipientVerified: true });
+      expect(bridgeForCallTarget(1135, BRIDGE)).toBe('native');
+      expect(bridgeForCallTarget(8453, BRIDGE)).toBeNull();
+    });
+
+    it('refuses another recipient, another destination chain, or other calldata', async () => {
+      expect(await rejection(verifySweepQuote(nativeQuote({ to: ATTACKER }), liskCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(nativeQuote({ chain: '8453' }), liskCtx({ toChainId: 8453 })))).toMatch(/does not go to chain 8453/);
+      const other = tamper(nativeQuote(), (q) => {
+        const data = '0xdeadbeef' as Hex;
+        q.intent.callData = data;
+        q.intent.routeHash = keccak256(data);
+      });
+      expect(await rejection(verifySweepQuote(other, liskCtx()))).toMatch(/not bridgeETHTo/);
+    });
+  });
+
   describe('Across calldata, when the API supplies it', () => {
     const abi = parseAbi([
       'function depositNative(address spokePool, address depositor, bytes32 recipient, address inputToken, uint256 inputAmount, bytes32 outputToken, uint256 outputAmount, uint256 destinationChainId, bytes32 exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityParameter, bytes message)',
