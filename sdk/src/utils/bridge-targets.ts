@@ -18,13 +18,16 @@
  *   the `swapTx.to` of live `GET /api/swap/approval` quotes from every ZeroDust
  *   chain Across serves, with code verified on each chain.
  *
+ * - Chains' own bridges (NATIVE_EXITS): the OP stack L2StandardBridge predeploy, only to the
+ *   chain's parent, with the recipient decoded and checked (intent-guard.ts).
+ *
  * A chain or bridge missing here fails closed: the sweep is refused before
  * anything is signed. Adding a bridge contract needs an SDK release.
  */
 
 import { type Address, type Hex, getAddress } from 'viem';
 
-export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance' | 'stargate';
+export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance' | 'stargate' | 'native';
 
 // ============ Gas.zip ============
 
@@ -181,6 +184,20 @@ export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
   685689, 747474, 7777777,
 ];
 
+// ============ Chains' own bridges ============
+
+/** OP stack L2StandardBridge predeploy: bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) */
+export const OP_L2_STANDARD_BRIDGE: Address = '0x4200000000000000000000000000000000000010';
+
+/**
+ * Sponsored chains whose own bridge ZeroDust can route into, only when the sweep asks for it
+ * (`bridge=native`), only to their parent chain. 1:1; the user proves and claims there later.
+ * Lisk: its only official bridge (bridge.lisk.com), chain closing 2026-10-31.
+ */
+export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op'; toChainId: number; bridge: Address }>> = {
+  1135: { stack: 'op', toChainId: 1, bridge: OP_L2_STANDARD_BRIDGE },
+};
+
 function buildTargets(): Map<number, Map<string, BridgeName>> {
   const table = new Map<number, Map<string, BridgeName>>();
   const add = (chainId: number, address: Address, bridge: BridgeName) => {
@@ -212,6 +229,7 @@ function buildTargets(): Map<number, Map<string, BridgeName>> {
   }
   add(ENDURANCE_ROUTE.chainId, ENDURANCE_ROUTE.bridge, 'endurance');
   for (const [chainId, p] of Object.entries(STARGATE_NATIVE_POOLS)) add(Number(chainId), p.pool, 'stargate');
+  for (const [chainId, exit] of Object.entries(NATIVE_EXITS)) add(Number(chainId), exit.bridge, 'native');
   return table;
 }
 

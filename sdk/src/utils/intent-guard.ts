@@ -46,7 +46,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -377,6 +377,8 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
 }
 
 /** A Relay depository deposit must credit the signer (refunds go there) */
+const NATIVE_OP_BRIDGE_ABI = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
+
 function verifyRelayCalldata(callData: Hex, ctx: QuoteCheckContext): void {
   if (!callData.startsWith('0x49290c1c')) return; // router multicall: nothing decodable to check
   let depositor: Address;
@@ -490,6 +492,21 @@ export async function verifySweepQuote(
       recipientVerified = true;
     } else if (bridge === 'across') {
       recipientVerified = callData ? verifyAcrossCalldata(callData, { ...ctx, signer, destination: requested }) : false;
+    } else if (bridge === 'native') {
+      // The chain's own bridge: only to its parent, and the withdrawal must name the requested recipient
+      const exit = NATIVE_EXITS[ctx.fromChainId];
+      if (!exit || exit.toChainId !== ctx.toChainId) {
+        unsafe(`the own bridge of chain ${ctx.fromChainId} does not go to chain ${ctx.toChainId}`);
+      }
+      if (!callData) unsafe('the own-bridge route has no calldata to check');
+      let to: Address;
+      try {
+        [to] = decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
+      } catch {
+        return unsafe('the own-bridge calldata is not bridgeETHTo');
+      }
+      if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
+      recipientVerified = true;
     } else if (bridge === 'relay') {
       if (callData) verifyRelayCalldata(callData, { ...ctx, signer });
       if (ctx.ownRelayCallData !== undefined) {
