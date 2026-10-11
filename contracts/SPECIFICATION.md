@@ -1,65 +1,24 @@
 # ZeroDustSweep Specification
 
 **Version:** 3.0
-**Last Updated:** January 31, 2026
-**Status:** Production - Deployed to 26 Mainnets
+**Status:** Production, deployed on 52 mainnets at `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` (source unchanged since January 2026)
 
 ---
 
 ## Overview
 
-ZeroDustSweep is designed for operational simplicity across 40+ chains while maintaining security guarantees. The key innovations are:
+ZeroDustSweep is designed for operational simplicity across many chains while keeping its security guarantees. The key innovations are:
 
 1. **Unified Entry Point** - Single `sweep()` function handles both same-chain and cross-chain
-2. **Sponsor-Only Execution** - No permissionless mode; single trusted sponsor
+2. **Sponsor-Only Execution** - No permissionless mode; up to 3 sponsors fixed in the bytecode (deployed with one, the AWS KMS key `0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`)
 3. **No Adapter Allowlist** - Generic `callTarget + callData` pattern for any bridge/DEX
 4. **Per-Intent Fee Tuning** - Gas price caps and fee parameters travel with the intent
 5. **Chain-Agnostic Bytecode** - Same constructor params deploy everywhere
 
 ---
 
-## Architecture Evolution (V2 vs Current)
+## SweepIntent (14 fields)
 
-### Architecture Changes
-
-| Aspect | V2 | V3 |
-|--------|----|----|
-| **Entry points** | 2 (`executeSameChainSweep`, `executeCrossChainSweep`) | 1 (`sweep`) |
-| **Mode system** | Implicit (which function) | Explicit (`MODE_TRANSFER=0`, `MODE_CALL=1`) |
-| **Bridge routing** | Typed adapter interface + allowlist | Generic `callTarget.call{value}(callData)` |
-| **Route binding** | None (V2 trusted adapter) | `routeHash = keccak256(callData)` |
-| **Executor** | Per-intent `relayer` field | Single immutable `SPONSOR` |
-| **Reentrancy guard** | None explicit | Explicit `_entered` flag |
-
-### Fee Model Changes
-
-| Aspect | V2 | V3 |
-|--------|----|----|
-| **User signs** | `maxRelayerFee` | `maxTotalFeeWei` + per-intent params |
-| **Fee calculation** | `min(balance, maxRelayerFee)` | `(gasUsed + overhead + protocolFee) × min(gasPrice, cap) + extraFee` |
-| **Gas price cap** | None | Per-intent `reimbGasPriceCapWei` (bounded by global max) |
-| **Overhead** | None | Per-intent `overheadGasUnits` (bounded) |
-| **Protocol fee** | None | Per-intent `protocolFeeGasUnits` (bounded) |
-| **Flat fee** | None | Per-intent `extraFeeWei` (bounded) |
-| **Unused fee** | Goes to destination | **Goes to sponsor** |
-| **Fee tunability** | None (redeploy) | Per-intent within immutable bounds |
-
-### Signature Structure
-
-**V2 Same-Chain (6 fields):**
-```
-SameChainSweep(address user, address destination, address relayer,
-               uint256 maxRelayerFee, uint256 deadline, uint256 nonce)
-```
-
-**V2 Cross-Chain (10 fields):**
-```
-CrossChainSweep(address user, uint256 destinationChainId, address destination,
-                address relayer, address adapter, address refundRecipient,
-                uint256 maxRelayerFee, uint256 minReceive, uint256 deadline, uint256 nonce)
-```
-
-**V3 Unified (14 fields):**
 ```
 SweepIntent(uint8 mode, address user, address destination, uint256 destinationChainId,
             address callTarget, bytes32 routeHash, uint256 minReceive,
@@ -67,48 +26,15 @@ SweepIntent(uint8 mode, address user, address destination, uint256 destinationCh
             uint256 extraFeeWei, uint256 reimbGasPriceCapWei, uint256 deadline, uint256 nonce)
 ```
 
----
-
-## Key Changes from V2
-
-### 1. Adapter Allowlist
-
-**V2:** Contract maintained an immutable list of up to 4 approved adapters. Adding a new bridge required deploying a new contract version.
-
-**V3:** No allowlist. Any contract can be called via `MODE_CALL`. Security comes from:
-- `routeHash` binds the exact calldata to the signature
-- Sponsor (you) controls what quotes are offered
-- User trusts the sponsor's quote engine
-
-### 2. Per-Intent Relayer Selection
-
-**V2:** Each intent could specify `relayer = address(0)` for permissionless or a specific address.
-
-**V3:** Single `SPONSOR` immutable. Only the sponsor can execute. This simplifies:
-- No "who can execute" logic
-- Clear revenue model
-- Single point of operational control
-
-### 3. Refund Recipient Field
-
-**V2:** Cross-chain intents had `refundRecipient` (had to equal `relayer`).
-
-**V3:** Removed. In `MODE_CALL`, the called contract handles its own refund logic. If the bridge returns funds, they come back to `address(this)` which would cause `NonZeroRemainder` revert - this is intentional and expected behavior.
-
-### 4. Separate Interfaces for Adapters
-
-**V2:** Required `IZeroDustAdapter` interface with specific function signature.
-
-**V3:** No interface required. Any contract that accepts ETH via `call{value}(callData)` works. This enables integration with:
-- Gas.zip (direct API calls)
-- Bungee/Socket
-- 1inch
-- Any DEX aggregator
-- Custom bridges
+`MODE_CALL` calls any contract with `call{value}(callData)`: there is no adapter allowlist in the
+contract. Security comes from `routeHash` binding the exact calldata to the signature, and from the
+sponsor's quote engine and the SDK's checks choosing and verifying the target. A bridge that returns
+funds to the wallet during the call makes the post-condition fail (`NonZeroRemainder`), which is
+intended.
 
 ---
 
-## New Features
+## Features
 
 ### 1. Per-Intent Gas Price Cap
 
@@ -193,38 +119,19 @@ function _nonReentrant() internal {
 
 ```solidity
 constructor(
-    address sponsor,              // Your hot wallet address (TBD)
-    uint256 maxOverheadGasUnits,  // 300,000
-    uint256 maxProtocolFeeGasUnits, // 100,000
-    uint256 maxExtraFeeWei,       // 0.0005 ETH (5 × 10^14 wei)
-    uint256 maxReimbGasPriceCapWei // 1000 gwei (10^12 wei)
+    address[] memory sponsors,      // 1 to 3 EOAs, stored as immutables (deployed: the KMS key)
+    uint256 minOverheadGasUnits,    // 50,000
+    uint256 maxOverheadGasUnits,    // 300,000
+    uint256 maxProtocolFeeGasUnits, // 100,000 (the field is unused: always 0)
+    uint256 maxExtraFeeWei,         // 1000 ether (tokens as cheap as $0.00005 at the $0.05 minimum fee)
+    uint256 maxReimbGasPriceCapWei  // 1000 gwei
 )
 ```
 
-**Key Design:** Same parameters on ALL chains. These are ceilings, not targets. Quote engine picks appropriate per-intent values well below these limits.
-
-### Recommended Values
-
-| Parameter | Recommended Value | Rationale |
-|-----------|------------------|-----------|
-| `sponsor` | TBD (hot wallet) | The only address allowed to call `sweep()` |
-| `maxOverheadGasUnits` | 300,000 | Reasonable ceiling, auditor-friendly |
-| `maxProtocolFeeGasUnits` | 100,000 | DEPRECATED - service fee now in extraFeeWei. Kept for backwards compat. |
-| `maxExtraFeeWei` | 5 × 10^14 (0.0005 ETH) | ~$1.25 max flat fee |
-| `maxReimbGasPriceCapWei` | 10^12 (1000 gwei) | Covers L1 congestion spikes |
-
-### Sponsor Policy Limits (Off-Chain Enforcement)
-
-The on-chain maxima are generous ceilings. Your quote engine/sponsor should enforce **stricter** policy limits:
-
-| Parameter | On-Chain Max | Sponsor Policy Limit |
-|-----------|--------------|---------------------|
-| `overheadGasUnits` | 300,000 | ≤ 80,000 |
-| `protocolFeeGasUnits` | 100,000 | ≤ 30,000 |
-| `extraFeeWei` | 0.0005 ETH | ≤ 0.00005 ETH (L2), higher on L1 |
-| `maxTotalFeeWei` | User-signed | Tight relative to quoted estimate |
-
-This ensures even if on-chain maxima are generous, your distribution channel cannot accidentally overquote.
+Same parameters on every chain (they are part of the CREATE2 address). These are ceilings; the quote
+engine signs per-intent values far below them, and the SDK checks every quote against its own
+limits before signing (`FEE_GAS_BUDGET_UNITS`, `MAX_SERVICE_FEE_BPS`, the gas price cap at most 3x the
+price it reads).
 
 ---
 
@@ -240,25 +147,19 @@ reimbursement = (measuredGas + overheadGasUnits + protocolFeeGasUnits)
 
 ### Off-Chain (Quote Engine)
 
-```typescript
-// Service fee: 5% under $1 (no minimum); from $1: 1%, min $0.05, max $0.50
-const serviceFeeUsd = balanceUsd < 1 ? balanceUsd * 0.05 : Math.max(0.05, Math.min(0.50, balanceUsd * 0.01));
-const serviceFeeWei = BigInt(Math.ceil(serviceFeeUsd / ethPriceUsd * 1e18));
+The API's quote engine (private backend) fills the intent's fee fields:
 
-// Convert to gas units for on-chain
-const expectedGasPrice = await getGasPrice(chainId);
-const protocolFeeGasUnits = serviceFeeWei / expectedGasPrice;
+- `extraFeeWei`: the service fee (5% of the balance's USD value under $1; from $1, 1% with a $0.05
+  minimum and a $0.50 maximum), plus the rollup's L1 data fee and per-chain surcharges.
+- `overheadGasUnits`: gas the contract cannot measure itself (intrinsic cost, authorization, the
+  bridge call as measured per route).
+- `reimbGasPriceCapWei`: 1.2 times the gas price at quote time.
+- `maxTotalFeeWei`: the whole reserve: (the route's measured gas + overhead + the revoke's gas) at
+  the cap, plus `extraFeeWei`. It
+  leaves the wallet in full; the contract reimburses the sponsor and sends the unused part to it.
+- `protocolFeeGasUnits`: always 0.
 
-// Gas cost estimate
-const estimatedGas = 150_000n;
-const gasCostWei = estimatedGas * expectedGasPrice;
-
-// Buffer: 20% of gas cost
-const bufferWei = gasCostWei * 20n / 100n;
-
-// Total fee cap
-const maxTotalFeeWei = serviceFeeWei + gasCostWei + bufferWei;
-```
+The public field-by-field description is at https://zerodust.xyz/docs/api#fees-in-a-quote.
 
 ---
 
@@ -301,9 +202,7 @@ const maxTotalFeeWei = serviceFeeWei + gasCostWei + bufferWei;
 
 ## Domain Separator (EIP-712)
 
-**Critical Change from V2:**
-
-V3 computes domain separator using `address(this)` which under EIP-7702 is the USER's EOA:
+The contract computes the domain separator using `address(this)` which under EIP-7702 is the USER's EOA:
 
 ```solidity
 bytes32 domainSeparator = keccak256(
@@ -320,7 +219,6 @@ bytes32 domainSeparator = keccak256(
 **Why this matters:**
 - Each user's signature is bound to their specific EOA
 - Prevents cross-user replay attacks
-- Different from V2 which used the implementation address
 
 ---
 
@@ -346,7 +244,7 @@ bytes32 domainSeparator = keccak256(
 
 ## Security Properties
 
-### Preserved from V2
+### Properties
 
 1. **User funds never custodied** - Atomic single-transaction
 2. **User cannot pay more than maxTotalFeeWei** - Enforced on-chain
@@ -355,91 +253,24 @@ bytes32 domainSeparator = keccak256(
 5. **Deadlines enforced** - `DeadlineExpired` check
 6. **Signature malleability protected** - Low-s check (EIP-2)
 
-### Current Implementation
-
 1. **Route binding** - `routeHash` prevents route substitution
 2. **Gas price protection** - Per-intent `reimbGasPriceCapWei`
 3. **Explicit reentrancy guard** - `_entered` flag
 4. **Cross-user replay prevention** - Domain separator uses user's EOA
 
-### Removed (Acceptable Trade-offs)
+### Trade-offs
 
-1. **Adapter allowlist** - Replaced by route binding + sponsor trust
-2. **Permissionless execution** - Sponsor-only simplifies security model
-3. **Refund recipient** - Bridge handles its own refund logic
-
----
-
-## Migration from V2
-
-### Breaking Changes
-
-1. **New typehash** - V2 signatures won't work on V3
-2. **Single entry point** - No more `executeSameChainSweep` / `executeCrossChainSweep`
-3. **No adapter interface** - Adapters not needed; use generic call
-4. **Domain separator** - Uses user EOA, not implementation address
-
-### Backend Changes Required
-
-1. **Signature service** - Update to V3 types (14 fields)
-2. **Quote engine** - Calculate new fee parameters
-3. **Relayer** - Call `sweep()` instead of `executeSameChainSweep()` / `executeCrossChainSweep()`
-4. **Bridge integration** - Prepare calldata for `MODE_CALL` instead of adapter calls
-
-### SDK Changes Required
-
-1. **Type definitions** - New `SweepIntent` structure
-2. **Signing** - Updated EIP-712 types
-3. **Quote response** - Include all fee parameters
-
----
-
-## Deprecation Notice
-
-**V1 and V2 are deprecated.** V3 is the production contract going forward.
-
-| Version | Status | Notes |
-|---------|--------|-------|
-| V1 | **DEPRECATED** | Testing only, no cross-chain support |
-| V2 | **DEPRECATED** | Adapter-based, replaced by V3 |
-| **V3** | **ACTIVE** | Production contract |
-
-All new development, testing, and deployments should use V3 exclusively. Existing V1/V2 deployments on testnets are for historical reference only and will not be maintained.
+1. **No adapter allowlist** - replaced by route binding and the sponsor's and SDK's checks
+2. **No permissionless execution** - sponsor only
+3. **No refund recipient** - the bridge handles its own refunds; a refund into the wallet during the
+   call fails the post-condition
 
 ---
 
 ## Deployment
 
-### Same Bytecode Everywhere
-
-```bash
-# Deploy with identical params on all chains
-forge create src/ZeroDustSweepMainnet.sol:ZeroDustSweepMainnet \
-  --constructor-args \
-    $SPONSOR_ADDRESS \
-    300000 \
-    100000 \
-    500000000000000 \
-    1000000000000 \
-  --rpc-url $RPC_URL \
-  --private-key $DEPLOYER_KEY
-```
-
-### Verification
-
-```bash
-forge verify-contract $CONTRACT_ADDRESS \
-  src/ZeroDustSweepMainnet.sol:ZeroDustSweepMainnet \
-  --constructor-args $(cast abi-encode "constructor(address,uint256,uint256,uint256,uint256)" \
-    $SPONSOR_ADDRESS 300000 100000 500000000000000 1000000000000) \
-  --chain-id $CHAIN_ID
-```
-
-### Deployment Order
-
-1. **Sepolia** - Primary testnet for initial testing
-2. **Other testnets** - Expand after Sepolia validation
-3. **Mainnets** - After thorough testnet verification
+See [DEPLOYMENT.md](./DEPLOYMENT.md): `script/DeployMainnet.s.sol` through the CREATE2 factory, salt
+`0x5a65726f44757374`, address `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` on every chain.
 
 ---
 
@@ -450,9 +281,8 @@ bytes32 public constant SWEEP_TYPEHASH = keccak256(
     "SweepIntent(uint8 mode,address user,address destination,uint256 destinationChainId,address callTarget,bytes32 routeHash,uint256 minReceive,uint256 maxTotalFeeWei,uint256 overheadGasUnits,uint256 protocolFeeGasUnits,uint256 extraFeeWei,uint256 reimbGasPriceCapWei,uint256 deadline,uint256 nonce)"
 );
 
-// Result: 0x... (compute at deployment)
 ```
 
 ---
 
-*This specification defines ZeroDustSweep. Implementation should follow this document exactly.*
+*This specification describes the deployed ZeroDustSweep (`src/ZeroDustSweepMainnet.sol`).*

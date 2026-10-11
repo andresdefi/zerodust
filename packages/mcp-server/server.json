@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.andresdefi/zerodust",
-  "description": "Recover stranded native gas: empty a chain's balance to exactly zero on 25 EVM chains.",
+  "description": "Recover stranded native gas: empty a chain's balance to exactly zero on 73 EVM chains.",
   "repository": {
     "url": "https://github.com/andresdefi/zerodust",
     "source": "github"
   },
-  "version": "0.5.1",
+  "version": "0.5.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@zerodust/mcp-server",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "transport": {
         "type": "stdio"
       },

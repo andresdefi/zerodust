@@ -50,7 +50,7 @@ each environment variable below.
 | `ZERODUST_ALLOWED_DESTINATIONS` | Comma-separated destination allowlist | own address only |
 | `ZERODUST_RPC_URLS` | Your own RPCs for sweeping, as `chainId=url` pairs: `8453=https://...,42161=https://...` | a public RPC per chain |
 
-Signing keys have their own section below — there are four ways to supply one,
+Signing keys have their own section below - there are four ways to supply one,
 and exactly one may be set at a time.
 
 | Variable | Description |
@@ -92,8 +92,8 @@ stops before submitting. Nothing is broadcast and no balance changes.
 
 > "Do a dry run of sweeping my Arbitrum balance to Base"
 
-Use this first. It exercises the entire path an actual sweep takes — key
-handling, chain support, fee limits, signature construction — so anything
+Use this first. It exercises the entire path an actual sweep takes - key
+handling, chain support, fee limits, signature construction - so anything
 misconfigured surfaces while your funds are still where they were.
 
 There is deliberately no testnet mode: the ZeroDust API currently serves no
@@ -106,7 +106,7 @@ Sweeping moves real funds, so it is off unless you turn it on. Set
 `ZERODUST_ALLOW_EXECUTE=true` **and** exactly one signing key.
 
 Whichever you choose, the key is used locally to sign an EIP-7702 authorization
-and an EIP-712 sweep intent. It is never transmitted — only signatures reach the
+and an EIP-712 sweep intent. It is never transmitted - only signatures reach the
 ZeroDust API.
 
 ### Option 1: a signer module (recommended for production)
@@ -160,7 +160,7 @@ password in a file so neither the key nor the password lives in your MCP config.
 
 ### Option 4: an inline key
 
-Simplest, and the least private — the key sits in a config file you may well
+Simplest, and the least private - the key sits in a config file you may well
 commit. Fine for a throwaway wallet, not for one holding anything you care about.
 
 ```json
@@ -182,7 +182,7 @@ To permit other destinations, list them explicitly:
 "ZERODUST_ALLOWED_DESTINATIONS": "0xYourColdWallet,0xYourExchangeDeposit"
 ```
 
-Treat this like any other spending authority — anything listed here can receive
+Treat this like any other spending authority - anything listed here can receive
 the agent's entire balance across every supported chain.
 
 ## Example Prompts

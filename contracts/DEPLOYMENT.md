@@ -1,168 +1,59 @@
-# ZeroDustSweep Deployment Guide
+# Deploying ZeroDust contracts
 
-**Last Updated:** January 31, 2026
+All contracts go through the CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`, so each
+has one address on every chain. A chain without that factory would need a CREATE deploy at another
+address (none of the live chains does). Every script checks the expected address first and does
+nothing if the code is already there.
 
----
+## ZeroDustSweep (`src/ZeroDustSweepMainnet.sol`)
 
-## Contract Versions
+`script/DeployMainnet.s.sol`, salt `0x5a65726f44757374` ("ZeroDust"), address
+`0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`.
 
-| Contract | Purpose | Status |
-|----------|---------|--------|
-| `ZeroDustSweepTEST` | Testnet testing | **Active** |
-| `ZeroDustSweepMainnet` | Mainnet production | **Active** (deployed to 26 chains) |
-
----
-
-## Testnet Deployment
-
-### Sponsor Address (Testnet)
-
-```
-0x16c9af121C797A56902170a7f808eDF1a857ED49
-```
-
-This is the deployer address that will also serve as the sponsor for testnet deployments.
-
-### Constructor Parameters (Testnet)
-
-```solidity
-address[] memory sponsors = new address[](1);
-sponsors[0] = 0x16c9af121C797A56902170a7f808eDF1a857ED49;
-
-new ZeroDustSweepTEST(
-    sponsors,
-    50_000,              // minOverheadGasUnits
-    300_000,             // maxOverheadGasUnits
-    100_000,             // maxProtocolFeeGasUnits
-    5 * 10**14,          // maxExtraFeeWei (0.0005 ETH)
-    10**12               // maxReimbGasPriceCapWei (1000 gwei)
-);
-```
-
-### Deployment Command (Testnet)
+Constructor (in the script): sponsors = `[SPONSOR_ADDRESS]` (the AWS KMS key
+`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`), min/max overhead gas units 50,000 / 300,000, max
+protocol-fee gas units 100,000, max extra fee 1000 ether (covers tokens as cheap as $0.00005 at the
+$0.05 minimum fee), max reimbursement gas price cap 1000 gwei. These are part of the bytecode: any
+change gives a different address. The sponsor must be an EOA.
 
 ```bash
-cd /Users/dev/zerodust/contracts
-source .env
-
-# Deploy to any testnet
-forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --broadcast -vvvv
+PRIVATE_KEY=<deployer> SPONSOR_ADDRESS=0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D \
+  forge script script/DeployMainnet.s.sol:DeployMainnet --rpc-url $RPC_URL --broadcast
 ```
 
----
+The deployer is `0x16c9af121C797A56902170a7f808eDF1a857ED49` (it only pays for the deploy; it has no
+role in the contract). `script/deploy-all-mainnets.sh` loops over chains with RPCs from the backend's
+`.env`; `script/verify-all-mainnets.sh` verifies on the Etherscan-family explorers.
 
-## Mainnet Deployment
+## ZeroDustPermissionRouter v2 (`src/ZeroDustPermissionRouter.sol`)
 
-### ⚠️ CRITICAL: Before Mainnet Deployment
+`script/DeployPermissionRouter.s.sol`, salt `keccak256("ZeroDust permission router v2")`, address
+`0x369A97dd256F7eb37fF7116C4EcBd50318eBb286`. Same sponsor and fee bounds as the sweep contract, plus
+MetaMask's DelegationManager (`0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3`, the same on every chain).
+Deploy it only where MetaMask offers Advanced Permissions; the backend turns a chain on once it finds
+the router's code there.
 
-1. **Use mainnet contract:**
-   - Deploy `ZeroDustSweepMainnet` (not the TEST contract)
+## ZeroDustGuard (`src/ZeroDustGuard.yul`)
 
-2. **Change sponsor addresses:**
-   - **DO NOT use the testnet sponsor address on mainnet**
-   - Use dedicated production sponsor EOAs with keys stored in KMS/HSM
-   - Consider using 2-3 sponsors for redundancy
+`0x2f95e6ED90a7dD67fc3Fae5c5628647E6A83e48e` on Blast and Boba, deployed through the same factory from
+its Yul creation code. After a deploy, check the runtime code hash:
+`0x0e00b07c95af7e18d655633d521d110ce6e95ff3c330ff3a4ac2d1b44fed685e`.
 
-3. **Complete external audit:**
-   - Required before mainnet deployment
-   - Trail of Bits, OpenZeppelin, or Spearbit recommended
+## ZeroDustPaymaster (ZK stack)
 
-### Sponsor Addresses (Mainnet)
+Lives in `../contracts-zk` (Hardhat + zksolc): `0x986e4Bb55AEEE6a8c80c28Ca787b13E216fD25B8` on zkSync
+Era, Abstract and Lens. See its README.
 
-```
-SPONSOR_1: TBD (primary hot wallet - KMS protected)
-SPONSOR_2: TBD (backup hot wallet - KMS protected)
-SPONSOR_3: TBD (optional - emergency backup)
-```
+## Source verification
 
-### Constructor Parameters (Mainnet)
+- Etherscan family: `forge verify-contract` works.
+- Sourcify: forge's Sourcify verifier still calls the removed v1 API and wrongly reports "already
+  verified". Submit through v2: `POST https://sourcify.dev/server/v2/verify/{chainId}/{address}` with
+  forge's `--show-standard-json-input`, compiler `0.8.28+commit.7893614a`, the contract identifier and
+  the deploy transaction hash; then poll `GET /v2/verify/{verificationId}`.
 
-```solidity
-address[] memory sponsors = new address[](2);  // or 3 for full redundancy
-sponsors[0] = 0x...;  // SPONSOR_1 - primary
-sponsors[1] = 0x...;  // SPONSOR_2 - backup
+## Before enabling a chain
 
-new ZeroDustSweepMainnet(
-    sponsors,
-    50_000,              // minOverheadGasUnits
-    300_000,             // maxOverheadGasUnits
-    100_000,             // maxProtocolFeeGasUnits
-    5 * 10**14,          // maxExtraFeeWei (0.0005 ETH)
-    10**12               // maxReimbGasPriceCapWei (1000 gwei)
-);
-```
-
----
-
-## Parameter Reference
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| `minOverheadGasUnits` | 50,000 | Minimum overhead to protect sponsor from under-recovery |
-| `maxOverheadGasUnits` | 300,000 | Maximum overhead (covers complex bridges) |
-| `maxProtocolFeeGasUnits` | 100,000 | DEPRECATED - service fee now in extraFeeWei |
-| `maxExtraFeeWei` | 0.0005 ETH | L2 variance buffer |
-| `maxReimbGasPriceCapWei` | 1000 gwei | Cover extreme gas spikes |
-
----
-
-## Sponsor Key Management
-
-### Testnet
-- Single sponsor key (deployer)
-- Can be stored in `.env` file
-- Acceptable security for testing
-
-### Mainnet
-- **Primary sponsor:** KMS/HSM protected (AWS KMS, GCP KMS, or Hashicorp Vault)
-- **Backup sponsor:** Separate KMS key on different infrastructure
-- **Treasury:** Safe multisig (2-of-3 or 3-of-5) for holding funds
-- **Auto-top-up:** Daemon monitors sponsor balances, tops up from treasury when low
-
----
-
-## Checklist
-
-### Before Testnet Deployment
-- [ ] Contract compiles without errors
-- [ ] Sponsor address is `0x16c9af121C797A56902170a7f808eDF1a857ED49`
-- [ ] Sponsor has testnet ETH for gas
-- [ ] RPC URL is configured
-
-### Before Mainnet Deployment
-- [ ] Use `ZeroDustSweepMainnet` contract
-- [ ] External audit completed
-- [ ] Sponsor addresses are production KMS-protected EOAs
-- [ ] Sponsor keys are NOT the testnet/deployer key
-- [ ] Treasury Safe is set up
-- [ ] Auto-top-up daemon is configured
-- [ ] Monitoring and alerting is in place
-- [ ] Backend is updated with mainnet contract address
-
----
-
-## Contract Addresses
-
-### Testnet Deployments
-
-| Chain | Chain ID | Contract Address | Explorer |
-|-------|----------|------------------|----------|
-| Sepolia | 11155111 | TBD | - |
-| Base Sepolia | 84532 | TBD | - |
-| Arbitrum Sepolia | 421614 | TBD | - |
-
-### Mainnet Deployments
-
-| Chain | Chain ID | Contract Address | Explorer |
-|-------|----------|------------------|----------|
-| Ethereum | 1 | TBD | - |
-| Base | 8453 | TBD | - |
-| Arbitrum | 42161 | TBD | - |
-
----
-
-## Notes
-
-- The `NAME` and `VERSION` constants (`"ZeroDust"`, `"3"`) are the same for both TEST and production contracts
-- EIP-712 signatures are compatible between TEST and production (same typehash)
-- Nonces are per-user, stored in user's EOA storage under EIP-7702
+A deployed contract is not a supported chain: EIP-7702 must work there (one real sweep, because some
+chains accept type-4 transactions and never mine them), the sponsor needs a float, and the backend
+needs the chain's config. The project's chain checklist is in the workspace docs (`docs/CHAINS.md`).
