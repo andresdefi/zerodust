@@ -50,7 +50,7 @@ const stream = streamText({
 
 ```typescript
 const tools = createZeroDustTools({
-  environment: 'mainnet', // or 'testnet'
+  environment: 'mainnet', // the API serves mainnet only
   apiKey: 'your-api-key', // optional, for higher rate limits
   timeout: 30000,         // request timeout in ms
 });

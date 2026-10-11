@@ -10,7 +10,7 @@ API docs with Swagger UI: `https://api.zerodust.xyz/docs`
 
 Check native token balances across all supported chains.
 
-**Query params:** `testnet` (boolean, default: true)
+**Query params:** `testnet` (boolean, default: false; the API serves no testnet chains)
 
 **Response:**
 ```json
@@ -38,7 +38,7 @@ Check balance on a specific chain.
 
 List all supported chains.
 
-**Query params:** `testnet` (boolean, default: true)
+**Query params:** `testnet` (boolean, default: false; the API serves no testnet chains)
 
 ### GET /quote
 

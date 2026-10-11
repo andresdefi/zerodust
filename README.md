@@ -1,13 +1,35 @@
 # ZeroDust
 
-**Exit a blockchain completely - transfer 100% of your native gas balance via EIP-7702**
+**Empty a wallet's native gas balance on an EVM chain to exactly 0.**
 
-ZeroDust is an intent-based exit system that enables users to sweep their entire native gas token balance to exactly zero via EIP-7702 sponsored execution.
+A normal transfer cannot send a whole native balance, because paying for the transfer uses the token
+being sent. ZeroDust sends all of it, to any address on the same chain or bridged to another chain,
+and the wallet ends at exactly 0 wei. Live at [zerodust.xyz](https://zerodust.xyz), with an API at
+`https://api.zerodust.xyz` and developer docs at [zerodust.xyz/docs](https://zerodust.xyz/docs).
+
+This repository holds the contracts, the TypeScript SDK and the agent packages.
+
+## How it works
+
+- **Sponsored chains (EIP-7702)**: the wallet signs a `SweepIntent` and two EIP-7702 authorizations
+  (one delegating to the ZeroDust contract, one removing it afterwards). A ZeroDust sponsor executes
+  the sweep and pays the gas, reimbursed from the swept balance. The contract runs as the wallet and
+  reverts unless the balance ends at exactly 0.
+- **MetaMask without a key**: MetaMask's Advanced Permissions (ERC-7715) grant
+  `ZeroDustPermissionRouter` a one-time allowance per chain; one EIP-712 signature covers every chain.
+  The router redeems it, requires exactly 0, and settles like the contract. 16 chains.
+- **Direct chains (no EIP-7702)**: the wallet sends its own legacy transactions, sized to the wei by
+  the API's planner (21 chains). On OP-stack chains with an L1 data fee it goes through
+  `ZeroDustGuard`; on ZK-stack chains a ZeroDust paymaster pays the gas.
+- **What arrives**: the destination's native gas, carried by Relay, Across (ETH to ETH), Stargate or
+  Gas.zip, whichever delivers the most. A few chains whose coin no gas bridge carries deliver it as a
+  token instead (Mitosis, Endurance, Intuition, Telos), said plainly in the quote. On request a sweep
+  can also go into the chain's own bridge to Ethereum, which the recipient claims there later.
 
 ## For AI agents
 
 Agents accumulate dust as a byproduct of existing. Anything doing multi-chain
-work — arbitrage, bridging, testing, deployment — ends up with stranded gas on
+work - arbitrage, bridging, testing, deployment - ends up with stranded gas on
 chains it will never touch again. A human notices and shrugs; an unattended
 agent leaks capital indefinitely.
 
@@ -45,13 +67,13 @@ config file:
 
 | Variable | Key lives in |
 |----------|--------------|
-| `ZERODUST_SIGNER_MODULE` | your custody provider — any module returning a viem `LocalAccount`, which is what Turnkey, Privy and KMS adapters produce |
+| `ZERODUST_SIGNER_MODULE` | your custody provider - any module returning a viem `LocalAccount`, which is what Turnkey, Privy and KMS adapters produce |
 | `ZERODUST_KEYSTORE_FILE` | an encrypted V3 keystore, with the password in a separate file |
 | `ZERODUST_PRIVATE_KEY_FILE` | a file on disk, not in the config |
 | `ZERODUST_PRIVATE_KEY` | the config (simplest, least private) |
 
 Funds can only go to the agent's own address unless
-`ZERODUST_ALLOWED_DESTINATIONS` says otherwise — so a prompt-injected agent still
+`ZERODUST_ALLOWED_DESTINATIONS` says otherwise - so a prompt-injected agent still
 cannot send funds somewhere you never approved.
 
 ### Try it without risking anything
@@ -82,66 +104,25 @@ curl -X POST https://api.zerodust.xyz/agent/register \
 | Package | Use |
 |---------|-----|
 | [`@zerodust/mcp-server`](https://www.npmjs.com/package/@zerodust/mcp-server) | MCP (Claude Code, Claude Desktop, any MCP client) |
-| [`@zerodust/sdk`](https://www.npmjs.com/package/@zerodust/sdk) | TypeScript, direct — `createAgentFromPrivateKey` |
+| [`@zerodust/sdk`](https://www.npmjs.com/package/@zerodust/sdk) | TypeScript, direct - `createAgentFromPrivateKey` |
 | [`@zerodust/langchain`](https://www.npmjs.com/package/@zerodust/langchain) | LangChain tools |
 | [`@zerodust/ai-sdk`](https://www.npmjs.com/package/@zerodust/ai-sdk) | Vercel AI SDK tools |
 
-**Verified on mainnet** (2026-07-21): Optimism → Base, source balance to exactly
-0, delegation auto-revoked, 99.88% delivered, 23.2s end to end —
-[`0x19456ea8…`](https://optimistic.etherscan.io/tx/0x19456ea86ed91097847ddad6d6b8cfd6a5240dedac3b100d1a06eb64c86def6c).
+## Contracts
 
-> **Note on wallets:** the browser UI needs the non-standard
-> `wallet_signAuthorization` RPC, which no shipping wallet exposes yet
-> ([MetaMask #7836](https://github.com/MetaMask/core/pull/7836),
-> [Rabby #3411](https://github.com/RabbyHub/Rabby/pull/3411)). Agents are
-> unaffected — they hold their own keys and sign locally.
+| Contract | Address (same on every chain, CREATE2) | Where |
+|---|---|---|
+| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 52 sponsored chains below |
+| ZeroDustPermissionRouter v2 (`contracts/src/ZeroDustPermissionRouter.sol`) | `0x369A97dd256F7eb37fF7116C4EcBd50318eBb286` | 16 chains with MetaMask Advanced Permissions |
+| ZeroDustGuard (`contracts/src/ZeroDustGuard.yul`) | `0x2f95e6ED90a7dD67fc3Fae5c5628647E6A83e48e` | Blast, Boba |
+| ZeroDustPaymaster (`contracts-zk/`) | `0x986e4Bb55AEEE6a8c80c28Ca787b13E216fD25B8` | zkSync Era, Abstract, Lens |
 
-## The Problem
+All are immutable: no admin functions, no upgrades, no pause (the paymaster's owner can only change
+its approver and withdraw its float). The sweep contract's sponsor address is fixed in its bytecode.
 
-When users want to fully exit a blockchain, they face an impossible situation:
+## Supported chains
 
-```
-User has: 0.0008 ETH on Arbitrum
-User wants: 0 ETH on Arbitrum (transfer everything to Base)
-
-The Problem:
-├── To send ETH, you need ETH for gas
-├── If you send all your ETH, you can't pay gas
-├── If you keep gas, you can't send all your ETH
-└── Result: Small amount always stranded
-```
-
-**ZeroDust is the only solution that enables complete chain exits for native gas tokens.**
-
-## How It Works
-
-1. User connects wallet to ZeroDust
-2. User selects source chain and destination (same-chain or cross-chain)
-3. User signs ONE authorization (no gas needed)
-4. ZeroDust sponsor executes the sweep
-5. User receives funds on destination
-6. **Origin chain balance: EXACTLY ZERO**
-
-## Supported Sweep Cases
-
-| Case | Description | Example |
-|------|-------------|---------|
-| Cross-chain, same address | Exit to yourself on another chain | Arbitrum → Base (same wallet) |
-| Cross-chain, different address | Exit to another wallet on another chain | Arbitrum → Base (different wallet) |
-| Same-chain, different address | Consolidate to another wallet | Arbitrum → Arbitrum (different wallet) |
-
-**Post-Condition (enforced on-chain):** Source balance = exactly 0 wei
-
-## Supported Chains
-
-**Contract Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
-
-The contract is deployed on 52 mainnets, all live in the API. Sweeps can be sent
-to any EVM chain a bridge (Gas.zip, Relay, Across) delivers native gas to, not
-only these: `GET /destinations?fromChainId=` lists them.
-Two chains are token delivery: their native coin has no gas bridge, so it arrives as that
-chain's token on BNB Chain, not as gas (quotes say so in `receiveToken`): Mitosis (MITO, via
-Hyperlane) and Endurance (ACE, via Fusionist's bridge, to the sending wallet only).
+52 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
@@ -172,162 +153,42 @@ Hyperlane) and Endurance (ACE, via Fusionist's bridge, to the sending wallet onl
 | Mantle | 5000 | MNT | Katana | 747474 | ETH |
 | Somnia | 5031 | SOMI | Zora | 7777777 | ETH |
 
-This table is generated from the live API, which is the only authoritative
-answer to what an integration can actually use:
+Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
+not hand-edit it. The 21 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
+Flare, Cronos, Rootstock, Telos, XDC, Fuse, Monad, Lens, Boba, zkSync Era, Flow EVM, HyperEVM, Metis,
+Vana, Gravity, Abstract, Immutable zkEVM, Etherlink, Avalanche, Blast and Ethereal. Destinations are
+any EVM chain a bridge delivers native gas to (`GET /destinations?fromChainId=`), over 100 from Base.
 
-```bash
-node scripts/generate-chain-docs.mjs          # regenerate
-node scripts/generate-chain-docs.mjs --check  # fail if a doc has drifted
-curl https://api.zerodust.xyz/chains          # the source of truth
-```
+## Fees
 
-Please do not hand-edit it. Earlier versions of this table claimed 26 live
-chains and named 1514 "Astar zkEVM", 5330 "Kaia" and 57073 "Redstone" — three
-chains that are not the ones deployed there. An agent that acts on a wrong chain
-name gets an error and reasonably concludes the service is broken.
-
-The contract is also on 46 testnets, but **the API serves no testnet chains**, so
-there is no testnet environment to integrate against. Use the `dryRun` option in
-the SDK or the MCP server to exercise the full flow without moving funds.
-
-See [contracts/README.md](./contracts/README.md) for explorer links.
-
-## Project Structure
-
-```
-zerodust/
-├── contracts/          # Smart contracts (Foundry)
-│   ├── src/
-│   │   ├── ZeroDustSweepMainnet.sol   # Production contract
-│   │   └── ZeroDustSweepTEST.sol      # Testnet contract
-│   ├── script/
-│   │   └── DeployMainnet.s.sol        # Mainnet deployment (CREATE2)
-│   └── broadcast/                      # Deployment logs
-└── docs/
-```
-
-## Architecture
-
-### Contract Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        User's EOA                            │
-│                   (EIP-7702 delegated)                       │
-│                                                              │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │          ZeroDustSweepMainnet (bytecode)             │    │
-│  │                                                      │    │
-│  │              executeSweep(intent, sig)               │    │
-│  │                        │                             │    │
-│  │           ┌────────────┴────────────┐                │    │
-│  │           ▼                         ▼                │    │
-│  │    MODE_TRANSFER (0)         MODE_CALL (1)           │    │
-│  │    Same-chain sweep          Cross-chain sweep       │    │
-│  │           │                         │                │    │
-│  │           ▼                         ▼                │    │
-│  │    Transfer to              Call bridge target       │    │
-│  │    destination              (callTarget + callData)  │    │
-│  │                                     │                │    │
-│  └─────────────────────────────────────┼────────────────┘    │
-│                                        │                     │
-└────────────────────────────────────────┼─────────────────────┘
-                                         │
-                                         ▼
-                          ┌─────────────────────────┐
-                          │     External Bridge     │
-                          │       (Gas.zip)         │
-                          │                         │
-                          │   Delivers funds on     │
-                          │   destination chain     │
-                          └─────────────────────────┘
-```
-
-### Security Model
-
-- **No admin functions** - Immutable after deployment
-- **No upgradability** - What you see is what you get
-- **Unified SweepIntent** - Single signed structure for all sweep types
-- **Zero balance enforcement** - Contract reverts if any balance remains
-- **ERC-7201 storage** - Prevents slot collisions with other EIP-7702 apps
-- **Immutable sponsors** - Stored in bytecode, not storage
-
-## Fee Structure
-
-**Service Fee:** 1% of swept value, with $0.05 minimum and $0.50 maximum; balances under $1 pay 5% with no minimum.
-
-```
-Total Fee = Gas Reimbursement + Service Fee + Bridge Fee (if cross-chain)
-
-Examples:
-- $5 balance → $0.05 fee (1% = $0.05, at min) → User receives ~$4.95
-- $10 balance → $0.10 fee (1%) → User receives ~$9.90
-- $60 balance → $0.50 fee (max) → User receives ~$59.50
-```
-
-## Documentation
-
-- [contracts/README.md](./contracts/README.md) - Contract details and deployment
-- [contracts/SPECIFICATION.md](./contracts/SPECIFICATION.md) - Technical specification
-- [contracts/DEPLOYMENT.md](./contracts/DEPLOYMENT.md) - Deployment guide
+1% of the swept value, at least $0.05 and at most $0.50; balances under $1 pay 5%, with no minimum.
+On top: the sweep's gas (and the L1 data fee on rollups) and, cross-chain, the bridge's fee. The
+signed `maxTotalFeeWei` caps what can be taken, so a gas spike cannot exceed what you agreed to.
 
 ## Security
 
-ZeroDust is designed with security as the top priority:
+- No custody: every sweep is one atomic transaction from the wallet itself.
+- The signed intent caps the fee and names the destination; for a bridge route `routeHash`
+  (`keccak256(callData)`) binds the signature to that exact call.
+- Every sponsored transaction is simulated before it is sent.
+- ERC-7201 namespaced storage, so the contract's nonce never collides with another EIP-7702 app.
+- Internal security review, 7 rounds, 16 issues found and fixed; contract tests drive a real EIP-7702
+  delegation and are mutation-verified. **Not externally audited, and no audit is currently funded.**
+  Details: [contracts/SECURITY.md](./contracts/SECURITY.md),
+  [contracts/SECURITY_REPORT.md](./contracts/SECURITY_REPORT.md).
 
-- **No fund custody** - All operations are atomic, single-transaction
-- **User-controlled limits** - maxTotalFeeWei and minReceive signed by user
-- **Mandatory simulation** - Every transaction simulated before execution
-- **routeHash binding** - Signature bound to specific bridge route (cross-chain)
-- **Internal security review** - 7 rounds, 16 issues identified and fixed
-- **External audit** - Pending (required before full launch)
+## Layout
 
-## Status
-
-**Smart Contract:** Deployed on 52 mainnets + 46 testnets. **All 52 mainnets are
-enabled in the API**; the API serves no testnets.
-
-### Contract Versions
-
-| Contract | Status | Features |
-|---------|--------|----------|
-| ZeroDustSweepMainnet | **Production** | Unified SweepIntent, granular fees, sponsor model |
-| ZeroDustSweepTEST | Testnet | Same as mainnet, for testing |
-
-### Verified Mainnet Sweeps
-
-| Chain | Swept | TX |
-|-------|-------|-----|
-| Base | $3.46 → 0 | [View](https://basescan.org/tx/0x2f59a4598c7fcdce404c2330d361fda1cbab84b841e85bec82ca12164101b73d) |
-| Arbitrum | $3.57 → 0 | [View](https://arbiscan.io/tx/0xffa0a26008157b0225a7c15c2263b80b6e386520dce69b58827320ced0dc5c62) |
-| BSC | $2.25 → 0 | [View](https://bscscan.com/tx/0xc94f52c8689268118e3d42dd678916982b5479adb0e69227ddd1c3142ea52972) |
-| Polygon | $7.55 → 0 | [View](https://polygonscan.com/tx/0xc21c4c29dbe1624c06a2a9a7692ac68409f3407f0c1960f01100ef39ceeb369f) |
-
-See [contracts/README.md](./contracts/README.md) for full deployment list.
-
-### Testnets NOT Supporting EIP-7702
-
-The following testnets were tested and do not support EIP-7702:
-
-Abstract, Lens, zkSync, Taiko, opBNB, Avalanche, Swell, Cyber, Boba, Metis, Fuse, Aurora, Flare, Vana, Corn, Rootstock, Apechain, IoTeX, Viction, XDC, Telos, Kava, EDU Chain, Gravity, Manta Pacific, Lightlink, Moonbase, Nibiru, Somnia, Rari, Blast, Xai, B3, Mezo, Chiliz, HashKey, Memecore
-
-*Note: Mainnet support may differ from testnet.*
-
-## Cross-Chain Bridging
-
-ZeroDust supports cross-chain sweeps via the MODE_CALL pattern:
-
-- **callTarget**: Bridge contract address
-- **callData**: Bridge-specific transaction data
-- **routeHash**: `keccak256(callData)` - binds signature to specific route
-
-**Primary Bridge:** [Gas.zip](https://gas.zip) - 239+ chains, ~5 second delivery
+```
+contracts/      Foundry: ZeroDustSweepMainnet.sol, ZeroDustPermissionRouter.sol, ZeroDustGuard.yul,
+                tests, deploy scripts and broadcasts (README, SPECIFICATION, DEPLOYMENT, SECURITY)
+contracts-zk/   ZeroDustPaymaster for ZK-stack chains (Hardhat + zksolc)
+sdk/            @zerodust/sdk
+packages/       @zerodust/mcp-server, @zerodust/ai-sdk, @zerodust/langchain
+skills/         an agent skill for ZeroDust
+scripts/        generate-chain-docs.mjs
+```
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE)
-
----
-
-**Live on 25 mainnet chains.** Contract: `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`
-(same address on every chain, via CREATE2).
+MIT, see [LICENSE](./LICENSE).

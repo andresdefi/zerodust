@@ -615,7 +615,7 @@ const agent = new ZeroDustAgent({
 
 Pass `dryRun: true` to run the entire flow except the final submission. You get
 a real quote, real EIP-712 typed data, and all three real signatures from your
-key — then it stops before `POST /sweep`. Nothing is broadcast and no balance
+key - then it stops before `POST /sweep`. Nothing is broadcast and no balance
 changes, so this is the safe way to prove an integration works first.
 
 ```typescript
@@ -641,34 +641,32 @@ chain, `verifyingContract` = the agent's own address) and refuses the quote
 with `UNSAFE_QUOTE` unless:
 
 - the delegation target is the ZeroDust contract
-  (`0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`) and the revoke targets address 0;
+  (`0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`) and the revoke targets address 0
+  (or MetaMask's delegate again, for a wallet that was a MetaMask smart account);
 - the signed destination and destination chain are the ones you asked for;
 - a same-chain sweep is a plain transfer, and a cross-chain sweep calls a known
-  bridge contract for that source chain (Gas.zip, Relay, Across). A Gas.zip
-  route's calldata is rebuilt locally, so its recipient is verified;
+  bridge contract for that source chain (Gas.zip, Relay, Across, Stargate, the
+  pinned Hyperlane and Metalayer routes, Endurance, or the chain's own bridge
+  toward Ethereum), with the recipient decoded and checked: Gas.zip calldata is
+  rebuilt locally, Across must be a plain ETH deposit, Stargate and Hyperlane
+  calls are decoded, and a Relay deposit is fetched from Relay by the agent itself;
 - the fee reserve is at most 1.5M gas units at the signed gas price cap plus 5%
   of the balance read from your RPC, the cap is at most 3x the current gas
   price, and the deadline is at most ~60s away.
 
-Relay binds the recipient off-chain and the API does not yet return Across
-calldata, so for those routes only the bridge contract is checked. Pass
-`requireVerifiedRoute: true` to the agent to refuse them.
+Pass `requireVerifiedRoute: true` to the agent to accept only routes whose
+recipient was verified this way.
 
 For detailed AI agent integration guide, see [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md).
 
 ## Supported Chains
 
-ZeroDust supports all EVM chains with EIP-7702 support. Current mainnet chains include:
-
-- Base (8453)
-- Arbitrum (42161)
-- Optimism (10)
-- Polygon (137)
-- BSC (56)
-- Gnosis (100)
-- And 20+ more...
-
-Use `getChains()` to get the current list of supported chains.
+The SDK sweeps the 52 sponsored (EIP-7702) chains the API serves; `getChains()`
+returns the live list, and the table is in the repository README. The 21 direct
+chains (no EIP-7702) are swept with transactions the REST API plans
+(`/direct/*`, see https://zerodust.xyz/docs/direct-chains), not through the SDK.
+Destinations can be any EVM chain a bridge delivers native gas to
+(`getDestinations(fromChainId)`).
 
 ## Fee Structure
 
@@ -678,23 +676,18 @@ ZeroDust charges a small service fee for sweeps:
 - **From $1:** 1% of the balance, minimum $0.05, maximum $0.50
 
 Additionally:
-- **Gas reimbursement:** Actual gas cost paid by the relayer
-- **Bridge fee:** Near-zero (only destination gas for cross-chain)
+- **Gas reimbursement:** the sweep's gas (and the L1 data fee on rollups), paid
+  by the sponsor and reimbursed from the swept balance
+- **Bridge fee:** cross-chain only, the bridge's own fee, shown in the quote
 
-Example: Sweeping $5 worth of ETH → ~$0.05 service fee + gas
+Example: sweeping $5 of ETH pays a $0.05 service fee plus gas and, cross-chain,
+the bridge's fee. The signed `maxTotalFeeWei` caps the total.
 
 ## Browser Support
 
-The SDK works in both Node.js and browser environments. For browsers, ensure your bundler handles the `viem` peer dependency correctly.
-
-```html
-<script type="module">
-  import { ZeroDust } from '@zerodust/sdk';
-
-  const zerodust = new ZeroDust({ environment: 'mainnet' });
-  // ...
-</script>
-```
+Run the SDK in Node.js (a server, a script or an agent process). The API only
+allows browser requests from the ZeroDust site itself (CORS), so a page on another
+origin cannot read its responses.
 
 ## License
 
@@ -703,6 +696,5 @@ MIT
 ## Links
 
 - [Website](https://zerodust.xyz)
-- [Documentation](https://docs.zerodust.xyz)
+- [Documentation](https://zerodust.xyz/docs)
 - [GitHub](https://github.com/andresdefi/zerodust)
-- [Discord](https://discord.gg/zerodust)

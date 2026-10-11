@@ -127,7 +127,7 @@ const balance = await agent.getBalance(42161);
 ```typescript
 const agent = new ZeroDustAgent({
   account: myAccount,
-  environment: 'mainnet',     // or 'testnet'
+  environment: 'mainnet',     // the API serves mainnet only
   baseUrl: 'https://...',     // custom API URL
   apiKey: 'zd_...',           // agent API key
   timeout: 30000,             // request timeout ms

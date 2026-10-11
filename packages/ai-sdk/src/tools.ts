@@ -60,7 +60,7 @@ export function createZeroDustTools(
             gas: 'Paid by relayer, reimbursed from swept amount',
             guarantee: 'Users receive at least the minimum they signed, or the sweep reverts',
           },
-          supportedChains: '45 EIP-7702 chains including Ethereum, Arbitrum, Base, Optimism, Polygon, BSC and Gnosis; the live list is GET /chains',
+          supportedChains: '52 EIP-7702 chains including Ethereum, Arbitrum, Base, Optimism, Polygon, BNB Chain and Gnosis (plus 21 direct chains through the REST API); the live list is GET /chains',
           integration: {
             sdk: 'npm install @zerodust/sdk viem',
             api: 'GET /quote, POST /authorization, POST /sweep, GET /sweep/:sweepId',

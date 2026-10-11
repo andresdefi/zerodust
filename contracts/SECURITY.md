@@ -178,4 +178,4 @@ The protocol is designed so that even a malicious sponsor cannot steal funds - t
 
 *Document Version: 2.0*
 *Last Updated: January 2026*
-*Applies to: ZeroDustSweepMainnet, ZeroDustSweepTEST*
+*Applies to: ZeroDustSweepMainnet (`0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`)*
