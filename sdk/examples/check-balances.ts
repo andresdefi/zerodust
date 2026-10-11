@@ -1,70 +1,26 @@
 /**
- * Example: Check Balances Across Chains
+ * Check which chains hold a native balance for an address (read-only, no key).
  *
- * This example shows how to check a user's native token balances
- * across all supported chains and identify sweepable amounts.
- *
- * Run: npx tsx examples/check-balances.ts <address>
+ * Usage: ADDRESS=0x... npx tsx examples/check-balances.ts
  */
+import { ZeroDust } from '@zerodust/sdk';
 
-import { ZeroDust } from '../src/index.js';
-
-async function main() {
-  const address = process.argv[2];
-
+async function main(): Promise<void> {
+  const address = process.env.ADDRESS as `0x${string}` | undefined;
   if (!address) {
-    console.error('Usage: npx tsx examples/check-balances.ts <address>');
-    console.error('Example: npx tsx examples/check-balances.ts 0x1234...');
+    console.error('Set ADDRESS to the wallet to check');
     process.exit(1);
   }
 
-  // Initialize SDK (testnet by default)
-  const zerodust = new ZeroDust({
-    environment: 'testnet',
-  });
+  const zerodust = new ZeroDust({ environment: 'mainnet' });
+  const { chains } = await zerodust.getBalances(address);
+  const held = chains.filter((c) => BigInt(c.balance) > 0n);
 
-  console.log(`\nFetching balances for ${address}...\n`);
-
-  try {
-    // Get all balances
-    const { balances, totalUsd } = await zerodust.getBalances(address);
-
-    // Separate sweepable and non-sweepable
-    const sweepable = balances.filter((b) => b.isSweepable);
-    const notSweepable = balances.filter((b) => !b.isSweepable && b.balance !== '0');
-    const empty = balances.filter((b) => b.balance === '0');
-
-    // Display sweepable balances
-    if (sweepable.length > 0) {
-      console.log('=== Sweepable Balances ===');
-      sweepable.forEach((b) => {
-        console.log(`  ${b.chainName} (${b.chainId}): ${b.balanceFormatted}`);
-      });
-      console.log('');
-    }
-
-    // Display balances that are too small to sweep
-    if (notSweepable.length > 0) {
-      console.log('=== Too Small to Sweep ===');
-      notSweepable.forEach((b) => {
-        console.log(`  ${b.chainName} (${b.chainId}): ${b.balanceFormatted}`);
-      });
-      console.log('');
-    }
-
-    // Summary
-    console.log('=== Summary ===');
-    console.log(`  Total chains checked: ${balances.length}`);
-    console.log(`  Chains with balance: ${sweepable.length + notSweepable.length}`);
-    console.log(`  Sweepable chains: ${sweepable.length}`);
-    console.log(`  Empty chains: ${empty.length}`);
-    if (totalUsd) {
-      console.log(`  Total USD value: $${totalUsd}`);
-    }
-  } catch (error) {
-    console.error('Error fetching balances:', error);
-    process.exit(1);
-  }
+  console.log(`${address}: a balance on ${held.length} of ${chains.length} sponsored chains`);
+  for (const c of held) console.log(`  ${c.name} (${c.chainId}): ${c.balanceFormatted} ${c.nativeToken}`);
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

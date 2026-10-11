@@ -63,8 +63,8 @@ const result = await agent.sweep({
 const results = await agent.sweepAll({ toChainId: 8453 });
 ```
 
-**Prove it before moving anything.** Pass `dryRun: true` to run the whole flow —
-real quote, real EIP-712 typed data, all three real signatures — and stop before
+**Prove it before moving anything.** Pass `dryRun: true` to run the whole flow  - 
+real quote, real EIP-712 typed data, all three real signatures - and stop before
 submitting. Nothing is broadcast and no balance changes.
 
 ```typescript
@@ -112,10 +112,10 @@ curl https://api.zerodust.xyz/sweep/SWEEP_ID
 
 Two servers, same tool names. Pick by whether the agent needs to actually sweep.
 
-**Hosted, no install** — connect to `https://api.zerodust.xyz/mcp`. Read-only,
+**Hosted, no install** - connect to `https://api.zerodust.xyz/mcp`. Read-only,
 because it holds no keys.
 
-**Local stdio** — `npx @zerodust/mcp-server`. Can sweep, because the key stays
+**Local stdio** - `npx @zerodust/mcp-server`. Can sweep, because the key stays
 on the agent's machine.
 
 | Tool | Purpose | Where |
@@ -206,7 +206,7 @@ curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
 | Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
 | Mantle | 5000 | MNT | Zora | 7777777 | ETH |
 
-Cross-chain sweeps go through Gas.zip, Relay or Across (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
+Cross-chain sweeps go through Relay, Across, Stargate or Gas.zip (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
 
 ## Pricing
 
@@ -235,7 +235,7 @@ For SDK usage patterns including the Agent module, see [references/SDK.md](refer
 
 ## Contract
 
-Mainnet address (same on all 46 chains via CREATE2):
+Mainnet address (same on every chain via CREATE2):
 ```
 0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2
 ```

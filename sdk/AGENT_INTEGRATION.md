@@ -73,7 +73,6 @@ const response = await fetch('https://api.zerodust.xyz/agent/register', {
     name: 'My AI Agent',
     agentId: 'my-agent-v1',
     contactEmail: 'agent@example.com',
-    webhookUrl: 'https://my-agent.com/webhook',
     metadata: {
       framework: 'langchain',
       version: '1.0.0'
@@ -93,11 +92,13 @@ const agentWithKey = await createAgentFromPrivateKey(privateKey, {
 
 ### Rate Limits
 
-| Key Type | Requests/Min | Daily Sweeps |
-|----------|--------------|--------------|
-| No key   | 60           | 100          |
-| Agent    | 300          | 1,000        |
-| Partner  | 1,000        | 10,000       |
+| Key type | Requests per minute | Daily (quote, authorization and sweep requests) |
+|----------|---------------------|-------------------------------------------------|
+| No key   | per IP: 60 for quotes, 200 for reads | none |
+| Agent    | 300 | 1,000 |
+| Partner  | 1,000 | 10,000 |
+
+Details: https://zerodust.xyz/docs/api#rate-limits
 
 ## ZeroDustAgent Class
 
@@ -295,23 +296,9 @@ try {
 
 ## Supported Chains
 
-ZeroDust supports 26 EIP-7702 compatible mainnets:
-
-| Chain | Chain ID | Native Token |
-|-------|----------|--------------|
-| Ethereum | 1 | ETH |
-| Optimism | 10 | ETH |
-| BSC | 56 | BNB |
-| Gnosis | 100 | xDAI |
-| Polygon | 137 | POL |
-| Base | 8453 | ETH |
-| Arbitrum | 42161 | ETH |
-| Celo | 42220 | CELO |
-| Scroll | 534352 | ETH |
-| Zora | 7777777 | ETH |
-| ... and more |
-
-Get the full list:
+The SDK sweeps the 52 sponsored (EIP-7702) chains the API serves, from Ethereum, Base, Arbitrum,
+Optimism and BNB Chain to MegaETH, Katana and Plume. The table is in the repository README; read the
+live list rather than hardcoding it:
 
 ```typescript
 const chains = await client.getChains();
@@ -365,30 +352,10 @@ console.log(`Daily sweeps: ${stats.rateLimits.dailyUsed}/${stats.rateLimits.dail
 - Use environment variables or secure vaults
 - Consider using HSM/KMS for production
 
-## Webhook Notifications
-
-If you provided a webhook URL during registration, you'll receive notifications:
-
-```typescript
-// Your webhook receives POST requests like:
-{
-  "event": "sweep.completed",
-  "sweepId": "123e4567-e89b-...",
-  "status": "completed",
-  "fromChainId": 42161,
-  "toChainId": 8453,
-  "amountReceived": "0.00095",
-  "txHash": "0x..."
-}
-```
-
-Events: `sweep.pending`, `sweep.executing`, `sweep.bridging`, `sweep.completed`, `sweep.failed`
-
 ## Support
 
 - GitHub Issues: https://github.com/andresdefi/zerodust
-- Email: agents@zerodust.xyz
-- Discord: https://discord.gg/zerodust
+- Docs: https://zerodust.xyz/docs
 
 ## License
 
