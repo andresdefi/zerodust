@@ -18,7 +18,7 @@
  *   the `swapTx.to` of live `GET /api/swap/approval` quotes from every ZeroDust
  *   chain Across serves, with code verified on each chain.
  *
- * - Chains' own bridges (NATIVE_EXITS): the OP stack L2StandardBridge predeploy, only to the
+ * - Chains' own bridges (NATIVE_EXITS): the OP stack L2StandardBridge predeploy, ArbSys, Taiko's Bridge, only to the
  *   chain's parent, with the recipient decoded and checked (intent-guard.ts).
  *
  * A chain or bridge missing here fails closed: the sweep is refused before
@@ -188,6 +188,8 @@ export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
 
 /** OP stack L2StandardBridge predeploy: bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) */
 export const OP_L2_STANDARD_BRIDGE: Address = '0x4200000000000000000000000000000000000010';
+/** Taiko's Bridge on L2: sendMessage(Message) */
+export const TAIKO_L2_BRIDGE: Address = '0x1670000000000000000000000000000000000001';
 /** Arbitrum stack ArbSys precompile: withdrawEth(address destination) */
 export const ARB_SYS: Address = '0x0000000000000000000000000000000000000064';
 
@@ -196,11 +198,17 @@ export const ARB_SYS: Address = '0x0000000000000000000000000000000000000064';
  * (`bridge=native`), only to their parent chain. 1:1; the user proves and claims there later.
  * Lisk: its only official bridge (bridge.lisk.com), chain closing 2026-10-31. Arbitrum Nova: ArbSys.
  */
-export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb'; toChainId: number; bridge: Address }>> = {
+export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb' | 'taiko'; toChainId: number; bridge: Address }>> = {
   1135: { stack: 'op', toChainId: 1, bridge: OP_L2_STANDARD_BRIDGE },
   // Arbitrum Nova (minimized by the DAO in 2026, its own bridge still takes ETH to Ethereum)
   42170: { stack: 'arb', toChainId: 1, bridge: ARB_SYS },
+  // Taiko: Bridge.sendMessage; its relayer delivers on Ethereum for the message's fee (nothing to claim)
+  167000: { stack: 'taiko', toChainId: 1, bridge: TAIKO_L2_BRIDGE },
 };
+
+/** Taiko's relayer: the gas limit it processes a plain ETH message with, and the most a sweep may pay it (wei) */
+export const TAIKO_MESSAGE_GAS_LIMIT = 806_657;
+export const TAIKO_MAX_RELAYER_FEE = 3n * 10n ** 15n;
 
 function buildTargets(): Map<number, Map<string, BridgeName>> {
   const table = new Map<number, Map<string, BridgeName>>();

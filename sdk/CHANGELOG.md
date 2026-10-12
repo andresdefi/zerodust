@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.17] - 2026-10-12
+
+### Added
+
+- **Taiko's own bridge.** `bridge: 'native'` from Taiko (167000) quotes Taiko's
+  Bridge.sendMessage to Ethereum, which Taiko's relayer delivers for a fee (about an
+  hour; nothing to claim). `verifySweepQuote` checks the message: the requested
+  recipient pays and owns it on Ethereum (an unused fee is refunded to them), the
+  signer owns it on Taiko, no call, the relayer's gas limit, a fee of at most 0.003 ETH,
+  and value plus fee exactly the routed amount.
+
 ## [0.5.16] - 2026-10-12
 
 ### Security
