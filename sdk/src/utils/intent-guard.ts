@@ -154,6 +154,12 @@ export interface QuoteCheckContext {
   toChainId: number;
   /** Requested destination */
   destination: Address;
+  /**
+   * 'native' when the caller asked for the source chain's own bridge. A route through it is
+   * refused unless asked for (its funds wait days for a claim the caller must know about), and
+   * any other route is refused when it was.
+   */
+  bridge?: 'native';
   /** Balance on the source chain, read locally (not the quote's userBalance) */
   balanceWei: bigint;
   /** Gas price on the source chain, read locally */
@@ -444,6 +450,7 @@ export async function verifySweepQuote(
   let bridgeMaxFee: bigint | null = null;
 
   if (ctx.fromChainId === ctx.toChainId) {
+    if (ctx.bridge === 'native') unsafe('a same-chain sweep cannot use the chain\'s own bridge that was asked for');
     if (mode !== MODE_TRANSFER) unsafe(`same-chain sweep must be a transfer (mode 0), got mode ${mode}`);
     if (callTarget !== ZERO_ADDRESS) unsafe(`same-chain sweep has a call target ${callTarget}`);
     if (routeHash !== ZERO_ROUTE_HASH.toLowerCase()) unsafe('same-chain sweep has a non-empty route');
@@ -458,6 +465,11 @@ export async function verifySweepQuote(
         chainId: ctx.fromChainId,
       });
     }
+    if (bridge === 'native' && ctx.bridge !== 'native') {
+      unsafe('the quote routes through the chain\'s own bridge, which was not asked for (bridge: \'native\')');
+    }
+
+    if (ctx.bridge === 'native' && bridge !== 'native') unsafe(`the quote routes through ${bridge}, not the chain's own bridge that was asked for`);
 
     let callData: Hex | undefined;
     if (intent.callData !== undefined && intent.callData !== null) {
