@@ -188,6 +188,8 @@ export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
 
 /** OP stack L2StandardBridge predeploy: bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) */
 export const OP_L2_STANDARD_BRIDGE: Address = '0x4200000000000000000000000000000000000010';
+/** OP stack L2ToL1MessagePasser predeploy: initiateWithdrawal(target, gasLimit, data) */
+export const OP_MESSAGE_PASSER: Address = '0x4200000000000000000000000000000000000016';
 /** Taiko's Bridge on L2: sendMessage(Message) */
 export const TAIKO_L2_BRIDGE: Address = '0x1670000000000000000000000000000000000001';
 /** Arbitrum stack ArbSys precompile: withdrawEth(address destination) */
@@ -198,10 +200,12 @@ export const ARB_SYS: Address = '0x0000000000000000000000000000000000000064';
  * (`bridge=native`), only to their parent chain. 1:1; the user proves and claims there later.
  * Lisk: its only official bridge (bridge.lisk.com), chain closing 2026-10-31. Arbitrum Nova: ArbSys.
  */
-export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb' | 'taiko'; toChainId: number; bridge: Address }>> = {
+export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb' | 'taiko' | 'op-token'; toChainId: number; bridge: Address }>> = {
   1135: { stack: 'op', toChainId: 1, bridge: OP_L2_STANDARD_BRIDGE },
   // Arbitrum Nova (minimized by the DAO in 2026, its own bridge still takes ETH to Ethereum)
   42170: { stack: 'arb', toChainId: 1, bridge: ARB_SYS },
+  // Fraxtal: its gas token FRAX leaves through L2ToL1MessagePasser.initiateWithdrawal and is paid out as FXS on Ethereum
+  252: { stack: 'op-token', toChainId: 1, bridge: OP_MESSAGE_PASSER },
   // Taiko: Bridge.sendMessage; its relayer delivers on Ethereum for the message's fee (nothing to claim)
   167000: { stack: 'taiko', toChainId: 1, bridge: TAIKO_L2_BRIDGE },
 };

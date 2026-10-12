@@ -385,6 +385,9 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
 /** A Relay depository deposit must credit the signer (refunds go there) */
 const NATIVE_OP_BRIDGE_ABI = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
 const NATIVE_ARB_SYS_ABI = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
+const NATIVE_PASSER_ABI = parseAbi(['function initiateWithdrawal(address _target, uint256 _gasLimit, bytes _data) payable']);
+/** The gas the withdrawal's message gets on Ethereum (as the API builds it) */
+const NATIVE_MIN_GAS_LIMIT = 200_000;
 const TAIKO_SEND_ABI = parseAbi([
   'struct Message { uint64 id; uint64 fee; uint32 gasLimit; address from; uint64 srcChainId; address srcOwner; uint64 destChainId; address destOwner; address to; uint256 value; bytes data; }',
   'function sendMessage(Message _message) payable returns (bytes32 msgHash_, Message message_)',
@@ -551,11 +554,19 @@ export async function verifySweepQuote(
       } else {
         let to: Address;
         try {
-          [to] = exit.stack === 'arb'
-            ? decodeFunctionData({ abi: NATIVE_ARB_SYS_ABI, data: callData }).args
-            : decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
-        } catch {
-          return unsafe(`the own-bridge calldata is not ${exit.stack === 'arb' ? 'withdrawEth' : 'bridgeETHTo'}`);
+          if (exit.stack === 'op-token') {
+            // A plain withdrawal of the gas token: no data (the portal would call the recipient with it)
+            const [target, gasLimit, data] = decodeFunctionData({ abi: NATIVE_PASSER_ABI, data: callData }).args;
+            if (gasLimit !== BigInt(NATIVE_MIN_GAS_LIMIT) || data !== '0x') unsafe('the own-bridge withdrawal asks for other gas or carries data');
+            to = target;
+          } else {
+            [to] = exit.stack === 'arb'
+              ? decodeFunctionData({ abi: NATIVE_ARB_SYS_ABI, data: callData }).args
+              : decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
+          }
+        } catch (error) {
+          if (error instanceof ZeroDustError) throw error;
+          return unsafe(`the own-bridge calldata is not ${exit.stack === 'arb' ? 'withdrawEth' : exit.stack === 'op-token' ? 'initiateWithdrawal' : 'bridgeETHTo'}`);
         }
         if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
         recipientVerified = true;

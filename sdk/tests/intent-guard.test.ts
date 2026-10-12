@@ -494,6 +494,34 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe("A chain's own bridge with its own gas token (Fraxtal -> FXS on Ethereum, initiateWithdrawal)", () => {
+    const PASSER = '0x4200000000000000000000000000000000000016' as Address;
+    const abi = parseAbi(['function initiateWithdrawal(address _target, uint256 _gasLimit, bytes _data) payable']);
+    const fraxCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 252, toChainId: 1, bridge: 'native', ...o });
+    function fraxQuote(p: { to?: Address; gas?: bigint; data?: Hex } = {}) {
+      const base = makeQuote({ route: 'relay' });
+      const callData = encodeFunctionData({ abi, functionName: 'initiateWithdrawal', args: [p.to ?? account.address, p.gas ?? 200_000n, p.data ?? '0x'] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '1';
+        q.intent.callTarget = PASSER;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts a plain withdrawal to the requested recipient', async () => {
+      expect((await verifySweepQuote(fraxQuote(), fraxCtx())).route).toEqual({ bridge: 'native', recipientVerified: true });
+      expect(bridgeForCallTarget(252, PASSER)).toBe('native');
+      expect(bridgeForCallTarget(10, PASSER)).toBeNull();
+    });
+
+    it('refuses another recipient, data the portal would call it with, or other gas', async () => {
+      expect(await rejection(verifySweepQuote(fraxQuote({ to: ATTACKER }), fraxCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(fraxQuote({ data: '0xfe' }), fraxCtx()))).toMatch(/carries data/);
+      expect(await rejection(verifySweepQuote(fraxQuote({ gas: 1n }), fraxCtx()))).toMatch(/other gas/);
+    });
+  });
+
   describe("A chain's own bridge on Taiko (Bridge.sendMessage, relayed to Ethereum)", () => {
     const TAIKO_BRIDGE = '0x1670000000000000000000000000000000000001' as Address;
     const abi = parseAbi([

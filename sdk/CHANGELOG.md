@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.18] - 2026-10-12
+
+### Added
+
+- **Fraxtal's own bridge.** `bridge: 'native'` from Fraxtal (252) quotes
+  `L2ToL1MessagePasser.initiateWithdrawal` to Ethereum, where the recipient proves and,
+  7 days later, claims it; the portal pays FRAX out as FXS (the quote's `receiveToken`).
+  `verifySweepQuote` checks the recipient, the 200,000 gas and that no data rides along
+  (the portal would call the recipient with it).
+
 ## [0.5.17] - 2026-10-12
 
 ### Added
