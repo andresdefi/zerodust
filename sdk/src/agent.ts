@@ -434,6 +434,7 @@ export class ZeroDustAgent {
         fromChainId: request.fromChainId,
         toChainId: request.toChainId,
         destination,
+        ...(request.bridge ? { bridge: request.bridge } : {}),
         balanceWei,
         gasPriceWei,
         nowSeconds: Math.floor(Date.now() / 1000),
