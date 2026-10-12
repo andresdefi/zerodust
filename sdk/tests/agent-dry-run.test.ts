@@ -333,3 +333,18 @@ describe('ZeroDustAgent refuses an untrusted API before signing', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('own bridge option', () => {
+  it('asks the API for the chain\'s own bridge only when the sweep asks for it', async () => {
+    const urls: string[] = [];
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      urls.push(typeof input === 'string' ? input : input.toString());
+      return json({ error: 'stop here' }, 400);
+    });
+    const agent = new ZeroDustAgent({ account, environment: 'mainnet' });
+    await agent.sweep({ fromChainId: 42170, toChainId: 1, bridge: 'native' }, { dryRun: true });
+    await agent.sweep({ fromChainId: 42170, toChainId: 1 }, { dryRun: true });
+    const quotes = urls.filter((u) => u.includes('/quote')).map((u) => new URL(u).searchParams);
+    expect(quotes.map((q) => q.get('bridge'))).toEqual(['native', null]);
+  });
+});

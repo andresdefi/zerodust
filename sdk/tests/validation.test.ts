@@ -214,6 +214,12 @@ describe('validateQuoteRequest', () => {
   it('should throw for invalid address', () => {
     expect(() => validateQuoteRequest({ ...validRequest, userAddress: 'invalid' })).toThrow();
   });
+
+  it('passes bridge: native through, leaves it out when unset, and refuses any other bridge', () => {
+    expect(validateQuoteRequest({ ...validRequest, bridge: 'native' }).bridge).toBe('native');
+    expect('bridge' in validateQuoteRequest(validRequest)).toBe(false);
+    expect(() => validateQuoteRequest({ ...validRequest, bridge: 'relay' })).toThrow("Unknown bridge option: relay (only 'native')");
+  });
 });
 
 describe('validateEIP7702Authorization', () => {
