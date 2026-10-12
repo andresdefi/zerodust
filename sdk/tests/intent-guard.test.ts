@@ -440,7 +440,7 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
   describe("A chain's own bridge (Lisk -> Ethereum, bridgeETHTo)", () => {
     const BRIDGE = '0x4200000000000000000000000000000000000010' as Address;
     const abi = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
-    const liskCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 1135, toChainId: 1, ...o });
+    const liskCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 1135, toChainId: 1, bridge: 'native', ...o });
 
     function nativeQuote(p: { to?: Address; destination?: Address; chain?: string } = {}) {
       const base = makeQuote({ route: 'relay', destination: p.destination });
@@ -475,7 +475,7 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
   describe("A chain's own bridge on the Arbitrum stack (Nova -> Ethereum, ArbSys.withdrawEth)", () => {
     const ARB_SYS = '0x0000000000000000000000000000000000000064' as Address;
     const abi = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
-    const novaCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 42170, toChainId: 1, ...o });
+    const novaCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 42170, toChainId: 1, bridge: 'native', ...o });
     function novaQuote(to: Address = account.address) {
       const base = makeQuote({ route: 'relay' });
       const callData = encodeFunctionData({ abi, functionName: 'withdrawEth', args: [to] });
@@ -734,4 +734,32 @@ describe('createGasZipChainShortResolver', () => {
     await expect(resolve(42161)).rejects.toThrow(/unavailable/);
     expect(await resolve(42161)).toBe(57);
   });
+});
+
+describe('verifySweepQuote: a chain\'s own bridge only when asked for', () => {
+  const NOVA = 42170;
+  const ARB_SYS = '0x0000000000000000000000000000000000000064';
+  /** An Arbitrum Nova quote through ArbSys.withdrawEth(destination) to Ethereum */
+  function nativeQuote(): QuoteResponse {
+    const payee = account.address;
+    const callData = encodeFunctionData({ abi: parseAbi(['function withdrawEth(address destination) payable returns (uint256)']), functionName: 'withdrawEth', args: [payee] });
+    return tamper(makeQuote({ route: 'gaszip', fromChainId: NOVA, toChainId: 1 }), (q) => {
+      q.intent = { ...q.intent!, callTarget: ARB_SYS as Address, callData, routeHash: keccak256(callData), destinationChainId: '1' };
+    });
+  }
+  const novaCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: NOVA, toChainId: 1, ...o });
+
+  it('accepts it when asked for', async () => {
+    expect((await verifySweepQuote(nativeQuote(), novaCtx({ bridge: 'native' }))).route).toMatchObject({ bridge: 'native', recipientVerified: true });
+  });
+
+  it('refuses it when not asked for (the API cannot swap a fast bridge for a claim days later)', async () => {
+    expect(await rejection(verifySweepQuote(nativeQuote(), novaCtx()))).toMatch(/own bridge, which was not asked for/);
+  });
+
+  it('refuses another route, or a same-chain transfer, when it was asked for', async () => {
+    expect(await rejection(verifySweepQuote(makeQuote({ route: 'gaszip' }), crossCtx({ bridge: 'native' })))).toMatch(/not the chain's own bridge that was asked for/);
+    expect(await rejection(verifySweepQuote(makeQuote(), ctx({ bridge: 'native' })))).toMatch(/same-chain sweep cannot use the chain's own bridge/);
+  });
+
 });

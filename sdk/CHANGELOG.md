@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16] - 2026-10-12
+
+### Security
+
+- **A chain's own bridge only when asked for.** The quote check accepted a route through
+  a chain's own bridge whenever the API returned one, so a quote to Ethereum could swap a
+  fast bridge for a withdrawal that waits days for a claim. `verifySweepQuote` now takes
+  the requested `bridge` and refuses an own-bridge route that was not asked for, and any
+  other route (or a same-chain transfer) when it was; `ZeroDustAgent.sweep` passes it.
+
 ## [0.5.15] - 2026-10-12
 
 ### Added
