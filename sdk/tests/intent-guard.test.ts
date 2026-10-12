@@ -494,6 +494,47 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe("A chain's own bridge on Taiko (Bridge.sendMessage, relayed to Ethereum)", () => {
+    const TAIKO_BRIDGE = '0x1670000000000000000000000000000000000001' as Address;
+    const abi = parseAbi([
+      'struct Message { uint64 id; uint64 fee; uint32 gasLimit; address from; uint64 srcChainId; address srcOwner; uint64 destChainId; address destOwner; address to; uint256 value; bytes data; }',
+      'function sendMessage(Message _message) payable returns (bytes32 msgHash_, Message message_)',
+    ]);
+    const taikoCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 167000, toChainId: 1, bridge: 'native', ...o });
+    const FEE = 3n * 10n ** 14n;
+    type Msg = { fee: bigint; gasLimit: number; srcOwner: Address; destChainId: bigint; destOwner: Address; to: Address; value: bigint; data: Hex };
+    function taikoQuote(change: (m: Msg, routed: bigint) => void = () => {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const m: Msg = { fee: FEE, gasLimit: 806_657, srcOwner: account.address, destChainId: 1n, destOwner: account.address, to: account.address, value: routed - FEE, data: '0x' };
+      change(m, routed);
+      const callData = encodeFunctionData({ abi, functionName: 'sendMessage', args: [{ id: 0n, from: ZERO, srcChainId: 0n, ...m }] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '1';
+        q.intent.callTarget = TAIKO_BRIDGE;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts a plain ETH message to the requested recipient carrying exactly the routed value', async () => {
+      expect((await verifySweepQuote(taikoQuote(), taikoCtx())).route).toEqual({ bridge: 'native', recipientVerified: true });
+      expect(bridgeForCallTarget(167000, TAIKO_BRIDGE)).toBe('native');
+      expect(bridgeForCallTarget(1, TAIKO_BRIDGE)).toBeNull();
+    });
+
+    it('refuses another recipient or owner, a call, another gas limit, a fee out of bounds, or a value that is not the routed one', async () => {
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.to = ATTACKER; }), taikoCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.destOwner = ATTACKER; }), taikoCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.srcOwner = ATTACKER; }), taikoCtx()))).toMatch(/owned on Taiko by/);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.data = '0xdeadbeef'; }), taikoCtx()))).toMatch(/carries a call/);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.gasLimit = 1; }), taikoCtx()))).toMatch(/gas limit/);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.destChainId = 8453n; }), taikoCtx()))).toMatch(/goes to chain 8453/);
+      expect(await rejection(verifySweepQuote(taikoQuote((m, routed) => { m.fee = 4n * 10n ** 15n; m.value = routed - m.fee; }), taikoCtx()))).toMatch(/relayer fee/);
+      expect(await rejection(verifySweepQuote(taikoQuote((m) => { m.value -= 1n; }), taikoCtx()))).toMatch(/not the .* wei routed/);
+    });
+  });
+
   describe('Across calldata, when the API supplies it', () => {
     const abi = parseAbi([
       'function depositNative(address spokePool, address depositor, bytes32 recipient, address inputToken, uint256 inputAmount, bytes32 outputToken, uint256 outputAmount, uint256 destinationChainId, bytes32 exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityParameter, bytes message)',

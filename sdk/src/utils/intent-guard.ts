@@ -46,7 +46,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, TAIKO_MAX_RELAYER_FEE, TAIKO_MESSAGE_GAS_LIMIT, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -385,6 +385,35 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
 /** A Relay depository deposit must credit the signer (refunds go there) */
 const NATIVE_OP_BRIDGE_ABI = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
 const NATIVE_ARB_SYS_ABI = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
+const TAIKO_SEND_ABI = parseAbi([
+  'struct Message { uint64 id; uint64 fee; uint32 gasLimit; address from; uint64 srcChainId; address srcOwner; uint64 destChainId; address destOwner; address to; uint256 value; bytes data; }',
+  'function sendMessage(Message _message) payable returns (bytes32 msgHash_, Message message_)',
+]);
+
+/**
+ * Taiko: a plain ETH message to the requested recipient on the exit's chain, which the recipient
+ * owns there (an unused fee is refunded to them) and the signer owns on Taiko (a recall); a relayer
+ * fee within bounds and the gas limit Taiko's relayer processes. The amount and fee are returned
+ * so the caller checks that together they are exactly the routed value (sendMessage requires it).
+ */
+function verifyTaikoCalldata(callData: Hex, ctx: QuoteCheckContext & { toChainId: number }): { amount: bigint; fee: bigint } {
+  let m: { fee: bigint; gasLimit: number; srcOwner: Address; destChainId: bigint; destOwner: Address; to: Address; value: bigint; data: Hex };
+  try {
+    [m] = decodeFunctionData({ abi: TAIKO_SEND_ABI, data: callData }).args as unknown as [typeof m];
+  } catch {
+    return unsafe('the own-bridge calldata is not Taiko\'s sendMessage');
+  }
+  if (!sameAddress(m.to, ctx.destination) || !sameAddress(m.destOwner, ctx.destination)) {
+    unsafe(`the own-bridge withdrawal pays ${m.to} (owner ${m.destOwner}), not ${ctx.destination}`);
+  }
+  if (!sameAddress(m.srcOwner, ctx.signer)) unsafe(`the Taiko message is owned on Taiko by ${m.srcOwner}, not the signer`);
+  if (m.destChainId !== BigInt(ctx.toChainId)) unsafe(`the Taiko message goes to chain ${m.destChainId}, not ${ctx.toChainId}`);
+  if (m.data !== '0x') unsafe('the Taiko message carries a call');
+  if (m.gasLimit !== TAIKO_MESSAGE_GAS_LIMIT) unsafe(`the Taiko message's gas limit ${m.gasLimit} is not the relayer's ${TAIKO_MESSAGE_GAS_LIMIT}`);
+  if (m.fee === 0n || m.fee > TAIKO_MAX_RELAYER_FEE) unsafe(`the Taiko relayer fee ${m.fee} wei is outside 1..${TAIKO_MAX_RELAYER_FEE}`);
+  if (m.value === 0n) unsafe('the Taiko message bridges nothing');
+  return { amount: m.value, fee: m.fee };
+}
 
 function verifyRelayCalldata(callData: Hex, ctx: QuoteCheckContext): void {
   if (!callData.startsWith('0x49290c1c')) return; // router multicall: nothing decodable to check
@@ -448,6 +477,8 @@ export async function verifySweepQuote(
   let bridgedAmount: bigint | null = null;
   /** Stargate: the most of the routed value that may go to the LayerZero fee (read on-chain) */
   let bridgeMaxFee: bigint | null = null;
+  /** Taiko: the relayer fee; with the bridged amount it must be exactly the routed value */
+  let taikoFee: bigint | null = null;
 
   if (ctx.fromChainId === ctx.toChainId) {
     if (ctx.bridge === 'native') unsafe('a same-chain sweep cannot use the chain\'s own bridge that was asked for');
@@ -512,16 +543,23 @@ export async function verifySweepQuote(
         unsafe(`the own bridge of chain ${ctx.fromChainId} does not go to chain ${ctx.toChainId}`);
       }
       if (!callData) unsafe('the own-bridge route has no calldata to check');
-      let to: Address;
-      try {
-        [to] = exit.stack === 'arb'
-          ? decodeFunctionData({ abi: NATIVE_ARB_SYS_ABI, data: callData }).args
-          : decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
-      } catch {
-        return unsafe(`the own-bridge calldata is not ${exit.stack === 'arb' ? 'withdrawEth' : 'bridgeETHTo'}`);
+      if (exit.stack === 'taiko') {
+        const checked = verifyTaikoCalldata(callData, { ...ctx, signer, destination: requested });
+        bridgedAmount = checked.amount;
+        taikoFee = checked.fee;
+        recipientVerified = true;
+      } else {
+        let to: Address;
+        try {
+          [to] = exit.stack === 'arb'
+            ? decodeFunctionData({ abi: NATIVE_ARB_SYS_ABI, data: callData }).args
+            : decodeFunctionData({ abi: NATIVE_OP_BRIDGE_ABI, data: callData }).args;
+        } catch {
+          return unsafe(`the own-bridge calldata is not ${exit.stack === 'arb' ? 'withdrawEth' : 'bridgeETHTo'}`);
+        }
+        if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
+        recipientVerified = true;
       }
-      if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
-      recipientVerified = true;
     } else if (bridge === 'relay') {
       if (callData) verifyRelayCalldata(callData, { ...ctx, signer });
       if (ctx.ownRelayCallData !== undefined) {
@@ -565,6 +603,9 @@ export async function verifySweepQuote(
   // The contract routes balance - reserve; a token-delivery bridge takes that minus its own fee
   if (bridgedAmount !== null && bridgedAmount >= ctx.balanceWei - maxTotalFeeWei) {
     unsafe(`${bridge} transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
+  }
+  if (bridgedAmount !== null && taikoFee !== null && bridgedAmount + taikoFee !== ctx.balanceWei - maxTotalFeeWei) {
+    unsafe(`the Taiko message carries ${bridgedAmount + taikoFee} wei, not the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
   }
   if (bridgedAmount !== null && bridgeMaxFee !== null && ctx.balanceWei - maxTotalFeeWei - bridgedAmount > bridgeMaxFee) {
     unsafe(`${bridge} would keep ${ctx.balanceWei - maxTotalFeeWei - bridgedAmount} wei as its fee, above the ${bridgeMaxFee} wei it quotes`);
