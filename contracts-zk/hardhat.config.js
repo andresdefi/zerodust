@@ -11,6 +11,10 @@ module.exports = {
     ? { compilerSource: 'binary', settings: { compilerPath: LOCAL_ZKSOLC, codegen: 'yul' } }
     : { version: '1.5.18', settings: { codegen: 'yul' } },
   solidity: { version: '0.8.28', settings: { evmVersion: 'cancun' } },
+  // CI hands the plugin a pinned anvil-zksync binary: otherwise it asks GitHub's API for the
+  // release tags on every run, unauthenticated, and a 403 (rate limit) fails the job (twice by
+  // 2026-10-12). Locally the plugin downloads and caches it as before.
+  ...(process.env.ZKSYNC_ANVIL_BINARY ? { zksyncAnvil: { binaryPath: process.env.ZKSYNC_ANVIL_BINARY } } : {}),
   defaultNetwork: 'inMemoryNode',
   networks: {
     hardhat: { zksync: true },
