@@ -220,6 +220,14 @@ describe('ZeroDust Client', () => {
         })
       ).rejects.toThrow();
     });
+
+    it('asks for the chain\'s own bridge with bridge=native, and only then', async () => {
+      mockFetch.mockResolvedValue(mockJsonResponse({ quoteId: 'q' }));
+      await client.getQuote({ ...quoteRequest, fromChainId: 42170, toChainId: 1, bridge: 'native' });
+      expect(new URL(mockFetch.mock.calls[0]![0] as string).searchParams.get('bridge')).toBe('native');
+      await client.getQuote(quoteRequest);
+      expect(new URL(mockFetch.mock.calls[1]![0] as string).searchParams.has('bridge')).toBe(false);
+    });
   });
 
   describe('createAuthorization', () => {
