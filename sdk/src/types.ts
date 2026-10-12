@@ -134,6 +134,12 @@ export interface QuoteRequest {
   userAddress: Address;
   /** Destination address for swept funds */
   destination: Address;
+  /**
+   * 'native': the source chain's own bridge to its parent (NATIVE_EXITS), instead of the best
+   * third-party bridge. Funds arrive 1:1 only after the recipient proves (OP stack) and claims
+   * the withdrawal on the parent chain, days later; ZeroDust does not claim for them.
+   */
+  bridge?: 'native';
 }
 
 /**

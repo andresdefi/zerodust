@@ -115,6 +115,8 @@ export interface AgentSweepRequest {
   toChainId: number;
   /** Destination address (defaults to agent's address) */
   destination?: Address;
+  /** 'native': the source chain's own bridge to its parent (see QuoteRequest.bridge) */
+  bridge?: 'native';
 }
 
 /**
@@ -379,6 +381,7 @@ export class ZeroDustAgent {
         toChainId: request.toChainId,
         userAddress: this.address,
         destination,
+        ...(request.bridge ? { bridge: request.bridge } : {}),
       });
 
       // 1b. A Relay route (known by the contract it calls, not the API's label): Relay keeps the

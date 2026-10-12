@@ -451,6 +451,7 @@ export class ZeroDust {
       toChainId: validated.toChainId,
       userAddress: validated.userAddress,
       destination: validated.destination,
+      ...(validated.bridge ? { bridge: validated.bridge } : {}),
     });
   }
 

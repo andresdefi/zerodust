@@ -236,17 +236,23 @@ export function validateQuoteRequest(params: {
   toChainId: unknown;
   userAddress: string;
   destination: string;
+  bridge?: unknown;
 }): {
   fromChainId: number;
   toChainId: number;
   userAddress: Address;
   destination: Address;
+  bridge?: 'native';
 } {
+  if (params.bridge !== undefined && params.bridge !== 'native') {
+    throw new ZeroDustError('INVALID_REQUEST', `Unknown bridge option: ${String(params.bridge)} (only 'native')`);
+  }
   return {
     fromChainId: validateChainId(params.fromChainId),
     toChainId: validateChainId(params.toChainId),
     userAddress: validateAddress(params.userAddress, 'userAddress'),
     destination: validateAddress(params.destination, 'destination'),
+    ...(params.bridge === 'native' ? { bridge: 'native' as const } : {}),
   };
 }
 
