@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.19] - 2026-10-13
+
+### Added
+
+- **X Layer's own bridge.** `bridge: 'native'` from X Layer (196) quotes the AggLayer bridge's
+  `bridgeAsset` of the gas token to Ethereum. The guard accepts it only to network 0, of the gas
+  token (address(0)), without a permit, paying the requested recipient, for exactly the routed
+  amount. OKB is claimed on Ethereum as the OKB ERC-20 once X Layer's exit root reaches it (about
+  every 15 minutes).
+
 ## [0.5.18] - 2026-10-12
 
 ### Added
