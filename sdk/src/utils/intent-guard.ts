@@ -386,6 +386,7 @@ function verifyAcrossCalldata(callData: Hex, ctx: QuoteCheckContext): boolean {
 const NATIVE_OP_BRIDGE_ABI = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
 const NATIVE_ARB_SYS_ABI = parseAbi(['function withdrawEth(address destination) payable returns (uint256)']);
 const NATIVE_PASSER_ABI = parseAbi(['function initiateWithdrawal(address _target, uint256 _gasLimit, bytes _data) payable']);
+const AGGLAYER_ABI = parseAbi(['function bridgeAsset(uint32 destinationNetwork, address destinationAddress, uint256 amount, address token, bool forceUpdateGlobalExitRoot, bytes permitData) payable']);
 /** The gas the withdrawal's message gets on Ethereum (as the API builds it) */
 const NATIVE_MIN_GAS_LIMIT = 200_000;
 const TAIKO_SEND_ABI = parseAbi([
@@ -482,6 +483,8 @@ export async function verifySweepQuote(
   let bridgeMaxFee: bigint | null = null;
   /** Taiko: the relayer fee; with the bridged amount it must be exactly the routed value */
   let taikoFee: bigint | null = null;
+  /** AggLayer: the amount bridgeAsset names, which must be exactly what the contract routes (it reverts otherwise) */
+  let agglayerAmount: bigint | null = null;
 
   if (ctx.fromChainId === ctx.toChainId) {
     if (ctx.bridge === 'native') unsafe('a same-chain sweep cannot use the chain\'s own bridge that was asked for');
@@ -551,6 +554,21 @@ export async function verifySweepQuote(
         bridgedAmount = checked.amount;
         taikoFee = checked.fee;
         recipientVerified = true;
+      } else if (exit.stack === 'agglayer') {
+        let args: readonly [number, Address, bigint, Address, boolean, Hex];
+        try {
+          args = decodeFunctionData({ abi: AGGLAYER_ABI, data: callData }).args;
+        } catch {
+          return unsafe('the own-bridge calldata is not the AggLayer bridge\'s bridgeAsset');
+        }
+        const [network, to, amount, token, , permit] = args;
+        // Network 0 is Ethereum; address(0) is the chain's gas token; no permit (nothing is approved)
+        if (network !== 0) unsafe(`the AggLayer withdrawal goes to network ${network}, not Ethereum`);
+        if (!sameAddress(token, '0x0000000000000000000000000000000000000000')) unsafe('the AggLayer withdrawal is not of the chain\'s gas token');
+        if (permit !== '0x') unsafe('the AggLayer withdrawal carries a permit');
+        if (!sameAddress(to, requested)) unsafe(`the own-bridge withdrawal pays ${to}, not ${requested}`);
+        agglayerAmount = amount;
+        recipientVerified = true;
       } else {
         let to: Address;
         try {
@@ -614,6 +632,9 @@ export async function verifySweepQuote(
   // The contract routes balance - reserve; a token-delivery bridge takes that minus its own fee
   if (bridgedAmount !== null && bridgedAmount >= ctx.balanceWei - maxTotalFeeWei) {
     unsafe(`${bridge} transfer of ${bridgedAmount} wei does not fit in the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
+  }
+  if (agglayerAmount !== null && agglayerAmount !== ctx.balanceWei - maxTotalFeeWei) {
+    unsafe(`the AggLayer withdrawal names ${agglayerAmount} wei, not the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
   }
   if (bridgedAmount !== null && taikoFee !== null && bridgedAmount + taikoFee !== ctx.balanceWei - maxTotalFeeWei) {
     unsafe(`the Taiko message carries ${bridgedAmount + taikoFee} wei, not the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
