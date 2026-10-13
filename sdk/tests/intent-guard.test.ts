@@ -563,6 +563,39 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe("A chain's own bridge on X Layer (the AggLayer bridge's bridgeAsset, claimed on Ethereum)", () => {
+    const AGGLAYER = '0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe' as Address;
+    const abi = parseAbi(['function bridgeAsset(uint32 destinationNetwork, address destinationAddress, uint256 amount, address token, bool forceUpdateGlobalExitRoot, bytes permitData) payable']);
+    const xCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 196, toChainId: 1, bridge: 'native', ...o });
+    type Args = { network: number; to: Address; amount: bigint; token: Address; permit: Hex };
+    function xQuote(change: (a: Args, routed: bigint) => void = () => {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const a: Args = { network: 0, to: account.address, amount: routed, token: ZERO, permit: '0x' };
+      change(a, routed);
+      const callData = encodeFunctionData({ abi, functionName: 'bridgeAsset', args: [a.network, a.to, a.amount, a.token, true, a.permit] });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '1';
+        q.intent.callTarget = AGGLAYER;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the gas token to Ethereum, to the requested recipient, for exactly the routed amount', async () => {
+      expect((await verifySweepQuote(xQuote(), xCtx())).route).toEqual({ bridge: 'native', recipientVerified: true });
+      expect(bridgeForCallTarget(196, AGGLAYER)).toBe('native');
+    });
+
+    it('refuses another network, recipient, token, a permit, or an amount that is not the routed one', async () => {
+      expect(await rejection(verifySweepQuote(xQuote((a) => { a.network = 3; }), xCtx()))).toMatch(/network 3/);
+      expect(await rejection(verifySweepQuote(xQuote((a) => { a.to = ATTACKER; }), xCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(xQuote((a) => { a.token = ATTACKER; }), xCtx()))).toMatch(/gas token/);
+      expect(await rejection(verifySweepQuote(xQuote((a) => { a.permit = '0x01'; }), xCtx()))).toMatch(/permit/);
+      expect(await rejection(verifySweepQuote(xQuote((a) => { a.amount -= 1n; }), xCtx()))).toMatch(/not the .* wei routed/);
+    });
+  });
+
   describe('Across calldata, when the API supplies it', () => {
     const abi = parseAbi([
       'function depositNative(address spokePool, address depositor, bytes32 recipient, address inputToken, uint256 inputAmount, bytes32 outputToken, uint256 outputAmount, uint256 destinationChainId, bytes32 exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityParameter, bytes message)',
