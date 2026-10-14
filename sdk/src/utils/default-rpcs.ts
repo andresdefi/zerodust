@@ -63,4 +63,7 @@ export const DEFAULT_RPC_URLS: Readonly<Record<number, string>> = {
   16661: 'https://evmrpc.0g.ai',
   42170: 'https://nova.arbitrum.io/rpc',
   1155: 'https://rpc.intuition.systems',
+  1729: 'https://rpc.reya.network',
+  190415: 'https://mainnet.hpp.io',
+  4153: 'https://rpc.risechain.com',
 };
