@@ -62,6 +62,10 @@ const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   16661, // 0G
   42170, // Arbitrum Nova: listed with outbound off
   1155, // Intuition: only Caldera's Metalayer takes TRUST out
+  // Gas.zip does not serve these at all (2026-10-14): only their own bridges take ETH out
+  1729, // Reya
+  190415, // HPP
+  4153, // RISE
 ]);
 
 // ============ Relay ============
@@ -204,11 +208,11 @@ export function deliversOnlyToSender(fromChainId: number, toChainId: number): bo
 
 // ============ Lookup ============
 
-/** Every chain the ZeroDust contract is deployed on (mainnet; Kaia, 0G, Arbitrum Nova and Intuition 2026-10-07) */
+/** Every chain the ZeroDust contract is deployed on (mainnet; Kaia, 0G, Arbitrum Nova and Intuition 2026-10-07; Reya, HPP, RISE 2026-10-14) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1155, 1329, 1514, 1672, 1868,
-  2020, 2818, 4326, 4663, 5000, 5031, 5042, 5330, 8217, 8453, 9745, 16661, 33139, 34443, 42018, 42161,
-  42170, 42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 534352,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1155, 1329, 1514, 1672, 1729, 1868,
+  2020, 2818, 4153, 4326, 4663, 5000, 5031, 5042, 5330, 8217, 8453, 9745, 16661, 33139, 34443, 42018, 42161,
+  42170, 42220, 43111, 48900, 57073, 59144, 60808, 80094, 97477, 98866, 124816, 167000, 190415, 534352,
   685689, 747474, 7777777,
 ];
 
@@ -240,6 +244,10 @@ export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb' | 'taik
   167000: { stack: 'taiko', toChainId: 1, bridge: TAIKO_L2_BRIDGE },
   // X Layer: the AggLayer bridge's bridgeAsset of its gas token to Ethereum; OKB is claimed there as the OKB ERC-20
   196: { stack: 'agglayer', toChainId: 1, bridge: AGGLAYER_BRIDGE },
+  // Reya and HPP (Arbitrum Orbit): ArbSys.withdrawEth; RISE (OP Stack): L2StandardBridge.bridgeETHTo
+  1729: { stack: 'arb', toChainId: 1, bridge: ARB_SYS },
+  190415: { stack: 'arb', toChainId: 1, bridge: ARB_SYS },
+  4153: { stack: 'op', toChainId: 1, bridge: OP_L2_STANDARD_BRIDGE },
 };
 
 /** Taiko's relayer: the gas limit it processes a plain ETH message with, and the most a sweep may pay it (wei) */

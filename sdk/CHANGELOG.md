@@ -5,6 +5,17 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.22] - 2026-10-14
+
+### Added
+
+- **Reya (1729), HPP (190415) and RISE (4153).** The ZeroDust contract is deployed on all three
+  (`ZERODUST_MAINNET_CHAIN_IDS`), with default RPCs and L1 fee pricing (Reya and HPP charge it as
+  gas units, RISE has the OP Stack oracle). No bridge takes ETH out of them, so besides same-chain
+  sweeps each has its own bridge to Ethereum (`NATIVE_EXITS`, `bridge: 'native'`): Reya and HPP
+  through ArbSys.withdrawEth, RISE through L2StandardBridge.bridgeETHTo. The ETH is claimed on
+  Ethereum about a week later.
+
 ## [0.5.21] - 2026-10-14
 
 ### Changed
