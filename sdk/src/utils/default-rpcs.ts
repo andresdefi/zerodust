@@ -66,4 +66,6 @@ export const DEFAULT_RPC_URLS: Readonly<Record<number, string>> = {
   1729: 'https://rpc.reya.network',
   190415: 'https://mainnet.hpp.io',
   4153: 'https://rpc.risechain.com',
+  81224: 'https://rpc.codex.xyz',
+  1750: 'https://rpc.metall2.com',
 };
