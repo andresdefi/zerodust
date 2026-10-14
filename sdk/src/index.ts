@@ -170,6 +170,7 @@ export {
   HYPERLANE_ROUTES,
   ENDURANCE_ROUTE,
   OFT_ROUTES,
+  oftRoute,
   deliveredToken,
   deliversOnlyToSender,
   type BridgeName,
