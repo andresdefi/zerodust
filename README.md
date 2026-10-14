@@ -112,7 +112,7 @@ curl -X POST https://api.zerodust.xyz/agent/register \
 
 | Contract | Address (same on every chain, CREATE2) | Where |
 |---|---|---|
-| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 52 sponsored chains below |
+| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 57 sponsored chains below |
 | ZeroDustPermissionRouter v2 (`contracts/src/ZeroDustPermissionRouter.sol`) | `0x369A97dd256F7eb37fF7116C4EcBd50318eBb286` | 16 chains with MetaMask Advanced Permissions |
 | ZeroDustGuard (`contracts/src/ZeroDustGuard.yul`) | `0x2f95e6ED90a7dD67fc3Fae5c5628647E6A83e48e` | Blast, Boba |
 | ZeroDustPaymaster (`contracts-zk/`) | `0x986e4Bb55AEEE6a8c80c28Ca787b13E216fD25B8` | zkSync Era, Abstract, Lens |
@@ -144,14 +144,17 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 | Intuition | 1155 | TRUST | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
 | DATA Network | 1514 | DATA | Berachain | 80094 | BERA |
-| Pharos | 1672 | PROS | Doma | 97477 | ETH |
-| Soneium | 1868 | ETH | Plume | 98866 | PLUME |
-| Ronin | 2020 | RON | Mitosis | 124816 | MITO |
-| Morph | 2818 | ETH | Taiko | 167000 | ETH |
-| MegaETH | 4326 | ETH | Scroll | 534352 | ETH |
-| Robinhood Chain | 4663 | ETH | Gensyn | 685689 | ETH |
-| Mantle | 5000 | MNT | Katana | 747474 | ETH |
-| Somnia | 5031 | SOMI | Zora | 7777777 | ETH |
+| Pharos | 1672 | PROS | Codex | 81224 | ETH |
+| Reya | 1729 | ETH | Doma | 97477 | ETH |
+| Metal L2 | 1750 | ETH | Plume | 98866 | PLUME |
+| Soneium | 1868 | ETH | Mitosis | 124816 | MITO |
+| Ronin | 2020 | RON | Taiko | 167000 | ETH |
+| Morph | 2818 | ETH | HPP | 190415 | ETH |
+| RISE | 4153 | ETH | Scroll | 534352 | ETH |
+| MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
+| Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
+| Mantle | 5000 | MNT | Zora | 7777777 | ETH |
+| Somnia | 5031 | SOMI |  | |  |
 
 Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
 not hand-edit it. The 21 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
