@@ -5,6 +5,18 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.20] - 2026-10-14
+
+### Added
+
+- **0G leaves as the 0G token on BNB Chain** (token delivery). 0G's official LayerZero v2 route:
+  its native OFT adapter on 0G (`0x4B948d64…b3eE`, pinned as `OFT_ROUTES`) sends native 0G to the
+  official 0G token at the same address on BNB Chain, 1:1. `deliveredToken(16661, 56)` names it.
+  The guard accepts only endpoint 30102, the requested recipient, the whole amount required to
+  arrive (`minAmountLD = amountLD`), nothing run on arrival, the fee refund to ZeroDust (never the
+  wallet), a fee within LayerZero's own quote plus a 5% margin, and fee + amount equal to the
+  routed value exactly (the adapter reverts on anything else).
+
 ## [0.5.19] - 2026-10-13
 
 ### Added
