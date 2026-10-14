@@ -46,7 +46,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, OFT_ROUTES, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, TAIKO_MAX_RELAYER_FEE, TAIKO_MESSAGE_GAS_LIMIT, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, TAIKO_MAX_RELAYER_FEE, TAIKO_MESSAGE_GAS_LIMIT, bridgeForCallTarget, buildGasZipDepositCalldata, oftRoute } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -349,7 +349,7 @@ async function verifyStargateCalldata(callData: Hex | undefined, ctx: QuoteCheck
 }
 
 /**
- * A LayerZero native OFT send (token delivery, OFT_ROUTES): to the route's one destination,
+ * A LayerZero native OFT send (token delivery, OFT_ROUTES): to the requested destination's endpoint,
  * paying the requested address 1:1 (minAmountLD = amountLD), nothing run on arrival, no ZRO, the
  * fee refund to ZeroDust (never the wallet: it would break exact zero). The adapter requires
  * msg.value == nativeFee + amountLD, so the caller checks that against the routed value; the
@@ -357,8 +357,8 @@ async function verifyStargateCalldata(callData: Hex | undefined, ctx: QuoteCheck
  * @returns the bridged amount, the fee the call names, and the most that fee may be (quote + margin)
  */
 async function verifyOftCalldata(callData: Hex | undefined, ctx: QuoteCheckContext): Promise<{ amount: bigint; nativeFee: bigint; maxFee: bigint }> {
-  const route = OFT_ROUTES[ctx.fromChainId];
-  if (!route || route.toChainId !== ctx.toChainId) return unsafe(`no LayerZero route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
+  const route = oftRoute(ctx.fromChainId, ctx.toChainId);
+  if (!route) return unsafe(`no LayerZero route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
   if (!callData) return unsafe('LayerZero route has no calldata to check');
   let param: { dstEid: number; to: Hex; amountLD: bigint; minAmountLD: bigint; extraOptions: Hex; composeMsg: Hex; oftCmd: Hex };
   let fee: { nativeFee: bigint; lzTokenFee: bigint };

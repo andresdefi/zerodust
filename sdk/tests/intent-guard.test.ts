@@ -397,7 +397,16 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
       expect(bridgeForCallTarget(16661, ADAPTER)).toBe('layerzero');
       expect(bridgeForCallTarget(56, ADAPTER)).toBeNull();
       expect(deliveredToken(16661, 56)).toEqual({ symbol: '0G', address: ADAPTER, decimals: 18 });
-      expect(deliveredToken(16661, 1)).toBeNull();
+      expect(deliveredToken(16661, 1)).toEqual({ symbol: '0G', address: ADAPTER, decimals: 18 });
+      expect(deliveredToken(16661, 8453)).toBeNull();
+    });
+
+    it('also to Ethereum (owner, 2026-10-14: users may prefer either chain), through endpoint 30101 only', async () => {
+      const toEthereum = tamper(oftQuote({ dstEid: 30101 }), (q) => { q.intent.destinationChainId = '1'; });
+      const { route } = await verifySweepQuote(toEthereum, ctx({ fromChainId: 16661, toChainId: 1, ethCall: quoteSend }));
+      expect(route).toEqual({ bridge: 'layerzero', recipientVerified: true });
+      // Ethereum's endpoint while BNB Chain was asked for: refused
+      expect(await rejection(verifySweepQuote(oftQuote({ dstEid: 30101 }), zgCtx()))).toMatch(/endpoint 30101/);
     });
 
     it('refuses another recipient or chain, a refund to anyone else, a message on arrival, less than 1:1', async () => {
@@ -406,8 +415,8 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
       expect(await rejection(verifySweepQuote(oftQuote({ refund: account.address }), zgCtx()))).toMatch(/refund goes to/);
       expect(await rejection(verifySweepQuote(oftQuote({ compose: '0x01' }), zgCtx()))).toMatch(/on arrival/);
       expect(await rejection(verifySweepQuote(oftQuote({ min: 1n }), zgCtx()))).toMatch(/whole amount/);
-      const toEthereum = tamper(oftQuote(), (q) => { q.intent.destinationChainId = '1'; });
-      expect(await rejection(verifySweepQuote(toEthereum, ctx({ fromChainId: 16661, toChainId: 1, ethCall: quoteSend })))).toMatch(/no LayerZero route from chain 16661 to 1/);
+      const toBase = tamper(oftQuote(), (q) => { q.intent.destinationChainId = '8453'; });
+      expect(await rejection(verifySweepQuote(toBase, ctx({ fromChainId: 16661, toChainId: 8453, ethCall: quoteSend })))).toMatch(/no LayerZero route from chain 16661 to 8453/);
     });
 
     it('refuses a value that is not fee + amount exactly, a fee above the quote, and a check that cannot read it', async () => {
