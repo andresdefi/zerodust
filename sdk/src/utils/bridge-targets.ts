@@ -27,7 +27,7 @@
 
 import { type Address, type Hex, getAddress } from 'viem';
 
-export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance' | 'stargate' | 'native';
+export type BridgeName = 'gaszip' | 'relay' | 'across' | 'hyperlane' | 'endurance' | 'stargate' | 'layerzero' | 'native';
 
 // ============ Gas.zip ============
 
@@ -158,6 +158,21 @@ export const STARGATE_NATIVE_POOLS: Readonly<Record<number, { pool: Address; eid
   534352: { pool: '0xC2b638Cb5042c1B3c5d5C969361fB50569840583', eid: 30214 },
 };
 
+/**
+ * LayerZero native OFT adapters (token delivery): the chain's native coin leaves as its official
+ * token on the destination. 0G -> the 0G token on BNB Chain only (its fee is ~1/6 of Ethereum's).
+ * Pinned (adapter, peer, eid, shared decimals read on-chain 2026-10-14); mirrors the backend's
+ * bridges/layerzero-oft.ts.
+ */
+export const OFT_ROUTES: Readonly<Record<number, { adapter: Address; dstEid: number; toChainId: number; token: DeliveredToken }>> = {
+  16661: {
+    adapter: '0x4B948d64dE1F71fCd12fB586f4c776421a35b3eE',
+    dstEid: 30102,
+    toChainId: 56,
+    token: { symbol: '0G', address: '0x4B948d64dE1F71fCd12fB586f4c776421a35b3eE', decimals: 18 },
+  },
+};
+
 /** Where a Stargate send's LayerZero fee refund must go: ZeroDust, never the sweeping wallet */
 export const STARGATE_REFUND_ADDRESS: Address = '0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D';
 
@@ -166,6 +181,8 @@ export function deliveredToken(fromChainId: number, toChainId: number): Delivere
   const route = HYPERLANE_ROUTES[fromChainId];
   if (route && route.toChainId === toChainId) return route.token;
   if (fromChainId === ENDURANCE_ROUTE.chainId && toChainId === ENDURANCE_ROUTE.toChainId) return ENDURANCE_ROUTE.token;
+  const oft = OFT_ROUTES[fromChainId];
+  if (oft && oft.toChainId === toChainId) return oft.token;
   return null;
 }
 
@@ -249,6 +266,7 @@ function buildTargets(): Map<number, Map<string, BridgeName>> {
   }
   add(ENDURANCE_ROUTE.chainId, ENDURANCE_ROUTE.bridge, 'endurance');
   for (const [chainId, p] of Object.entries(STARGATE_NATIVE_POOLS)) add(Number(chainId), p.pool, 'stargate');
+  for (const [chainId, r] of Object.entries(OFT_ROUTES)) add(Number(chainId), r.adapter, 'layerzero');
   for (const [chainId, exit] of Object.entries(NATIVE_EXITS)) add(Number(chainId), exit.bridge, 'native');
   return table;
 }

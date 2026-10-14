@@ -357,6 +357,66 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
+  describe('LayerZero native OFT token delivery (0G -> 0G on BNB Chain)', () => {
+    const ADAPTER = '0x4B948d64dE1F71fCd12fB586f4c776421a35b3eE' as Address;
+    const REFUND = '0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D' as Address;
+    const PARAM = '(uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd)';
+    const abi = parseAbi([
+      `function send(${PARAM} sendParam, (uint256 nativeFee, uint256 lzTokenFee) fee, address refundAddress) payable`,
+      `function quoteSend(${PARAM} sendParam, bool payInLzToken) view returns ((uint256 nativeFee, uint256 lzTokenFee) fee)`,
+    ]);
+    const FEE = 10n ** 13n;
+    const pad = (a: Address) => `0x${a.slice(2).toLowerCase().padStart(64, '0')}` as Hex;
+    const quoteSend = async () => encodeFunctionResult({ abi, functionName: 'quoteSend', result: { nativeFee: FEE, lzTokenFee: 0n } });
+    const zgCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 16661, toChainId: 56, ethCall: quoteSend, ...o });
+
+    /** As the backend builds it: amountLD rounded down after a 5% fee margin, the fee takes the rest */
+    function oftQuote(p: { recipient?: Address; dstEid?: number; refund?: Address; compose?: Hex; extraFee?: bigint; min?: bigint; feeShort?: bigint } = {}) {
+      const base = makeQuote({ route: 'relay' });
+      const routed = BASE_BALANCE - BigInt(base.fees.maxTotalFeeWei);
+      const amountLD = ((routed - (FEE * 105n) / 100n - (p.extraFee ?? 0n)) / 10n ** 12n) * 10n ** 12n;
+      const callData = encodeFunctionData({
+        abi, functionName: 'send',
+        args: [
+          { dstEid: p.dstEid ?? 30102, to: pad(p.recipient ?? account.address), amountLD, minAmountLD: p.min ?? amountLD, extraOptions: '0x', composeMsg: p.compose ?? '0x', oftCmd: '0x' },
+          { nativeFee: routed - amountLD - (p.feeShort ?? 0n), lzTokenFee: 0n },
+          p.refund ?? REFUND,
+        ],
+      });
+      return tamper(base, (q) => {
+        q.intent.destinationChainId = '56';
+        q.intent.callTarget = ADAPTER;
+        q.intent.callData = callData;
+        q.intent.routeHash = keccak256(callData);
+      });
+    }
+
+    it('accepts the pinned adapter paying the requested address on BNB Chain 1:1, the refund to ZeroDust; 0G arrives as a token', async () => {
+      const { route } = await verifySweepQuote(oftQuote(), zgCtx());
+      expect(route).toEqual({ bridge: 'layerzero', recipientVerified: true });
+      expect(bridgeForCallTarget(16661, ADAPTER)).toBe('layerzero');
+      expect(bridgeForCallTarget(56, ADAPTER)).toBeNull();
+      expect(deliveredToken(16661, 56)).toEqual({ symbol: '0G', address: ADAPTER, decimals: 18 });
+      expect(deliveredToken(16661, 1)).toBeNull();
+    });
+
+    it('refuses another recipient or chain, a refund to anyone else, a message on arrival, less than 1:1', async () => {
+      expect(await rejection(verifySweepQuote(oftQuote({ recipient: ATTACKER }), zgCtx()))).toMatch(/LayerZero send pays/);
+      expect(await rejection(verifySweepQuote(oftQuote({ dstEid: 30101 }), zgCtx()))).toMatch(/endpoint 30101/);
+      expect(await rejection(verifySweepQuote(oftQuote({ refund: account.address }), zgCtx()))).toMatch(/refund goes to/);
+      expect(await rejection(verifySweepQuote(oftQuote({ compose: '0x01' }), zgCtx()))).toMatch(/on arrival/);
+      expect(await rejection(verifySweepQuote(oftQuote({ min: 1n }), zgCtx()))).toMatch(/whole amount/);
+      const toEthereum = tamper(oftQuote(), (q) => { q.intent.destinationChainId = '1'; });
+      expect(await rejection(verifySweepQuote(toEthereum, ctx({ fromChainId: 16661, toChainId: 1, ethCall: quoteSend })))).toMatch(/no LayerZero route from chain 16661 to 1/);
+    });
+
+    it('refuses a value that is not fee + amount exactly, a fee above the quote, and a check that cannot read it', async () => {
+      expect(await rejection(verifySweepQuote(oftQuote({ feeShort: 1n }), zgCtx()))).toMatch(/carries .* wei, not the .* wei routed/);
+      expect(await rejection(verifySweepQuote(oftQuote({ extraFee: (FEE * 5n) / 100n + 10n ** 12n }), zgCtx()))).toMatch(/above the .* wei it quotes/);
+      expect(await rejection(verifySweepQuote(oftQuote(), ctx({ fromChainId: 16661, toChainId: 56 })))).toMatch(/cannot read the LayerZero fee/);
+    });
+  });
+
   describe('Hyperlane token delivery (Mitosis -> MITO on BNB Chain)', () => {
     const ROUTER = '0xF6CC9B10c607afB777380bF71F272E4D7037C3A9' as Address;
     const abi = parseAbi(['function transferRemote(uint32 destination, bytes32 recipient, uint256 amount) payable returns (bytes32)']);
