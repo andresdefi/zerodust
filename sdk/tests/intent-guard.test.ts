@@ -933,4 +933,19 @@ describe('verifySweepQuote: a chain\'s own bridge only when asked for', () => {
     expect(await rejection(verifySweepQuote(makeQuote(), ctx({ bridge: 'native' })))).toMatch(/same-chain sweep cannot use the chain's own bridge/);
   });
 
+  it.each([
+    ['Reya', 1729, 'arb'],
+    ['HPP', 190415, 'arb'],
+    ['RISE', 4153, 'op'],
+  ] as const)('accepts %s (%i) through its own bridge (%s) to Ethereum, asked for', async (_name, chainId, stack) => {
+    const payee = account.address;
+    const [target, callData] = stack === 'arb'
+      ? [ARB_SYS, encodeFunctionData({ abi: parseAbi(['function withdrawEth(address destination) payable returns (uint256)']), functionName: 'withdrawEth', args: [payee] })]
+      : ['0x4200000000000000000000000000000000000010', encodeFunctionData({ abi: parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']), functionName: 'bridgeETHTo', args: [payee, 200_000, '0x'] })];
+    const quote = tamper(makeQuote({ route: 'gaszip', fromChainId: chainId, toChainId: 1 }), (q) => {
+      q.intent = { ...q.intent!, callTarget: target as Address, callData, routeHash: keccak256(callData), destinationChainId: '1' };
+    });
+    expect((await verifySweepQuote(quote, ctx({ fromChainId: chainId, toChainId: 1, bridge: 'native' }))).route).toMatchObject({ bridge: 'native', recipientVerified: true });
+  });
+
 });
