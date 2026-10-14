@@ -948,4 +948,9 @@ describe('verifySweepQuote: a chain\'s own bridge only when asked for', () => {
     expect((await verifySweepQuote(quote, ctx({ fromChainId: chainId, toChainId: 1, bridge: 'native' }))).route).toMatchObject({ bridge: 'native', recipientVerified: true });
   });
 
+  it.each([1729, 190415, 4153])('allows only the own bridge as a call target on %i (no Gas.zip forwarder there)', (chainId) => {
+    expect(allowedCallTargets(chainId).map((t) => t.bridge)).toEqual(['native']);
+    expect(bridgeForCallTarget(chainId, '0x2a37D63EAdFe4b4682a3c28C1c2cD4F109Cc2762')).toBeNull();
+  });
+
 });

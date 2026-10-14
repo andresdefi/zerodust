@@ -62,6 +62,10 @@ const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   16661, // 0G
   42170, // Arbitrum Nova: listed with outbound off
   1155, // Intuition: only Caldera's Metalayer takes TRUST out
+  // Gas.zip does not serve these at all (2026-10-14): only their own bridges take ETH out
+  1729, // Reya
+  190415, // HPP
+  4153, // RISE
 ]);
 
 // ============ Relay ============
