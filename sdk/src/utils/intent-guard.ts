@@ -46,7 +46,7 @@ import {
   ZERO_ROUTE_HASH,
   ZERODUST_CONTRACT_ADDRESS,
 } from './signature.js';
-import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, TAIKO_MAX_RELAYER_FEE, TAIKO_MESSAGE_GAS_LIMIT, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
+import { type BridgeName, ENDURANCE_ROUTE, HYPERLANE_ROUTES, NATIVE_EXITS, OFT_ROUTES, STARGATE_NATIVE_POOLS, STARGATE_REFUND_ADDRESS, TAIKO_MAX_RELAYER_FEE, TAIKO_MESSAGE_GAS_LIMIT, bridgeForCallTarget, buildGasZipDepositCalldata } from './bridge-targets.js';
 
 // ============ Bounds ============
 
@@ -349,6 +349,42 @@ async function verifyStargateCalldata(callData: Hex | undefined, ctx: QuoteCheck
 }
 
 /**
+ * A LayerZero native OFT send (token delivery, OFT_ROUTES): to the route's one destination,
+ * paying the requested address 1:1 (minAmountLD = amountLD), nothing run on arrival, no ZRO, the
+ * fee refund to ZeroDust (never the wallet: it would break exact zero). The adapter requires
+ * msg.value == nativeFee + amountLD, so the caller checks that against the routed value; the
+ * LayerZero fee is read from the adapter.
+ * @returns the bridged amount, the fee the call names, and the most that fee may be (quote + margin)
+ */
+async function verifyOftCalldata(callData: Hex | undefined, ctx: QuoteCheckContext): Promise<{ amount: bigint; nativeFee: bigint; maxFee: bigint }> {
+  const route = OFT_ROUTES[ctx.fromChainId];
+  if (!route || route.toChainId !== ctx.toChainId) return unsafe(`no LayerZero route from chain ${ctx.fromChainId} to ${ctx.toChainId}`);
+  if (!callData) return unsafe('LayerZero route has no calldata to check');
+  let param: { dstEid: number; to: Hex; amountLD: bigint; minAmountLD: bigint; extraOptions: Hex; composeMsg: Hex; oftCmd: Hex };
+  let fee: { nativeFee: bigint; lzTokenFee: bigint };
+  let refund: Address;
+  try {
+    const decoded = decodeFunctionData({ abi: STARGATE_ABI, data: callData });
+    if (decoded.functionName !== 'send') return unsafe('LayerZero route is not a send call');
+    [param, fee, refund] = decoded.args as unknown as [typeof param, typeof fee, Address];
+  } catch {
+    return unsafe('LayerZero route calldata is not a send call');
+  }
+  if (param.dstEid !== route.dstEid) unsafe(`LayerZero send goes to endpoint ${param.dstEid}, not chain ${ctx.toChainId}'s ${route.dstEid}`);
+  if (param.to.toLowerCase() !== addressToBytes32(ctx.destination)) unsafe(`LayerZero send pays ${param.to}, not ${ctx.destination}`);
+  if (refund.toLowerCase() !== STARGATE_REFUND_ADDRESS.toLowerCase()) unsafe(`LayerZero fee refund goes to ${refund}, not ZeroDust`);
+  if (param.extraOptions !== '0x' || param.composeMsg !== '0x' || param.oftCmd !== '0x') unsafe('LayerZero send runs something on arrival');
+  if (fee.lzTokenFee !== 0n) unsafe('LayerZero send pays in ZRO');
+  if (param.amountLD === 0n) unsafe('LayerZero send bridges nothing');
+  if (param.minAmountLD !== param.amountLD) unsafe('LayerZero send does not require the whole amount to arrive');
+  if (!ctx.ethCall) return unsafe('cannot read the LayerZero fee on the source chain');
+  const out = await ctx.ethCall({ to: route.adapter, data: encodeFunctionData({ abi: STARGATE_ABI, functionName: 'quoteSend', args: [param, false] }) });
+  if (!out || out === '0x') return unsafe('the LayerZero adapter did not quote its fee');
+  const { nativeFee } = decodeFunctionResult({ abi: STARGATE_ABI, functionName: 'quoteSend', data: out });
+  return { amount: param.amountLD, nativeFee: fee.nativeFee, maxFee: (nativeFee * STARGATE_FEE_MARGIN_PERCENT) / 100n + STARGATE_CONVERT_RATE };
+}
+
+/**
  * Checks an Across deposit: ZeroDust uses Across only for ETH to ETH as a plain depositNative
  * (no source swap, no destination message), because Across settles a failed or partial swap in
  * USDC/USDT/WETH instead of native gas. The recipient must be the destination.
@@ -481,6 +517,8 @@ export async function verifySweepQuote(
   let bridgedAmount: bigint | null = null;
   /** Stargate: the most of the routed value that may go to the LayerZero fee (read on-chain) */
   let bridgeMaxFee: bigint | null = null;
+  /** LayerZero OFT: the fee the send names (with amountLD it must be the routed value exactly) */
+  let oftNativeFee: bigint | null = null;
   /** Taiko: the relayer fee; with the bridged amount it must be exactly the routed value */
   let taikoFee: bigint | null = null;
   /** AggLayer: the amount bridgeAsset names, which must be exactly what the contract routes (it reverts otherwise) */
@@ -539,6 +577,12 @@ export async function verifySweepQuote(
       recipientVerified = true;
     } else if (bridge === 'endurance') {
       bridgedAmount = verifyEnduranceCalldata(callData, { ...ctx, signer, destination: requested });
+      recipientVerified = true;
+    } else if (bridge === 'layerzero') {
+      const checked = await verifyOftCalldata(callData, { ...ctx, signer, destination: requested });
+      bridgedAmount = checked.amount;
+      bridgeMaxFee = checked.maxFee;
+      oftNativeFee = checked.nativeFee;
       recipientVerified = true;
     } else if (bridge === 'across') {
       recipientVerified = callData ? verifyAcrossCalldata(callData, { ...ctx, signer, destination: requested }) : false;
@@ -638,6 +682,9 @@ export async function verifySweepQuote(
   }
   if (bridgedAmount !== null && taikoFee !== null && bridgedAmount + taikoFee !== ctx.balanceWei - maxTotalFeeWei) {
     unsafe(`the Taiko message carries ${bridgedAmount + taikoFee} wei, not the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
+  }
+  if (bridgedAmount !== null && oftNativeFee !== null && bridgedAmount + oftNativeFee !== ctx.balanceWei - maxTotalFeeWei) {
+    unsafe(`the LayerZero send carries ${bridgedAmount + oftNativeFee} wei, not the ${ctx.balanceWei - maxTotalFeeWei} wei routed`);
   }
   if (bridgedAmount !== null && bridgeMaxFee !== null && ctx.balanceWei - maxTotalFeeWei - bridgedAmount > bridgeMaxFee) {
     unsafe(`${bridge} would keep ${ctx.balanceWei - maxTotalFeeWei - bridgedAmount} wei as its fee, above the ${bridgeMaxFee} wei it quotes`);

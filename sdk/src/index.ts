@@ -169,6 +169,7 @@ export {
   ZERODUST_MAINNET_CHAIN_IDS,
   HYPERLANE_ROUTES,
   ENDURANCE_ROUTE,
+  OFT_ROUTES,
   deliveredToken,
   deliversOnlyToSender,
   type BridgeName,
