@@ -15,12 +15,12 @@ const API_CHAINS = [
   // 2026-10-07
   8217, 16661, 42170, 1155,
   // 2026-10-14
-  1729, 190415, 4153,
+  1729, 190415, 4153, 81224, 1750,
 ];
 
 describe('DEFAULT_RPC_URLS', () => {
   it('has an https RPC for every chain the API serves', () => {
-    expect(API_CHAINS).toHaveLength(53);
+    expect(API_CHAINS).toHaveLength(55);
     for (const chainId of API_CHAINS) {
       expect(DEFAULT_RPC_URLS[chainId], `chain ${chainId}`).toMatch(/^https:\/\//);
     }

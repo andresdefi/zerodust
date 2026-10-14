@@ -937,6 +937,8 @@ describe('verifySweepQuote: a chain\'s own bridge only when asked for', () => {
     ['Reya', 1729, 'arb'],
     ['HPP', 190415, 'arb'],
     ['RISE', 4153, 'op'],
+    ['Codex', 81224, 'op'],
+    ['Metal L2', 1750, 'op'],
   ] as const)('accepts %s (%i) through its own bridge (%s) to Ethereum, asked for', async (_name, chainId, stack) => {
     const payee = account.address;
     const [target, callData] = stack === 'arb'
@@ -948,7 +950,7 @@ describe('verifySweepQuote: a chain\'s own bridge only when asked for', () => {
     expect((await verifySweepQuote(quote, ctx({ fromChainId: chainId, toChainId: 1, bridge: 'native' }))).route).toMatchObject({ bridge: 'native', recipientVerified: true });
   });
 
-  it.each([1729, 190415, 4153])('allows only the own bridge as a call target on %i (no Gas.zip forwarder there)', (chainId) => {
+  it.each([1729, 190415, 4153, 81224, 1750])('allows only the own bridge as a call target on %i (no Gas.zip forwarder there)', (chainId) => {
     expect(allowedCallTargets(chainId).map((t) => t.bridge)).toEqual(['native']);
     expect(bridgeForCallTarget(chainId, '0x2a37D63EAdFe4b4682a3c28C1c2cD4F109Cc2762')).toBeNull();
   });

@@ -5,6 +5,16 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.23] - 2026-10-14
+
+### Added
+
+- **Codex (81224) and Metal L2 (1750).** OP Stack like RISE: the ZeroDust contract is deployed on
+  both (`ZERODUST_MAINNET_CHAIN_IDS`), with default RPCs and OP Stack L1 fee pricing. Besides
+  same-chain sweeps each has its own bridge to Ethereum (`NATIVE_EXITS`, `bridge: 'native'`,
+  L2StandardBridge.bridgeETHTo); the ETH is claimed on Ethereum about a week later. Gas.zip does
+  not serve them, so its forwarder is never an allowed call target there.
+
 ## [0.5.22] - 2026-10-14
 
 ### Added
