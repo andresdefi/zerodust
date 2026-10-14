@@ -41,7 +41,7 @@ export const L1_FEE_ORACLES: Readonly<Record<number, L1FeeOracle>> = {
   534352: 'scroll',
   5000: 'mantle',
   42170: 'arbitrum', 1729: 'arbitrum', 190415: 'arbitrum',
-  4153: 'op',
+  4153: 'op', 81224: 'op', 1750: 'op',
 };
 
 /** Bytes priced: more than a sweep tx and its revoke together, and incompressible */
