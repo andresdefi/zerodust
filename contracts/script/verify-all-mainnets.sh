@@ -11,7 +11,7 @@ if [ -z "$PRIVATE_KEY" ]; then
 fi
 
 # Load .env from backend repo
-BACKEND_DIR="/Users/bastianvidela/ZeroDust/zerodust-backend"
+BACKEND_DIR="${BACKEND_DIR:?set BACKEND_DIR to the folder whose .env holds the RPC URLs}"
 if [ ! -f "$BACKEND_DIR/.env" ]; then
     echo "Error: Backend .env not found at $BACKEND_DIR/.env"
     exit 1

@@ -1,8 +1,7 @@
 # ZeroDust paymaster (ZK-stack chains)
 
 `contracts/ZeroDustPaymaster.sol` pays the gas of ZeroDust sweeps on ZK-stack chains (zkSync Era,
-Abstract, Lens, Sophon), so a wallet sends its whole balance and ends at exactly 0. Design and the
-protocol facts it relies on: `docs/ZK-PAYMASTER.md` in the workspace.
+Abstract, Lens), so a wallet sends its whole balance and ends at exactly 0.
 
 A sweep is two type-113 transactions naming the paymaster: a fee transaction to the paymaster
 (service fee + the gas of both) and the sweep (the rest). Both carry an approval signed by the

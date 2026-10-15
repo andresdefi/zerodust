@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.andresdefi/zerodust",
-  "description": "Recover stranded native gas: empty a chain's balance to exactly zero on 73 EVM chains.",
+  "description": "Paused. Empties a chain's native gas balance to exactly zero. To sweep, use zerodust.xyz.",
   "repository": {
     "url": "https://github.com/andresdefi/zerodust",
     "source": "github"
@@ -24,7 +24,7 @@
           "name": "ZERODUST_API_URL"
         },
         {
-          "description": "API key for higher rate limits. An agent can issue itself one with the zerodust_register_api_key tool, with no human signup step.",
+          "description": "API key for higher rate limits (keys are no longer issued; an existing key keeps working).",
           "isRequired": false,
           "format": "string",
           "isSecret": true,
@@ -87,12 +87,6 @@
           "name": "ZERODUST_ALLOWED_DESTINATIONS"
         }
       ]
-    }
-  ],
-  "remotes": [
-    {
-      "type": "streamable-http",
-      "url": "https://api.zerodust.xyz/mcp"
     }
   ]
 }

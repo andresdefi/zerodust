@@ -19,94 +19,28 @@ This repository holds the contracts, the TypeScript SDK and the agent packages.
   `ZeroDustPermissionRouter` a one-time allowance per chain; one EIP-712 signature covers every chain.
   The router redeems it, requires exactly 0, and settles like the contract. 16 chains.
 - **Direct chains (no EIP-7702)**: the wallet sends its own legacy transactions, sized to the wei by
-  the API's planner (21 chains). On OP-stack chains with an L1 data fee it goes through
+  the API's planner (22 chains). On OP-stack chains with an L1 data fee it goes through
   `ZeroDustGuard`; on ZK-stack chains a ZeroDust paymaster pays the gas.
 - **What arrives**: the destination's native gas, carried by Relay, Across (ETH to ETH), Stargate or
   Gas.zip, whichever delivers the most. A few chains whose coin no gas bridge carries deliver it as a
-  token instead (Mitosis, Endurance, Intuition, Telos), said plainly in the quote. On request a sweep
-  can also go into the chain's own bridge to Ethereum, which the recipient claims there later.
+  token instead (Mitosis, Endurance, Intuition, Telos, 0G), said plainly in the quote. On request a
+  sweep can also go into the chain's own bridge to Ethereum (to BNB Chain for opBNB), which the
+  recipient proves and claims there later; Gravity's G and Fraxtal's FRAX arrive on Ethereum as the
+  G and FXS tokens.
 
-## For AI agents
+## For AI agents (paused)
 
-Agents accumulate dust as a byproduct of existing. Anything doing multi-chain
-work - arbitrage, bridging, testing, deployment - ends up with stranded gas on
-chains it will never touch again. A human notices and shrugs; an unattended
-agent leaks capital indefinitely.
-
-### Look first, no install, no key
-
-The hosted MCP server needs nothing installed. Point any MCP client at:
-
-```
-https://api.zerodust.xyz/mcp
-```
-
-That is enough to find out whether an address has anything stranded and what
-recovering it would cost. It is read-only, because it holds no keys.
-
-### Then sweep, with the key wherever you keep it
-
-```json
-{
-  "mcpServers": {
-    "zerodust": {
-      "command": "npx",
-      "args": ["@zerodust/mcp-server"],
-      "env": {
-        "ZERODUST_ALLOW_EXECUTE": "true",
-        "ZERODUST_SIGNER_MODULE": "./my-signer.mjs"
-      }
-    }
-  }
-}
-```
-
-Read-only by default. Sweeping needs the explicit opt-in above plus a signing
-key, and there are four ways to supply one so a raw key never has to sit in a
-config file:
-
-| Variable | Key lives in |
-|----------|--------------|
-| `ZERODUST_SIGNER_MODULE` | your custody provider - any module returning a viem `LocalAccount`, which is what Turnkey, Privy and KMS adapters produce |
-| `ZERODUST_KEYSTORE_FILE` | an encrypted V3 keystore, with the password in a separate file |
-| `ZERODUST_PRIVATE_KEY_FILE` | a file on disk, not in the config |
-| `ZERODUST_PRIVATE_KEY` | the config (simplest, least private) |
-
-Funds can only go to the agent's own address unless
-`ZERODUST_ALLOWED_DESTINATIONS` says otherwise - so a prompt-injected agent still
-cannot send funds somewhere you never approved.
-
-### Try it without risking anything
-
-Every sweep tool and every SDK sweep accepts `dryRun`. It fetches a real quote,
-produces all three real signatures, and stops before submitting. Nothing is
-broadcast and no balance moves:
-
-> "Do a dry run of sweeping my Arbitrum balance to Base"
-
-There is deliberately no testnet mode: the API serves no testnet chains, so a
-testnet flag would only return empty chain lists and failing quotes. `dryRun`
-gives the same confidence against production.
-
-### Agents can provision their own credentials
-
-The read-only tools work with no credential at all. For higher limits an agent
-can issue itself a key with no human in the loop, via the `zerodust_register_api_key`
-tool or directly:
-
-```bash
-curl -X POST https://api.zerodust.xyz/agent/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "agentId": "my-agent-1"}'
-# -> { "apiKey": "zd_...", "rateLimits": { "perMinute": 300, "daily": 1000 } }
-```
+The agent packages (`@zerodust/mcp-server`, `@zerodust/ai-sdk`, `@zerodust/langchain`) are paused
+and deprecated on npm, and the hosted MCP endpoint and agent key signup are switched off. The local
+MCP server and the SDK still sweep through the public API with your own key; keys issued before keep
+their rate limits. To sweep, use [zerodust.xyz](https://zerodust.xyz).
 
 | Package | Use |
 |---------|-----|
-| [`@zerodust/mcp-server`](https://www.npmjs.com/package/@zerodust/mcp-server) | MCP (Claude Code, Claude Desktop, any MCP client) |
-| [`@zerodust/sdk`](https://www.npmjs.com/package/@zerodust/sdk) | TypeScript, direct - `createAgentFromPrivateKey` |
-| [`@zerodust/langchain`](https://www.npmjs.com/package/@zerodust/langchain) | LangChain tools |
-| [`@zerodust/ai-sdk`](https://www.npmjs.com/package/@zerodust/ai-sdk) | Vercel AI SDK tools |
+| [`@zerodust/sdk`](https://www.npmjs.com/package/@zerodust/sdk) | TypeScript client and agent (`createAgentFromPrivateKey`); the website uses it |
+| [`@zerodust/mcp-server`](https://www.npmjs.com/package/@zerodust/mcp-server) | MCP server, run locally (paused) |
+| [`@zerodust/langchain`](https://www.npmjs.com/package/@zerodust/langchain) | LangChain tools (paused) |
+| [`@zerodust/ai-sdk`](https://www.npmjs.com/package/@zerodust/ai-sdk) | Vercel AI SDK tools (paused) |
 
 ## Contracts
 
@@ -122,7 +56,7 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 
 ## Supported chains
 
-52 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
+57 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
@@ -157,9 +91,9 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 | Somnia | 5031 | SOMI |  | |  |
 
 Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
-not hand-edit it. The 21 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
-Flare, Cronos, Rootstock, Telos, XDC, Fuse, Monad, Lens, Boba, zkSync Era, Flow EVM, HyperEVM, Metis,
-Vana, Gravity, Abstract, Immutable zkEVM, Etherlink, Avalanche, Blast and Ethereal. Destinations are
+not hand-edit it. The 22 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
+Flare, Cronos, Rootstock, Telos, XDC, Fuse, Monad, opBNB, Lens, Boba, zkSync Era, Flow EVM, HyperEVM,
+Metis, Vana, Gravity, Abstract, Immutable zkEVM, Etherlink, Avalanche, Blast and Ethereal. Destinations are
 any EVM chain a bridge delivers native gas to (`GET /destinations?fromChainId=`), over 100 from Base.
 
 ## Fees

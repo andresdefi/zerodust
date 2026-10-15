@@ -56,4 +56,4 @@ Era, Abstract and Lens. See its README.
 
 A deployed contract is not a supported chain: EIP-7702 must work there (one real sweep, because some
 chains accept type-4 transactions and never mine them), the sponsor needs a float, and the backend
-needs the chain's config. The project's chain checklist is in the workspace docs (`docs/CHAINS.md`).
+needs the chain's config.

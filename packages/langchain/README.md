@@ -1,5 +1,8 @@
 # @zerodust/langchain
 
+> **Paused and deprecated on npm.** ZeroDust's agent interface is paused; to sweep, use
+> https://zerodust.xyz.
+
 LangChain tools for [ZeroDust](https://zerodust.xyz) - sweep native gas tokens to exactly zero.
 
 ## Installation
