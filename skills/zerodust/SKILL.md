@@ -1,6 +1,6 @@
 ---
 name: zerodust
-description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports 46 mainnet chains including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, and sweeps to any chain a bridge delivers native gas to. Balances under $1 pay a 5% fee with no minimum."
+description: "Sweep 100% of native gas tokens (ETH, BNB, MATIC, etc.) from EVM chains via ZeroDust, leaving exactly zero balance. Use when: user wants to exit a chain completely, consolidate dust balances, clean up wallets, or bridge remaining native tokens cross-chain. Supports the EIP-7702 chains the API lists (GET /chains), including Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, and sweeps to any chain a bridge delivers native gas to. Balances under $1 pay a 5% fee with no minimum."
 license: MIT
 compatibility: "Requires network access to ZeroDust API. For programmatic sweeps, requires viem and a private key. For user-facing sweeps, requires a wallet with EIP-7702 support."
 metadata:
@@ -9,6 +9,10 @@ metadata:
 ---
 
 # ZeroDust - Chain Exit Infrastructure
+
+> **Paused.** ZeroDust's agent interface is paused: the hosted MCP endpoint and agent API keys
+> are switched off and the agent packages are deprecated on npm. The public API, the SDK and the
+> local MCP server still work with your own key; for people, the place to sweep is https://zerodust.xyz.
 
 ZeroDust sweeps 100% of native gas tokens from EVM chains, leaving **exactly zero balance**. It uses EIP-7702 sponsored execution so users never pay gas directly.
 
@@ -21,7 +25,7 @@ ZeroDust sweeps 100% of native gas tokens from EVM chains, leaving **exactly zer
 
 ## How It Works
 
-1. **Check balances** across 25 supported chains
+1. **Check balances** across the supported chains
 2. **Get a quote** with fee breakdown
 3. **User signs** EIP-7702 authorization + EIP-712 sweep intent (2 signatures)
 4. **ZeroDust executes** the sweep - user receives funds on destination chain
@@ -110,26 +114,20 @@ curl https://api.zerodust.xyz/sweep/SWEEP_ID
 
 ## Quick Start: MCP
 
-Two servers, same tool names. Pick by whether the agent needs to actually sweep.
+Local stdio only: `npx @zerodust/mcp-server` (the hosted endpoint is switched off).
+It can sweep, because the key stays on the agent's machine.
 
-**Hosted, no install** - connect to `https://api.zerodust.xyz/mcp`. Read-only,
-because it holds no keys.
-
-**Local stdio** - `npx @zerodust/mcp-server`. Can sweep, because the key stays
-on the agent's machine.
-
-| Tool | Purpose | Where |
-|------|---------|-------|
-| `zerodust_get_chains` | List supported chains | both |
-| `zerodust_get_balances` | Find stranded gas across all chains | both |
-| `zerodust_get_quote` | Price emptying a chain to zero | both |
-| `zerodust_get_sweep_status` | Check a submitted sweep | both |
-| `zerodust_list_sweeps` | List past sweeps | both |
-| `zerodust_register_api_key` | Self-issue an API key, no human signup | both |
-| `zerodust_info` | Service details, pricing, integration | both |
-| `zerodust_get_agent_address` | Show the signing wallet and its allowlist | stdio only |
-| `zerodust_sweep` | Empty one chain to exactly zero | stdio only |
-| `zerodust_sweep_all` | Empty every chain with a balance | stdio only |
+| Tool | Purpose |
+|------|---------|
+| `zerodust_get_chains` | List supported chains |
+| `zerodust_get_balances` | Find stranded gas across all chains |
+| `zerodust_get_quote` | Price emptying a chain to zero |
+| `zerodust_get_sweep_status` | Check a submitted sweep |
+| `zerodust_list_sweeps` | List past sweeps |
+| `zerodust_info` | Service details, pricing, integration |
+| `zerodust_get_agent_address` | Show the signing wallet and its allowlist |
+| `zerodust_sweep` | Empty one chain to exactly zero |
+| `zerodust_sweep_all` | Empty every chain with a balance |
 
 The sweep tools accept `dryRun: true`, which rehearses the whole flow and moves
 nothing. Use it first.
@@ -140,71 +138,11 @@ an encrypted V3 keystore, a key file, or `ZERODUST_PRIVATE_KEY` inline. Funds ca
 only go to the agent's own address unless `ZERODUST_ALLOWED_DESTINATIONS` lists
 more.
 
-## Agent API (Simplified)
+## Supported Chains
 
-For AI agents, there are dedicated endpoints that reduce round trips:
-
-```bash
-# Register for an API key
-curl -X POST https://api.zerodust.xyz/agent/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Agent", "agentId": "agent-001"}'
-# Returns: { "apiKey": "zd_..." }
-
-# Single sweep (combines quote + auth data)
-curl -X POST https://api.zerodust.xyz/agent/sweep \
-  -H "Authorization: Bearer zd_..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fromChainId": 42161,
-    "toChainId": 8453,
-    "userAddress": "0x...",
-    "destination": "0x..."
-  }'
-
-# Batch sweep (multiple chains at once)
-curl -X POST https://api.zerodust.xyz/agent/batch-sweep \
-  -H "Authorization: Bearer zd_..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sweeps": [
-      {"fromChainId": 42161},
-      {"fromChainId": 10},
-      {"fromChainId": 137}
-    ],
-    "userAddress": "0x...",
-    "destination": "0x...",
-    "consolidateToChainId": 8453
-  }'
-```
-
-## Supported Chains (46 mainnet)
-
-| Chain | ID | Token | Chain | ID | Token |
-|-------|---:|-------|-------|---:|-------|
-| Ethereum | 1 | ETH | Somnia | 5031 | SOMI |
-| Optimism | 10 | ETH | Arc | 5042 | USDC |
-| BNB Chain | 56 | BNB | Superseed | 5330 | ETH |
-| Gnosis | 100 | xDAI | Base | 8453 | ETH |
-| Unichain | 130 | ETH | Plasma | 9745 | XPL |
-| Polygon | 137 | POL | Apechain | 33139 | APE |
-| Sonic | 146 | S | Mode | 34443 | ETH |
-| Manta Pacific | 169 | ETH | Mythos | 42018 | ETH |
-| X Layer | 196 | OKB | Arbitrum | 42161 | ETH |
-| Fraxtal | 252 | FRAX | Celo | 42220 | CELO |
-| Shape | 360 | ETH | Hemi | 43111 | ETH |
-| World Chain | 480 | ETH | Zircuit | 48900 | ETH |
-| Stable | 988 | gUSDT | Ink | 57073 | ETH |
-| Lisk | 1135 | ETH | Linea | 59144 | ETH |
-| Sei | 1329 | SEI | BOB | 60808 | ETH |
-| DATA Network | 1514 | DATA | Berachain | 80094 | BERA |
-| Pharos | 1672 | PROS | Doma | 97477 | ETH |
-| Soneium | 1868 | ETH | Plume | 98866 | PLUME |
-| Ronin | 2020 | RON | Taiko | 167000 | ETH |
-| Morph | 2818 | ETH | Scroll | 534352 | ETH |
-| MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
-| Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
-| Mantle | 5000 | MNT | Zora | 7777777 | ETH |
+The live list is `GET https://api.zerodust.xyz/chains` (the EIP-7702 chains, swept by the sponsor)
+and `GET https://api.zerodust.xyz/direct/chains` (chains without EIP-7702, swept by the wallet itself
+with transactions the API plans). The table is in the repository README.
 
 Cross-chain sweeps go through Relay, Across, Stargate or Gas.zip (best output wins), to any EVM chain one of them delivers native gas to. A few chains have no bridge at times; `GET /chains` shows which.
 
@@ -244,6 +182,5 @@ Mainnet address (same on every chain via CREATE2):
 
 - Website: https://zerodust.xyz
 - API Docs: https://api.zerodust.xyz/docs
-- MCP Server: https://api.zerodust.xyz/mcp
-- ERC-8004 Agent: https://www.8004scan.io/agents/base/1435
+- ERC-8004 Agent (paused): https://www.8004scan.io/agents/base/1435
 - GitHub: https://github.com/andresdefi

@@ -661,8 +661,8 @@ For detailed AI agent integration guide, see [AGENT_INTEGRATION.md](./AGENT_INTE
 
 ## Supported Chains
 
-The SDK sweeps the 52 sponsored (EIP-7702) chains the API serves; `getChains()`
-returns the live list, and the table is in the repository README. The 21 direct
+The SDK sweeps the sponsored (EIP-7702) chains the API serves; `getChains()`
+returns the live list, and the table is in the repository README. The direct
 chains (no EIP-7702) are swept with transactions the REST API plans
 (`/direct/*`, see https://zerodust.xyz/docs/direct-chains), not through the SDK.
 Destinations can be any EVM chain a bridge delivers native gas to

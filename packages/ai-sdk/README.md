@@ -1,5 +1,8 @@
 # @zerodust/ai-sdk
 
+> **Paused and deprecated on npm.** ZeroDust's agent interface is paused; to sweep, use
+> https://zerodust.xyz.
+
 Vercel AI SDK tools for [ZeroDust](https://zerodust.xyz) - sweep native gas tokens to exactly zero.
 
 ## Installation

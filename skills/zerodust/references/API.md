@@ -184,30 +184,6 @@ Check sweep status.
 
 List sweeps for a user. Supports `limit`, `offset`, and `status` query params.
 
-## Agent Endpoints
-
-These require an API key via `Authorization: Bearer <key>` or `X-API-Key: <key>`.
-
-### POST /agent/register
-
-Register and get an API key. Rate limits: 300/min, 1000/day.
-
-### POST /agent/sweep
-
-`/quote` and `POST /authorization` in one call. Body: `fromChainId`, `toChainId`, `userAddress`, optional `destination` (defaults to `userAddress`). Returns the quote, the authorization typed data, `eip7702` (contract, chain, nonce) and `expiresAt`. The server signs nothing; verify locally, sign, then `POST /sweep`.
-
-### POST /agent/batch-sweep
-
-The same for several chains. Body: `sweeps` (`[{ fromChainId, toChainId? }]`), `userAddress` (required, the wallet being swept), optional `destination` and `consolidateToChainId`. Returns a `results` array with success or error per chain. Quotes last about 55 seconds, so sign and submit promptly.
-
-### GET /agent/me
-
-Get API key info and usage stats.
-
-### DELETE /agent/key
-
-Self-revoke API key (cannot be undone).
-
 ## Error Codes
 
 | Code | Meaning |
@@ -221,35 +197,3 @@ Self-revoke API key (cannot be undone).
 | `CONTRACT_NOT_DEPLOYED` | No contract on requested chain |
 | `SOURCE_CHAIN_DISABLED` | Bridge temporarily disabled for source |
 | `DEST_CHAIN_DISABLED` | Bridge temporarily disabled for destination |
-
-## MCP Server
-
-Endpoint: `POST https://api.zerodust.xyz/mcp`
-
-Protocol: JSON-RPC 2.0 (MCP spec version 2024-11-05)
-
-### Available Tools
-
-- **zerodust_get_chains** `{}` - List all supported chains
-- **zerodust_get_destinations** `{fromChainId}` - Chains a cross-chain sweep can deliver to
-- **zerodust_get_balances** `{address}` - Balances across all chains
-- **zerodust_get_quote** `{fromChainId, toChainId, userAddress, destination}` - Quote with fee breakdown
-- **zerodust_get_sweep_status** `{sweepId}` - Check sweep status
-- **zerodust_list_sweeps** `{address}` - List past sweeps
-- **zerodust_info** `{}` - Pricing, features, integration details
-
-### Example MCP Call
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "zerodust_get_balances",
-    "arguments": {
-      "address": "0x1234567890abcdef1234567890abcdef12345678"
-    }
-  }
-}
-```

@@ -1,5 +1,8 @@
 # @zerodust/mcp-server
 
+> **Paused and deprecated on npm.** ZeroDust's agent interface is paused. The server still runs
+> locally against the public API with your own key; to sweep, use https://zerodust.xyz.
+
 Model Context Protocol (MCP) server for [ZeroDust](https://zerodust.xyz) - sweep native gas tokens to exactly zero.
 
 ## Installation
@@ -73,7 +76,6 @@ Read-only by default:
 | `zerodust_get_quote` | Get a quote for sweeping a chain |
 | `zerodust_get_sweep_status` | Check status of a submitted sweep |
 | `zerodust_list_sweeps` | List past sweeps for an address |
-| `zerodust_register_api_key` | Issue this agent its own API key, no human signup |
 
 Sweep tools. They are always listed, so an agent can see that sweeping exists,
 but they refuse and move nothing until execution is enabled (see below):
@@ -199,18 +201,6 @@ With execution enabled:
 - "Do a dry run of sweeping my Arbitrum balance to Base" (moves nothing)
 - "Sweep my Arbitrum balance to Base"
 - "Exit every chain and consolidate everything on Base"
-
-## No install: the hosted server
-
-If you only need the read-only tools, there is nothing to install. Connect to
-the hosted server by URL:
-
-```
-https://api.zerodust.xyz/mcp
-```
-
-It exposes the same read-only tools as this package. Sweeping is not available
-there, because sweeping needs a key and the hosted server does not have yours.
 
 ## Development
 

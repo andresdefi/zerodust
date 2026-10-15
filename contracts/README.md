@@ -104,8 +104,8 @@ ZeroDust uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 **Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`, deployed with `script/DeployMainnet.s.sol` through the
 CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS KMS key
-`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 52 chains the API serves
-(generated from `GET https://api.zerodust.xyz/chains` on 2026-10-11):
+`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 57 chains the API serves
+(generated from `GET https://api.zerodust.xyz/chains` on 2026-10-15):
 
 | Chain | Chain ID | Native Token | Explorer |
 |-------|----------|--------------|----------|
@@ -128,9 +128,12 @@ CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS K
 | Sei | 1329 | SEI | [View](https://seitrace.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | DATA Network | 1514 | DATA | [View](https://www.datanetscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Pharos | 1672 | PROS | [View](https://pharos.socialscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Reya | 1729 | ETH | [View](https://explorer.reya.network/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Metal L2 | 1750 | ETH | [View](https://explorer.metall2.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Soneium | 1868 | ETH | [View](https://explorer.soneium.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Ronin | 2020 | RON | [View](https://app.roninchain.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Morph | 2818 | ETH | [View](https://explorer.morphl2.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| RISE | 4153 | ETH | [View](https://explorer.risechain.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | MegaETH | 4326 | ETH | [View](https://mega.etherscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Robinhood Chain | 4663 | ETH | [View](https://robin.etherscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Mantle | 5000 | MNT | [View](https://mantlescan.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
@@ -153,10 +156,12 @@ CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS K
 | Linea | 59144 | ETH | [View](https://lineascan.build/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | BOB | 60808 | ETH | [View](https://explorer.gobob.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Berachain | 80094 | BERA | [View](https://beratrail.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| Codex | 81224 | ETH | [View](https://explorer.codex.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Doma | 97477 | ETH | [View](https://explorer.doma.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Plume | 98866 | PLUME | [View](https://explorer.plume.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Mitosis | 124816 | MITO | [View](https://mitoscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Taiko | 167000 | ETH | [View](https://taikoscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
+| HPP | 190415 | ETH | [View](https://explorer.hpp.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Scroll | 534352 | ETH | [View](https://scrollscan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Gensyn | 685689 | ETH | [View](https://gensyn-mainnet.explorer.alchemy.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Katana | 747474 | ETH | [View](https://katanascan.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |

@@ -1,5 +1,8 @@
 # ZeroDust AI Agent Integration Guide
 
+> **Paused.** ZeroDust's agent interface is paused (no new API keys, no hosted MCP endpoint). The SDK
+> below still works against the public API with your own key.
+
 This guide explains how AI agents can use ZeroDust to sweep native gas tokens to zero when exiting chains or addresses they no longer use.
 
 ## Overview
@@ -55,50 +58,6 @@ const results = await agent.sweepAll({
 console.log(`Swept ${results.successful.length} chains`);
 console.log(`Failed: ${results.failed.length}`);
 ```
-
-## API Key Registration
-
-For production use, register for an API key to get higher rate limits:
-
-```typescript
-import { ZeroDust } from '@zerodust/sdk';
-
-// Register your agent
-const client = new ZeroDust({ environment: 'mainnet' });
-
-const response = await fetch('https://api.zerodust.xyz/agent/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'My AI Agent',
-    agentId: 'my-agent-v1',
-    contactEmail: 'agent@example.com',
-    metadata: {
-      framework: 'langchain',
-      version: '1.0.0'
-    }
-  })
-});
-
-const { apiKey } = await response.json();
-// SAVE THIS - only shown once!
-
-// Use the API key in your agent
-const agentWithKey = await createAgentFromPrivateKey(privateKey, {
-  environment: 'mainnet',
-  apiKey: apiKey
-});
-```
-
-### Rate Limits
-
-| Key type | Requests per minute | Daily (quote, authorization and sweep requests) |
-|----------|---------------------|-------------------------------------------------|
-| No key   | per IP: 60 for quotes, 200 for reads | none |
-| Agent    | 300 | 1,000 |
-| Partner  | 1,000 | 10,000 |
-
-Details: https://zerodust.xyz/docs/api#rate-limits
 
 ## ZeroDustAgent Class
 
@@ -193,34 +152,6 @@ const balance = await agent.getBalance(8453); // Base
 console.log(`Balance: ${balance.balanceFormatted} ETH`);
 ```
 
-## Batch Sweep API Endpoint
-
-For maximum efficiency, use the batch sweep endpoint directly:
-
-```typescript
-const response = await fetch('https://api.zerodust.xyz/agent/batch-sweep', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
-  },
-  body: JSON.stringify({
-    sweeps: [
-      { fromChainId: 42161 },
-      { fromChainId: 10 },
-      { fromChainId: 137 },
-    ],
-    userAddress: '0x...', // the wallet being swept
-    destination: '0x...', // defaults to userAddress
-    consolidateToChainId: 8453, // All to Base
-  })
-});
-
-const { results, summary } = await response.json();
-// Each result has the quote and the /authorization typed data; verify both
-// locally (verifySweepQuote) before signing, then submit to POST /sweep
-```
-
 ## Signing Flow
 
 ZeroDust uses EIP-7702 for gasless execution. The agent signs:
@@ -296,7 +227,7 @@ try {
 
 ## Supported Chains
 
-The SDK sweeps the 52 sponsored (EIP-7702) chains the API serves, from Ethereum, Base, Arbitrum,
+The SDK sweeps the sponsored (EIP-7702) chains the API serves, from Ethereum, Base, Arbitrum,
 Optimism and BNB Chain to MegaETH, Katana and Plume. The table is in the repository README; read the
 live list rather than hardcoding it:
 
@@ -307,11 +238,7 @@ console.log(chains.map(c => c.name));
 
 ## Best Practices
 
-### 1. Use API Keys in Production
-
-Register for an API key to get higher rate limits and usage analytics.
-
-### 2. Handle Partial Failures
+### 1. Handle Partial Failures
 
 Batch sweeps may partially succeed. Always check results:
 
@@ -324,7 +251,7 @@ for (const failure of results.failed) {
 }
 ```
 
-### 3. Set Reasonable Timeouts
+### 2. Set Reasonable Timeouts
 
 Cross-chain sweeps can take a few minutes. Set appropriate timeouts:
 
@@ -334,19 +261,7 @@ await agent.sweep(request, {
 });
 ```
 
-### 4. Monitor Your Agent's Activity
-
-Use the /agent/me endpoint to check usage:
-
-```typescript
-const stats = await fetch('https://api.zerodust.xyz/agent/me', {
-  headers: { 'Authorization': `Bearer ${apiKey}` }
-}).then(r => r.json());
-
-console.log(`Daily sweeps: ${stats.rateLimits.dailyUsed}/${stats.rateLimits.daily}`);
-```
-
-### 5. Secure Your Private Keys
+### 3. Secure Your Private Keys
 
 - Never hardcode private keys
 - Use environment variables or secure vaults
