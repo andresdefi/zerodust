@@ -104,8 +104,8 @@ ZeroDust uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 **Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`, deployed with `script/DeployMainnet.s.sol` through the
 CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS KMS key
-`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 57 chains the API serves
-(generated from `GET https://api.zerodust.xyz/chains` on 2026-10-15):
+`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 56 chains the API serves
+(generated from `GET https://api.zerodust.xyz/chains` on 2026-10-18; Superseed closed 2026-10-17):
 
 | Chain | Chain ID | Native Token | Explorer |
 |-------|----------|--------------|----------|
@@ -139,7 +139,6 @@ CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS K
 | Mantle | 5000 | MNT | [View](https://mantlescan.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Somnia | 5031 | SOMI | [View](https://explorer.somnia.network/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Arc | 5042 | USDC | [View](https://explorer.arc.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
-| Superseed | 5330 | ETH | [View](https://explorer.superseed.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Kaia | 8217 | KAIA | [View](https://kaiascan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Base | 8453 | ETH | [View](https://basescan.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Plasma | 9745 | XPL | [View](https://explorer.plasma.to/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |

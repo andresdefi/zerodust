@@ -46,7 +46,7 @@ their rate limits. To sweep, use [zerodust.xyz](https://zerodust.xyz).
 
 | Contract | Address (same on every chain, CREATE2) | Where |
 |---|---|---|
-| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 57 sponsored chains below |
+| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 56 sponsored chains below |
 | ZeroDustPermissionRouter v2 (`contracts/src/ZeroDustPermissionRouter.sol`) | `0x369A97dd256F7eb37fF7116C4EcBd50318eBb286` | 16 chains with MetaMask Advanced Permissions |
 | ZeroDustGuard (`contracts/src/ZeroDustGuard.yul`) | `0x2f95e6ED90a7dD67fc3Fae5c5628647E6A83e48e` | Blast, Boba |
 | ZeroDustPaymaster (`contracts-zk/`) | `0x986e4Bb55AEEE6a8c80c28Ca787b13E216fD25B8` | zkSync Era, Abstract, Lens |
@@ -56,12 +56,12 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 
 ## Supported chains
 
-57 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
+56 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
-| Ethereum | 1 | ETH | Arc | 5042 | USDC |
-| Optimism | 10 | ETH | Superseed | 5330 | ETH |
+| Ethereum | 1 | ETH | Somnia | 5031 | SOMI |
+| Optimism | 10 | ETH | Arc | 5042 | USDC |
 | BNB Chain | 56 | BNB | Kaia | 8217 | KAIA |
 | Gnosis | 100 | xDAI | Base | 8453 | ETH |
 | Unichain | 130 | ETH | Plasma | 9745 | XPL |
@@ -88,7 +88,6 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 | MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
 | Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
 | Mantle | 5000 | MNT | Zora | 7777777 | ETH |
-| Somnia | 5031 | SOMI |  | |  |
 
 Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
 not hand-edit it. The 22 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
