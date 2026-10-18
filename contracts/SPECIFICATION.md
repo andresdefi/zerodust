@@ -1,7 +1,7 @@
 # ZeroDustSweep Specification
 
 **Version:** 3.0
-**Status:** Production, deployed on 57 mainnets at `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` (source unchanged since January 2026)
+**Status:** Production, in use on 56 mainnets at `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` (source unchanged since January 2026)
 
 ---
 
