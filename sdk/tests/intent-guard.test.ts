@@ -19,6 +19,7 @@ import {
 import {
   allowedCallTargets,
   bridgeForCallTarget,
+  GASZIP_FORWARDER_DEFAULT,
   deliveredToken,
   deliversOnlyToSender,
   buildGasZipDepositCalldata,
@@ -222,6 +223,9 @@ describe('verifySweepQuote: mode and call target (CRITICAL-2)', () => {
   it('refuses a bridge contract on a chain where that bridge is not deployed', async () => {
     // Across's periphery exists on Base but not on Gnosis
     expect(bridgeForCallTarget(8453, ACROSS_PERIPHERY)).toBe('across');
+    // Gas.zip's forwarder: allowed on Kaia (paid out, 2026-10-12), never on MegaETH (never credited)
+    expect(bridgeForCallTarget(8217, GASZIP_FORWARDER_DEFAULT)).toBe('gaszip');
+    expect(bridgeForCallTarget(4326, GASZIP_FORWARDER_DEFAULT)).toBeNull();
     expect(bridgeForCallTarget(100, ACROSS_PERIPHERY)).toBeNull();
 
     const quote = tamper(makeQuote({ route: 'relay', fromChainId: 100 }), (q) => {

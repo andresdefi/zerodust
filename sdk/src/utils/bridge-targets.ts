@@ -57,8 +57,8 @@ const GASZIP_SOURCE_DENYLIST: ReadonlySet<number> = new Set([
   97477, // Doma: Gas.zip does not serve it
   124816, // Mitosis: Gas.zip does not take it as a source
   648, // Endurance: only Fusionist's bridge takes ACE out
-  // Gas.zip delivers into these but takes nothing out (checked 2026-10-07)
-  8217, // Kaia
+  // Gas.zip delivers into these but takes nothing out (checked 2026-10-07). Not Kaia (8217): its
+  // deposits through the forwarder are paid out (Gas.zip /search, 2026-10-12; 0.5.24)
   16661, // 0G
   42170, // Arbitrum Nova: listed with outbound off
   1155, // Intuition: only Caldera's Metalayer takes TRUST out
