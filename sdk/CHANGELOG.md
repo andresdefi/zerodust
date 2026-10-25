@@ -5,6 +5,14 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.25] - 2026-10-25
+
+### Removed
+
+- **Superseed (5330).** The chain closed on 2026-10-17 and its RPC no longer resolves; the API
+  stopped serving it then. Gone from `DEFAULT_RPC_URLS`, the Relay origin list,
+  `ZERODUST_MAINNET_CHAIN_IDS` and the OP Stack L1 fee list.
+
 ## [0.5.24] - 2026-10-19
 
 ### Fixed

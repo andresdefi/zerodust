@@ -36,7 +36,7 @@ type L1FeeOracle = 'op' | 'scroll' | 'mantle' | 'arbitrum';
  */
 export const L1_FEE_ORACLES: Readonly<Record<number, L1FeeOracle>> = {
   10: 'op', 130: 'op', 169: 'op', 252: 'op', 360: 'op', 480: 'op', 1135: 'op', 1868: 'op',
-  2020: 'op', 4326: 'op', 5330: 'op', 8453: 'op', 34443: 'op', 42018: 'op', 43111: 'op',
+  2020: 'op', 4326: 'op', 8453: 'op', 34443: 'op', 42018: 'op', 43111: 'op',
   48900: 'op', 57073: 'op', 60808: 'op', 97477: 'op', 685689: 'op', 747474: 'op', 7777777: 'op',
   534352: 'scroll',
   5000: 'mantle',
