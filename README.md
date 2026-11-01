@@ -56,25 +56,24 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 
 ## Supported chains
 
-56 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
+55 sponsored chains, generated from the live API (`GET https://api.zerodust.xyz/chains`):
 
 | Chain | ID | Token | Chain | ID | Token |
 |-------|---:|-------|-------|---:|-------|
-| Ethereum | 1 | ETH | Somnia | 5031 | SOMI |
-| Optimism | 10 | ETH | Arc | 5042 | USDC |
-| BNB Chain | 56 | BNB | Kaia | 8217 | KAIA |
-| Gnosis | 100 | xDAI | Base | 8453 | ETH |
-| Unichain | 130 | ETH | Plasma | 9745 | XPL |
-| Polygon | 137 | POL | 0G | 16661 | 0G |
-| Sonic | 146 | S | Apechain | 33139 | APE |
-| Manta Pacific | 169 | ETH | Mode | 34443 | ETH |
-| X Layer | 196 | OKB | Mythos | 42018 | ETH |
-| Fraxtal | 252 | FRAX | Arbitrum | 42161 | ETH |
-| Shape | 360 | ETH | Arbitrum Nova | 42170 | ETH |
-| World Chain | 480 | ETH | Celo | 42220 | CELO |
-| Endurance | 648 | ACE | Hemi | 43111 | ETH |
-| Stable | 988 | gUSDT | Zircuit | 48900 | ETH |
-| Lisk | 1135 | ETH | Ink | 57073 | ETH |
+| Ethereum | 1 | ETH | Arc | 5042 | USDC |
+| Optimism | 10 | ETH | Kaia | 8217 | KAIA |
+| BNB Chain | 56 | BNB | Base | 8453 | ETH |
+| Gnosis | 100 | xDAI | Plasma | 9745 | XPL |
+| Unichain | 130 | ETH | 0G | 16661 | 0G |
+| Polygon | 137 | POL | Apechain | 33139 | APE |
+| Sonic | 146 | S | Mode | 34443 | ETH |
+| Manta Pacific | 169 | ETH | Mythos | 42018 | ETH |
+| X Layer | 196 | OKB | Arbitrum | 42161 | ETH |
+| Fraxtal | 252 | FRAX | Arbitrum Nova | 42170 | ETH |
+| Shape | 360 | ETH | Celo | 42220 | CELO |
+| World Chain | 480 | ETH | Hemi | 43111 | ETH |
+| Endurance | 648 | ACE | Zircuit | 48900 | ETH |
+| Stable | 988 | gUSDT | Ink | 57073 | ETH |
 | Intuition | 1155 | TRUST | Linea | 59144 | ETH |
 | Sei | 1329 | SEI | BOB | 60808 | ETH |
 | DATA Network | 1514 | DATA | Berachain | 80094 | BERA |
@@ -88,11 +87,12 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 | MegaETH | 4326 | ETH | Gensyn | 685689 | ETH |
 | Robinhood Chain | 4663 | ETH | Katana | 747474 | ETH |
 | Mantle | 5000 | MNT | Zora | 7777777 | ETH |
+| Somnia | 5031 | SOMI |  | |  |
 
 Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
-not hand-edit it. The 22 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
+not hand-edit it. The 20 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
 Flare, Cronos, Rootstock, Telos, XDC, Fuse, Monad, opBNB, Lens, Boba, zkSync Era, Flow EVM, HyperEVM,
-Metis, Vana, Gravity, Abstract, Immutable zkEVM, Etherlink, Avalanche, Blast and Ethereal. Destinations are
+Metis, Vana, Abstract, Immutable zkEVM, Etherlink, Avalanche and Ethereal. Destinations are
 any EVM chain a bridge delivers native gas to (`GET /destinations?fromChainId=`), over 100 from Base.
 
 ## Fees

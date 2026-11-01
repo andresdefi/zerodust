@@ -510,10 +510,10 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     });
   });
 
-  describe("A chain's own bridge (Lisk -> Ethereum, bridgeETHTo)", () => {
+  describe("A chain's own bridge (RISE -> Ethereum, bridgeETHTo)", () => {
     const BRIDGE = '0x4200000000000000000000000000000000000010' as Address;
     const abi = parseAbi(['function bridgeETHTo(address _to, uint32 _minGasLimit, bytes _extraData) payable']);
-    const liskCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 1135, toChainId: 1, bridge: 'native', ...o });
+    const riseCtx = (o: Partial<QuoteCheckContext> = {}) => ctx({ fromChainId: 4153, toChainId: 1, bridge: 'native', ...o });
 
     function nativeQuote(p: { to?: Address; destination?: Address; chain?: string } = {}) {
       const base = makeQuote({ route: 'relay', destination: p.destination });
@@ -527,21 +527,21 @@ describe('verifySweepQuote: route hash (CRITICAL-2)', () => {
     }
 
     it('accepts the withdrawal to Ethereum that names the requested recipient', async () => {
-      const { route } = await verifySweepQuote(nativeQuote(), liskCtx());
+      const { route } = await verifySweepQuote(nativeQuote(), riseCtx());
       expect(route).toEqual({ bridge: 'native', recipientVerified: true });
-      expect(bridgeForCallTarget(1135, BRIDGE)).toBe('native');
+      expect(bridgeForCallTarget(4153, BRIDGE)).toBe('native');
       expect(bridgeForCallTarget(8453, BRIDGE)).toBeNull();
     });
 
     it('refuses another recipient, another destination chain, or other calldata', async () => {
-      expect(await rejection(verifySweepQuote(nativeQuote({ to: ATTACKER }), liskCtx()))).toMatch(/pays .* not /);
-      expect(await rejection(verifySweepQuote(nativeQuote({ chain: '8453' }), liskCtx({ toChainId: 8453 })))).toMatch(/does not go to chain 8453/);
+      expect(await rejection(verifySweepQuote(nativeQuote({ to: ATTACKER }), riseCtx()))).toMatch(/pays .* not /);
+      expect(await rejection(verifySweepQuote(nativeQuote({ chain: '8453' }), riseCtx({ toChainId: 8453 })))).toMatch(/does not go to chain 8453/);
       const other = tamper(nativeQuote(), (q) => {
         const data = '0xdeadbeef' as Hex;
         q.intent.callData = data;
         q.intent.routeHash = keccak256(data);
       });
-      expect(await rejection(verifySweepQuote(other, liskCtx()))).toMatch(/not bridgeETHTo/);
+      expect(await rejection(verifySweepQuote(other, riseCtx()))).toMatch(/not bridgeETHTo/);
     });
   });
 

@@ -80,7 +80,7 @@ const RELAY_ERC20_ROUTER_ALT: Address = '0x9ef6d3c2f60d7b9008d74cab1fc0f899c957c
 
 /** ZeroDust chains Relay serves as an origin with the standard deployment */
 const RELAY_STANDARD_CHAINS = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 360, 480, 988, 1135, 1868, 2020, 2818, 4326, 4663,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 360, 480, 988, 1868, 2020, 2818, 4326, 4663,
   5031, 5042, 8453, 9745, 33139, 34443, 42018, 42161, 42220, 48900, 57073, 60808,
   80094, 97477, 98866, 534352, 685689, 747474, 7777777,
 ] as const;
@@ -212,7 +212,7 @@ export function deliversOnlyToSender(fromChainId: number, toChainId: number): bo
 
 /** Every chain the ZeroDust contract is deployed on (mainnet; Kaia, 0G, Arbitrum Nova and Intuition 2026-10-07; Reya, HPP, RISE, Codex, Metal L2 2026-10-14) */
 export const ZERODUST_MAINNET_CHAIN_IDS: readonly number[] = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1135, 1155, 1329, 1514, 1672, 1729, 1750, 1868,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 648, 988, 1155, 1329, 1514, 1672, 1729, 1750, 1868,
   2020, 2818, 4153, 4326, 4663, 5000, 5031, 5042, 8217, 8453, 9745, 16661, 33139, 34443, 42018, 42161,
   42170, 42220, 43111, 48900, 57073, 59144, 60808, 80094, 81224, 97477, 98866, 124816, 167000, 190415, 534352,
   685689, 747474, 7777777,
@@ -234,10 +234,9 @@ export const ARB_SYS: Address = '0x0000000000000000000000000000000000000064';
 /**
  * Sponsored chains whose own bridge ZeroDust can route into, only when the sweep asks for it
  * (`bridge=native`), only to their parent chain. 1:1; the user proves and claims there later.
- * Lisk: its only official bridge (bridge.lisk.com), chain closing 2026-10-31. Arbitrum Nova: ArbSys.
+ * Arbitrum Nova: ArbSys.
  */
 export const NATIVE_EXITS: Readonly<Record<number, { stack: 'op' | 'arb' | 'taiko' | 'op-token' | 'agglayer'; toChainId: number; bridge: Address }>> = {
-  1135: { stack: 'op', toChainId: 1, bridge: OP_L2_STANDARD_BRIDGE },
   // Arbitrum Nova (minimized by the DAO in 2026, its own bridge still takes ETH to Ethereum)
   42170: { stack: 'arb', toChainId: 1, bridge: ARB_SYS },
   // Fraxtal: its gas token FRAX leaves through L2ToL1MessagePasser.initiateWithdrawal and is paid out as FXS on Ethereum

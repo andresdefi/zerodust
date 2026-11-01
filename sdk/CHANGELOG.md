@@ -5,6 +5,14 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26] - 2026-11-01
+
+### Removed
+
+- **Lisk (1135).** The chain closed on 2026-10-31 (its last day for withdrawals); the API stopped
+  serving it then. Gone from `DEFAULT_RPC_URLS`, the Relay origin list, `ZERODUST_MAINNET_CHAIN_IDS`,
+  `NATIVE_EXITS` and the OP Stack L1 fee list.
+
 ## [0.5.25] - 2026-10-25
 
 ### Removed

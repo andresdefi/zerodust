@@ -104,8 +104,8 @@ ZeroDust uses the user's EOA as the `verifyingContract` (EIP-7702 requirement):
 
 **Address (same on all chains):** `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2`, deployed with `script/DeployMainnet.s.sol` through the
 CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS KMS key
-`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 56 chains the API serves
-(generated from `GET https://api.zerodust.xyz/chains` on 2026-10-18; Superseed closed 2026-10-17):
+`0x01eD5c94DE39E73C986b98B85C2c0A3d1BEDff7D`, fixed in the bytecode. The 55 chains the API serves
+(generated from `GET https://api.zerodust.xyz/chains` on 2026-11-01; Superseed closed 2026-10-17, Lisk 2026-10-31):
 
 | Chain | Chain ID | Native Token | Explorer |
 |-------|----------|--------------|----------|
@@ -123,7 +123,6 @@ CREATE2 factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`. Sponsor: the AWS K
 | World Chain | 480 | ETH | [View](https://worldscan.org/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Endurance | 648 | ACE | [View](https://explorer-endurance.fusionist.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Stable | 988 | gUSDT | [View](https://stablescan.xyz/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
-| Lisk | 1135 | ETH | [View](https://blockscout.lisk.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Intuition | 1155 | TRUST | [View](https://explorer.intuition.systems/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | Sei | 1329 | SEI | [View](https://seitrace.com/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
 | DATA Network | 1514 | DATA | [View](https://www.datanetscan.io/address/0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2) |
