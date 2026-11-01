@@ -5,6 +5,13 @@ All notable changes to the @zerodust/sdk package will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.27] - 2026-11-01
+
+### Changed
+
+- Published from GitHub Actions through npm's trusted publishing, with a provenance statement.
+  `repository.directory` now points to `sdk/`. No code change.
+
 ## [0.5.26] - 2026-11-01
 
 ### Removed

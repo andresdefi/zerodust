@@ -1,6 +1,6 @@
 {
   "name": "@zerodust/sdk",
-  "version": "0.5.26",
+  "version": "0.5.27",
   "description": "Sweep 100% of a wallet's native gas token off any EVM chain, leaving exactly zero. TypeScript SDK for AI agents and onchain automation.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -67,7 +67,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andresdefi/zerodust.git"
+    "url": "git+https://github.com/andresdefi/zerodust.git",
+    "directory": "sdk"
   },
   "homepage": "https://zerodust.xyz",
   "bugs": {
