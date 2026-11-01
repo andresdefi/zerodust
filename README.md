@@ -46,7 +46,7 @@ their rate limits. To sweep, use [zerodust.xyz](https://zerodust.xyz).
 
 | Contract | Address (same on every chain, CREATE2) | Where |
 |---|---|---|
-| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 56 sponsored chains below |
+| ZeroDustSweep (`contracts/src/ZeroDustSweepMainnet.sol`) | `0x3732398281d0606aCB7EC1D490dFB0591BE4c4f2` | the 55 sponsored chains below |
 | ZeroDustPermissionRouter v2 (`contracts/src/ZeroDustPermissionRouter.sol`) | `0x369A97dd256F7eb37fF7116C4EcBd50318eBb286` | 16 chains with MetaMask Advanced Permissions |
 | ZeroDustGuard (`contracts/src/ZeroDustGuard.yul`) | `0x2f95e6ED90a7dD67fc3Fae5c5628647E6A83e48e` | Blast, Boba |
 | ZeroDustPaymaster (`contracts-zk/`) | `0x986e4Bb55AEEE6a8c80c28Ca787b13E216fD25B8` | zkSync Era, Abstract, Lens |
