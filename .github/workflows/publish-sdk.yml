@@ -1,0 +1,55 @@
+# Publishes @zerodust/sdk to npm through npm's trusted publishing (OIDC): no token, no OTP.
+# npmjs.com -> @zerodust/sdk -> Settings -> Trusted Publisher names this repo and this file.
+# Run from main after the version bump is merged:
+#   gh workflow run publish-sdk.yml -f version=0.5.27
+# The version must match sdk/package.json and not be on npm yet. prepublishOnly runs the
+# typecheck, tests and build first. The release carries a provenance statement.
+name: Publish SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version in sdk/package.json, typed again as a check
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-sdk
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      # No dependency cache in a release job
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later
+      - run: npm install -g npm@11
+
+      - name: Check the version
+        env:
+          WANTED: ${{ inputs.version }}
+        run: |
+          have=$(node -p "require('./package.json').version")
+          if [ "$have" != "$WANTED" ]; then echo "sdk/package.json is $have, not $WANTED"; exit 1; fi
+          if npm view "@zerodust/sdk@$have" version >/dev/null 2>&1; then echo "$have is already on npm"; exit 1; fi
+
+      - run: npm ci
+
+      - run: npm publish --access public
