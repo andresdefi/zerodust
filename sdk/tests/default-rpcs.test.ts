@@ -9,7 +9,7 @@ import { DEFAULT_RPC_URLS } from '../src/utils/default-rpcs.js';
 // GET https://api.zerodust.xyz/chains, 2026-10-01 (45 chains). Add a chain
 // here when the API enables one; the test then asks for its RPC.
 const API_CHAINS = [
-  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1135, 1329, 1514, 1672, 1868, 2020, 2818,
+  1, 10, 56, 100, 130, 137, 146, 169, 196, 252, 360, 480, 988, 1329, 1514, 1672, 1868, 2020, 2818,
   4326, 4663, 5000, 5031, 5042, 8453, 9745, 33139, 34443, 42018, 42161, 42220, 43111, 48900, 57073,
   59144, 60808, 80094, 97477, 98866, 167000, 534352, 685689, 747474, 7777777,
   // 2026-10-07
@@ -20,8 +20,8 @@ const API_CHAINS = [
 
 describe('DEFAULT_RPC_URLS', () => {
   it('has an https RPC for every chain the API serves', () => {
-    // 55 until Superseed closed (2026-10-17)
-    expect(API_CHAINS).toHaveLength(54);
+    // 55 until Superseed closed (2026-10-17), 54 until Lisk closed (2026-10-31)
+    expect(API_CHAINS).toHaveLength(53);
     for (const chainId of API_CHAINS) {
       expect(DEFAULT_RPC_URLS[chainId], `chain ${chainId}`).toMatch(/^https:\/\//);
     }
