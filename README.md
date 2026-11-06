@@ -89,9 +89,9 @@ its approver and withdraw its float). The sweep contract's sponsor address is fi
 | Somnia | 5031 | SOMI |  | |  |
 
 Regenerate or check this table with `node scripts/generate-chain-docs.mjs` (`--check` runs in CI); do
-not hand-edit it. The 20 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
+not hand-edit it. The 19 direct chains are listed by `GET https://api.zerodust.xyz/direct/chains`:
 Flare, Cronos, Rootstock, Telos, XDC, Fuse, Monad, opBNB, Lens, Boba, zkSync Era, Flow EVM, HyperEVM,
-Metis, Vana, Abstract, Immutable zkEVM, Etherlink, Avalanche and Ethereal. Destinations are
+Metis, Vana, Abstract, Immutable zkEVM, Etherlink and Avalanche. Destinations are
 any EVM chain a bridge delivers native gas to (`GET /destinations?fromChainId=`), over 100 from Base.
 
 ## Fees
