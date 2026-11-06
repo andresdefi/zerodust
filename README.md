@@ -25,8 +25,7 @@ This repository holds the contracts, the TypeScript SDK and the agent packages.
   Gas.zip, whichever delivers the most. A few chains whose coin no gas bridge carries deliver it as a
   token instead (Mitosis, Endurance, Intuition, Telos, 0G), said plainly in the quote. On request a
   sweep can also go into the chain's own bridge to Ethereum (to BNB Chain for opBNB), which the
-  recipient proves and claims there later; Gravity's G and Fraxtal's FRAX arrive on Ethereum as the
-  G and FXS tokens.
+  recipient proves and claims there later; Fraxtal's FRAX arrives on Ethereum as the FXS token.
 
 ## For AI agents (paused)
 
